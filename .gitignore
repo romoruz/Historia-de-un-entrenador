@@ -1,0 +1,20 @@
+# datos licenciados de StatsBomb: NUNCA se versionan
+data/raw/
+data/interim/*
+!data/interim/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+*.parquet
+*.json.gz
+# entorno y credenciales
+.venv*/
+.env
+# basura
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
+*.anterior_*
+_cuarentena/
+reports/*
+!reports/.gitkeep
