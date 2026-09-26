@@ -1,0 +1,11 @@
+# Experimento ADR-v2-37: vocabulario con estado zona × dirección de llegada.
+# Hereda TODO de default.yaml; solo cambia rutas y enciende el estado aumentado.
+# `metodo`: el que elija `dtcoach direccion-cv` (reports/fase1/direccion_cv.csv).
+hereda: default.yaml
+rutas:
+  transiciones: data/processed/direccion/transitions.parquet
+  mezcla_dir: data/processed/direccion/mezcla
+  reportes: reports/direccion
+direccion:
+  activo: true
+  metodo: x3:5

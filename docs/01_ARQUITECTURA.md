@@ -123,3 +123,14 @@ Comandos: `dtcoach decisiones [--foco]`, `dtcoach simulador [--foco]`.
 Comandos: `dtcoach voronoi`, `dtcoach presion-cv`, `dtcoach --config config/presion.yaml presion-aplicar`.
 Artefactos: `data/interim/rasgos_360.parquet`, `data/processed/presion/`, `reports/presion*/`,
 `reports/fase1/presion_cv.{csv,json}`.
+
+## Experimento dirección (ADR-v2-37, aislado)
+
+| archivo | qué hace |
+|---|---|
+| `direccion.py` | niveles de dirección (x3:ε, cuad4, oct8; `previa` y `+previa` como referencias), coordenadas desde `extract_actions`, recodificación zona × dirección (`aumentar_direccion`) |
+| `config/direccion.yaml` | hereda de `default.yaml`; rutas propias |
+| `scripts/direccion.sh` | corre el experimento con las reglas pre-registradas |
+
+Comandos: `dtcoach direccion-cv`, `dtcoach --config config/direccion.yaml direccion-aplicar`.
+Reutiliza la CV en escala común de `voronoi.py` (`conteos_marginales`, `puntaje_cv`, `comparar`).

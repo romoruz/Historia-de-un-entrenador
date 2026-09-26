@@ -28,9 +28,15 @@ from .possessions import build_transitions, coordinate_sanity
 def _space(cfg: Config) -> StateSpace:
     p = cfg["pitch"]
     vc = cfg.get("voronoi") or {}
+    dc = cfg.get("direccion") or {}
+    if vc.get("activo") and dc.get("activo"):
+        sys.exit("voronoi y direccion activos a la vez: la combinación aún no está implementada")
     if vc.get("activo"):              # ADR-v2-36: el nivel de presión ocupa el eje de "fase"
         from .voronoi import etiquetas_niveles
         fases = tuple(etiquetas_niveles(int(vc["L"])))
+    elif dc.get("activo"):            # ADR-v2-37: la dirección de llegada ocupa el eje de "fase"
+        from .direccion import etiquetas_direccion
+        fases = tuple(etiquetas_direccion(dc["metodo"], p["nx"] * p["ny"]))
     else:
         fases = tuple(cfg["phase_order"])
     return StateSpace(nx=p["nx"], ny=p["ny"], length=p["length"], width=p["width"], phases=fases)
@@ -964,6 +970,98 @@ def cmd_presion_aplicar(a, cfg):
           "  dtcoach --config config/presion_base.yaml curva-k --k 2 3 4 5\n"
           "  dtcoach --config config/presion.yaml curva-k --k 2 3 4 5")
 
+
+# ----------------------------------------------------------------------
+# Experimento: aumento de estado direccional (ADR-v2-37)
+# ----------------------------------------------------------------------
+def _direccion_insumos(cfg):
+    from .direccion import coordenadas
+    dc = cfg["direccion"]
+    t = pl.read_parquet(_ruta(cfg, dc["transiciones_origen"]))
+    sp = StateSpace(nx=cfg["pitch"]["nx"], ny=cfg["pitch"]["ny"], length=cfg["pitch"]["length"],
+                    width=cfg["pitch"]["width"], phases=("all",))
+    if int(t["from_state"].max()) >= sp.n_zones:
+        sys.exit("Las transiciones de origen no son de una sola fase con la malla del config.")
+    print("coordenadas de las acciones...", flush=True)
+    c = coordenadas(ingest.load(cfg.ruta("eventos_parquet")), cfg)
+    return t, c, sp
+
+
+def cmd_direccion_cv(a, cfg):
+    """¿La dirección de llegada mejora la predicción de la siguiente acción? (ADR-v2-37)"""
+    from .direccion import aumentar_direccion
+    from .voronoi import comparar, conteos_marginales, pliegues_partido, puntaje_cv
+    dc = cfg["direccion"]
+    t, c, sp = _direccion_insumos(cfg)
+    nz = sp.n_zones
+    folds = pliegues_partido(t["match_id"].to_numpy(), dc["folds"], cfg["seed"])
+    res = {"base:1": puntaje_cv(conteos_marginales(t, nz, 1, folds), nz, dc["lam_grid"])}
+    print(f"  base:1 ({nz} estados): {res['base:1']['score']:+.5f} nats/transición", flush=True)
+    diags = {}
+    for cand in (a.candidatos or dc["candidatos"]):
+        tk, dk = aumentar_direccion(t, c, cand, sp)
+        diags[cand] = dk
+        res[cand] = puntaje_cv(conteos_marginales(tk, nz, dk["L"], folds), nz, dc["lam_grid"])
+        print(f"  {cand} ({dk['estados_transitorios']} estados): {res[cand]['score']:+.5f} "
+              f"({res[cand]['score'] - res['base:1']['score']:+.5f} vs base)", flush=True)
+    ref = [k for k in res if k.startswith("previa")]
+    elegibles = {k: v for k, v in res.items() if not k.startswith("previa")}   # referencia, no vocabulario
+    elegido, tab = comparar(elegibles)
+    if ref:
+        g_ref = res[ref[0]]["score"] - res["base:1"]["score"]
+        tab = tab.with_columns((pl.col("dif_vs_base") / g_ref).alias("ganancia_relativa_a_zona_previa"))
+        _, tt = comparar(res)
+        tab = pl.concat([tab, tt.filter(pl.col("candidato") == ref[0]).with_columns(
+            pl.lit(1.0).alias("ganancia_relativa_a_zona_previa"))], how="diagonal_relaxed")
+    rep = cfg.ruta("reportes") / "fase1"
+    rep.mkdir(parents=True, exist_ok=True)
+    tab.write_csv(rep / "direccion_cv.csv")
+    _json({"elegido": elegido, "tabla": tab.to_dicts(), "diagnosticos": diags}, rep / "direccion_cv.json")
+    with pl.Config(tbl_rows=30, tbl_cols=20, tbl_width_chars=220):
+        print(tab)
+    mejora = elegido != "base:1" and bool(tab.filter(pl.col("candidato") == elegido)["mejora"][0])
+    print(f"\nElegido (1-EE hacia menos estados): {elegido} · mejora sobre la malla sola: {mejora}")
+    memoria = None
+    if mejora:
+        # memoria RESIDUAL en la escala común: ¿cuánto agrega la zona anterior una vez que se sabe la dirección?
+        tr_, dr_ = aumentar_direccion(t, c, elegido + "+previa", sp)
+        rr = puntaje_cv(conteos_marginales(tr_, nz, dr_["L"], folds), nz, dc["lam_grid"])
+        dd = rr["pliegues"] - res[elegido]["pliegues"]
+        memoria = {"memoria_zona_previa_sobre_malla": res["previa"]["score"] - res["base:1"]["score"] if ref else None,
+                   "memoria_residual_sobre_direccion": float(dd.mean()),
+                   "se_residual": float(dd.std(ddof=1) / np.sqrt(len(dd))),
+                   "estados_con_previa": dr_["estados_transitorios"]}
+        print(f"Memoria de la zona anterior: sobre la malla sola {memoria['memoria_zona_previa_sobre_malla']:+.4f} · "
+              f"una vez sabida la dirección {memoria['memoria_residual_sobre_direccion']:+.4f} "
+              f"± {memoria['se_residual']:.4f} nats/transición")
+        _json({"elegido": elegido, "tabla": tab.to_dicts(), "diagnosticos": diags, "memoria": memoria},
+              rep / "direccion_cv.json")
+    if not mejora:
+        print("La dirección NO mejora la predicción más allá del ruido: el experimento se cierra (regla 1).")
+    else:
+        print(f"Siguiente: `metodo: {elegido}` en config/direccion.yaml y "
+              "`dtcoach --config config/direccion.yaml direccion-aplicar`.")
+
+
+def cmd_direccion_aplicar(a, cfg):
+    """Escribe las transiciones zona × dirección en las rutas del experimento."""
+    from .direccion import aumentar_direccion
+    dc = cfg["direccion"]
+    if not dc.get("activo"):
+        sys.exit("Este comando se corre con `--config config/direccion.yaml` (direccion.activo: true).")
+    t, c, sp = _direccion_insumos(cfg)
+    ta, diag = aumentar_direccion(t, c, dc["metodo"], sp)
+    if ta.height != t.height:
+        sys.exit("La recodificación cambió el número de transiciones.")
+    dest = cfg.ruta("transiciones")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    ta.write_parquet(dest)
+    _json(diag, cfg.ruta("reportes") / "fase1" / "direccion_aplicar.json")
+    print(json.dumps(diag, indent=2, ensure_ascii=False))
+    print(f"escrito: {dest} ({_space(cfg).n_transient} estados transitorios)")
+    print("Control: la curva de K oficial (reports/mezcla/curva_k_5x4_p0.csv), misma muestra.\n"
+          "Siguiente: dtcoach --config config/direccion.yaml curva-k --k 2 3 4 5")
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="dtcoach", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -984,6 +1082,11 @@ def main(argv=None):
     s = sp.add_parser("presion-cv", help="¿mejora la presión la predicción? (ADR-v2-36)")
     s.add_argument("--candidatos", nargs="*", default=None)
     s.set_defaults(f=cmd_presion_cv)
+    s = sp.add_parser("direccion-cv", help="¿mejora la dirección de llegada la predicción? (ADR-v2-37)")
+    s.add_argument("--candidatos", nargs="*", default=None)
+    s.set_defaults(f=cmd_direccion_cv)
+    sp.add_parser("direccion-aplicar", help="transiciones zona × dirección (con --config config/direccion.yaml)"
+                  ).set_defaults(f=cmd_direccion_aplicar)
     sp.add_parser("presion-aplicar", help="transiciones zona × nivel (con --config config/presion.yaml)"
                   ).set_defaults(f=cmd_presion_aplicar)
     sp.add_parser("fase0").set_defaults(f=cmd_fase0)

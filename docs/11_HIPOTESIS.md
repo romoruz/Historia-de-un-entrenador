@@ -272,3 +272,22 @@ Solo se ha corrido con datos sintéticos. Reglas:
 3. Si se adopta, los tipos se nombran después de ver sus figuras, y las fases 2 y
    3 se rehacen solo con partidos con 360; las conclusiones se comparan con las
    de la §16 de `10_RESULTADOS.md`, como se hizo en la réplica v3.
+
+# Experimento dirección: zona × dirección de llegada (pre-registrado el 2026-09-26, ANTES de correrlo con datos reales; ADR-v2-37)
+
+Solo se ha corrido con datos sintéticos. Reglas:
+
+1. **¿Mejora la cadena?** `dtcoach direccion-cv`, con la misma métrica y regla
+   que el experimento 360: hay mejora si el elegido supera a la malla sola por
+   más de 2 EE pareados. Si no la hay, termina y se queda la malla 5×4.
+2. **¿Sostiene el vocabulario?** `curva-k` (K = 2–5) sobre el estado aumentado.
+   El control es la curva oficial de la malla 5×4 (misma muestra: no requiere
+   360). **Se adopta si su mayor K reproducible es ≥ 3 y ≥ el del control.** El
+   objetivo es absorber la memoria sin perder identificabilidad, no
+   necesariamente más tipos.
+3. **Se reporta (no decide):** la memoria residual, es decir, cuánto agrega la
+   zona anterior una vez sabida la dirección, frente a lo que agrega sobre la
+   malla sola.
+4. **Combinación con el 360:** solo si los dos experimentos cumplen por separado
+   sus reglas 1 y 2. El estado combinado (zona × dirección × presión) se evalúa
+   con las mismas reglas, contra el mejor de los dos por separado.

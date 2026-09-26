@@ -110,3 +110,15 @@ voronoi:
   folds: 5
   lam_grid: [1, 10, 100, 1000]
   hilos: 4
+
+# ---------------------------------------------------------------- experimento dirección (ADR-v2-37)
+# Estado zona × dirección de la acción que trajo el balón. APAGADO aquí: corre con
+# `--config config/direccion.yaml`. No necesita 360: usa toda la muestra.
+direccion:
+  activo: false
+  transiciones_origen: data/processed/transitions.parquet
+  # x3:ε = adelante / lateral / atrás con umbral ε metros en x; cuad4 y oct8 por ángulo;
+  # previa = zona anterior completa (REFERENCIA de la memoria de la v3; no es candidato a vocabulario)
+  candidatos: ["x3:2", "x3:5", "x3:10", "cuad4", "oct8", "previa"]
+  folds: 5
+  lam_grid: [1, 10, 100, 1000]

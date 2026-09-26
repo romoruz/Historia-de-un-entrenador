@@ -344,3 +344,32 @@ una consecuencia.
 Aislado en `config/presion.yaml` y `config/presion_base.yaml` (heredan de
 `default.yaml`); se descarta borrando `data/processed/presion`,
 `data/interim/rasgos_360.parquet` y `reports/presion*`.
+
+## ADR-v2-37 — Experimento: aumento de estado direccional (zona × dirección de llegada)
+**Motivo:** la v3 midió memoria real en el destino del balón (+0.058 nats por
+acción con la zona anterior; los tipos explican solo el 4.5 %). Un estado
+(zona, dirección de la acción que trajo el balón) mete esa memoria en una cadena
+de **primer orden**: N, V = N c, la llegada y la vida media siguen en forma cerrada.
+
+**Diseño:**
+- Nivel = dirección de la acción anterior de la secuencia, o "inicio" en la
+  primera. El destino de la acción t es (zona final, dirección de t): se conoce
+  con la propia acción. Los estados "inicio" solo son de arranque (ahí vive P⁰).
+- Candidatos: adelante / lateral / atrás con umbral ε ∈ {2, 5, 10} m en x;
+  4 y 8 sectores de ángulo. Se eligen por la CV en escala común (ADR-v2-32), con
+  1 EE hacia menos estados.
+- Referencias que NO compiten como vocabulario: `previa` (nivel = zona anterior,
+  420 estados: la memoria de la v3 en esta escala) y `<elegido>+previa` (la
+  **memoria residual** una vez sabida la dirección).
+- La dirección sale de las coordenadas de la MISMA extracción que las
+  transiciones (`possessions.extract_actions`), no de los centroides.
+
+**Descartado de la propuesta original:** la analogía de fluidos (Picard,
+Poincaré-Bendixson, campos vectoriales) no aporta cálculo; K y d no se optimizan
+juntos por verosimilitud (d por predicción, K por reproducibilidad, ADR-v2-35);
+el "90 % de pérdida en circulación estéril" no es una cifra del proyecto.
+
+**Cambio colateral:** `markov.verificar` mide la irreducibilidad solo entre
+estados OBSERVADOS (y reporta `estados_sin_observar`). Con un estado aumentado
+hay combinaciones que nunca ocurren (arrancar una secuencia en el área rival) y
+cada una contaba como una componente. En la malla 5×4 sin aumentar no cambia nada.

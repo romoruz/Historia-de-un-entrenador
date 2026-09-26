@@ -10,7 +10,8 @@
 - Fase 1 v3 **cerrada**: 5×4, K = 3, paso inicial, familias nombradas (`10_RESULTADOS.md` §16).
 - Fases 2 y 3 **rehechas** con el vocabulario v3 para Jardine y Almada: las conclusiones no cambian (robustez).
 - Experimento 360 (zona × nivel de presión, ADR-v2-36): implementado y probado con datos sintéticos; **falta correrlo con datos reales** (`bash scripts/presion.sh`).
-- Pendiente opcional: memoria por aumento de estado (la memoria real está en el destino, no en la duración); análisis por jugador (`player_id` ya está en las transiciones).
+- Experimento dirección (zona × dirección de llegada, ADR-v2-37): implementado y probado con datos sintéticos; **falta correrlo con datos reales** (`bash scripts/direccion.sh`, no necesita 360).
+- Pendiente opcional: memoria por aumento de estado (ahora cubierto por ADR-v2-37) (la memoria real está en el destino, no en la duración); análisis por jugador (`player_id` ya está en las transiciones).
 
 ---
 

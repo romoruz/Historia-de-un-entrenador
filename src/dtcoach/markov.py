@@ -77,7 +77,11 @@ def verificar(P: np.ndarray, mu: np.ndarray, C: np.ndarray, inicios: np.ndarray)
     A = np.zeros((ns, ns))
     A[:nt] = C > 0
     A[nt:, :nt] = (inicios > 0)[None]
-    n_comp, _ = connected_components(csr_matrix(A), directed=True, connection="strong")
+    # solo entre estados OBSERVADOS: con un estado aumentado (ADR-v2-36/37) puede haber
+    # combinaciones que nunca ocurren (p. ej. arrancar una secuencia en el área rival);
+    # cada una sería su propia "componente" sin decir nada de la dinámica.
+    obs = np.r_[(C.sum(axis=1) > 0) | (C[:, :nt].sum(axis=0) > 0) | (inicios > 0), C[:, nt:].sum(axis=0) > 0]
+    n_comp, _ = connected_components(csr_matrix(A[np.ix_(obs, obs)]), directed=True, connection="strong")
     aperiodica = bool(np.any(np.diag(C[:, :nt]) > 0))
     Pr = cadena_reiniciada(P, mu)
     w, V = np.linalg.eig(Pr.T)
@@ -89,6 +93,7 @@ def verificar(P: np.ndarray, mu: np.ndarray, C: np.ndarray, inicios: np.ndarray)
     err = float(np.abs(pi[:nt] / pi[:nt].sum() - nu).max())
     lam = np.sort(np.abs(w))[::-1]
     return {"rho_Q": rho, "termina_cs": rho < 1, "componentes_fuertes": int(n_comp),
+            "estados_sin_observar": int((~obs[:nt]).sum()),
             "irreducible": n_comp == 1, "aperiodica": aperiodica,
             "estacionaria_igual_a_visitas_err": err,
             "brecha_espectral_reiniciada": float(1 - lam[1]) if len(lam) > 1 else float("nan")}
