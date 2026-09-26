@@ -1,0 +1,2 @@
+# venv de DESCARGA (.venv-sb): aislado del de análisis para correr en paralelo.
+requests>=2.32

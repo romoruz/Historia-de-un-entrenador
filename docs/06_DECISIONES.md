@@ -1,0 +1,311 @@
+# 06 — Decisiones v2
+
+Las ADR del proyecto viejo (`proyecto_viejo/06_DECISIONS.md`) siguen vigentes
+salvo que una de estas las sustituya. Numeración propia: `ADR-v2-NN`.
+
+## ADR-v2-01 — La referencia es la liga del mismo torneo, sin el club
+Con toda la Liga MX disponible, el prior y la línea base dejan de ser «los
+rivales del América». El contraste del técnico es contra la liga del mismo
+torneo excluyendo su club (la deriva del proveedor, ADR-53 viejo, obliga a
+comparar dentro del torneo). Invalida la lectura vieja de λ*.
+
+## ADR-v2-02 — El núcleo es una mezcla de cadenas, no M2 ni HMM
+La cadena de orden 1 se rechazó por sobredispersión (§6 viejo: «al menos dos
+poblaciones de posesión»). La mezcla modela esas poblaciones y da tipos
+narrables con formas cerradas por tipo. M2 (memoria) y el HMM solo entran si
+la mezcla NO pasa el KS de duración.
+
+## ADR-v2-03 — La fase de origen sale del estado
+`phase` es constante dentro de una posesión: en el estado solo parte la cadena
+en 4 subcadenas y multiplica parámetros ×4. Estado = 20 zonas + 4 absorbentes.
+El `play_pattern` se conserva en la tabla como covariable de los pesos.
+
+## ADR-v2-04 — Bloque = partido
+Pliegues de CV y bootstrap técnico-vs-liga por partido (`estimate.match_folds`).
+Las posesiones de un partido comparten rival, marcador y árbitro. El bootstrap
+por posesión del proyecto viejo tuvo cobertura 0.944 en su diseño; el nuevo
+contraste es contra la liga y no se hereda esa validación sin repetirla.
+
+## ADR-v2-05 — Valor de zona con xG, no con gol
+$c_i$ = xG de remates desde $i$ / acciones desde $i$; $V = Nc$. Mezclar 1 para
+el gol con xG para el fallo mete varianza del resultado sin información.
+
+## ADR-v2-06 — K fuera de muestra; los tipos se nombran después
+El LRT K vs K+1 no tiene nula χ² (frontera + no identificabilidad). K por
+log-verosimilitud en partidos no vistos, regla de 1 error estándar, más el KS
+de duración. Etiquetas fijadas ordenando por E[T]. Nombres solo tras ver
+visitas, desenlaces y posesiones típicas.
+
+## ADR-v2-07 — π de la mezcla no es una estacionaria
+π_k es la proporción de posesiones de tipo k. La estacionaria de la cadena
+absorbente es degenerada (masa solo en absorbentes); la de la cadena
+reiniciada es ∝ αᵀN y es lo que reporta `Cadena.visitas` (hay test).
+
+## ADR-v2-08 — Eras: se USAN las verificadas, el API solo VERIFICA
+`data/referencia/eras_api/coach_eras_<club>.csv` es la fuente. `managers` del
+API se contrasta en `reports/verificacion_eras.csv`. Discrepancias se revisan
+a mano; nunca se corrigen en silencio (bug #14).
+
+## ADR-v2-09 — `spawn`, no `fork`, en el aplanado
+Polars es multihilo; `fork` con hilos vivos se congela sin error (se reprodujo
+en los tests). Bug silencioso #1 de la v2, evitado.
+
+## ADR-v2-10 — K no se elige con la regla 1-EE sin parear
+Primera corrida real (354,428 posesiones, 5 pliegues por partido): la regla
+1-EE sin parear dio K=5, pero las diferencias pliegue a pliegue entre K y K-1
+son positivas en los 5 pliegues hasta K=8 (t de 69 a 10). Con esta muestra la
+verosimilitud mejora con cualquier K razonable: no puede elegir sola. K se
+elige por (1) ganancia acumulada pareada (K=4: 78 %, K=5: 87 %, K=6: 92 %),
+(2) KS de duración, (3) tipos distintos y estables entre arranques del EM,
+(4) interpretabilidad. Se reportan los cuatro. `cv_k` ahora guarda los
+pliegues y el resumen pareado.
+
+## ADR-v2-11 — `min_actions = 1`: las posesiones de una acción entran
+Con `min_actions = 2` se descartaban las posesiones de UNA acción que termina
+en absorbente (despeje, pelotazo perdido, robo inmediato). Dos problemas en la
+primera corrida real: (1) el modelo, que no conoce ese truncamiento, subestimaba
+E[T] y xG/posesión de TODOS los tipos a la vez (mismo signo en los 5); (2) en la
+perspectiva defensiva esas posesiones son el producto de una presión exitosa
+(bug #20 viejo). En un vocabulario de liga son una forma de jugar, no ruido.
+`bondad.t_min = 1`. `resumen_tipos` sabe condicionar en `t_min = 2` para
+comparar con el diseño viejo.
+
+## ADR-v2-12 — Un K es admisible solo si sus arranques coinciden
+Primera corrida: con K=5 los 4 arranques del EM llegaron al mismo objetivo
+(ΔJ < 1); con K=4 y K=6 difirieron en cientos o miles y varios tocaron
+`max_iter`. Un K sin arranques concordantes no tiene tipos: tiene óptimos
+locales. `ajustar` reporta, por arranque, J, convergencia y fracción de
+posesiones asignadas al mismo tipo que el mejor (tras emparejar etiquetas).
+Criterio: todos convergen y acuerdo mínimo ≥ 0.9. `max_iter` sube a 1000.
+
+## ADR-v2-13 — Nombres de DT: se comparan por tokens
+El API trae el nombre legal completo; las eras, el de uso y un sufijo de etapa
+(I, II). Comparar cadenas dio 2,521 falsas discrepancias. `mismo_dt`: sin
+acentos, sin sufijo romano, un conjunto de tokens contenido en el otro.
+
+## ADR-v2-14 — La unidad de la cadena es la SECUENCIA, no la posesión de StatsBomb
+StatsBomb no cierra la posesión si el mismo equipo conserva el balón tras un
+remate, un pase fallido o un balón fuera. La cadena absorbente termina en la
+primera absorción. `segmentar_secuencias` corta cada posesión en una secuencia
+por absorción (`seq_uid`); `poss_uid` se conserva. Evidencia: en la corrida con
+`min_actions = 1`, E[T] del modelo quedaba 10–20 % por debajo del empírico en
+todos los tipos y el KS de la mezcla (0.078) salía PEOR que el de K=1 (0.061);
+con datos sintéticos, pegar secuencias como StatsBomb reproduce el síntoma
+(E[T] 5.48 vs 7.12) y cortarlas lo elimina (5.49 vs 5.49). Test de cierre de
+flujo en `test_mezcla.py`. Las ADR-v2-10 a 12 se revalidan después de este cambio.
+Posible alcance: parte de la sobredispersión que rechazó Markov en el proyecto
+viejo (§6) podría ser este artefacto. Se verifica, no se afirma.
+
+## ADR-v2-15 — Estabilidad = reproducibilidad del óptimo + tarjetas (sustituye el criterio de ADR-v2-12)
+Tras ADR-v2-14, ningún K cumplía "acuerdo ≥ 0.9 entre TODOS los arranques":
+con 461 mil secuencias el EM tiene varios óptimos locales y un arranque malo
+no dice nada del bueno. Criterio nuevo, con 10 arranques: (1) el mejor óptimo
+debe alcanzarse al menos dos veces (|ΔJ| ≤ 50); (2) se reporta, por arranque,
+la mayor diferencia en las tarjetas que se narran (π, E[T] relativa,
+P(remate)). Si las tarjetas de los óptimos cercanos casi no cambian, la
+historia es robusta aunque J difiera.
+
+## ADR-v2-16 — Resultado: la sobredispersión es heterogeneidad
+Con secuencias (ADR-v2-14) la cadena reproduce E[T] (6.502 vs 6.509) y xG por
+secuencia en cada tipo. K=1 subestima la cola (P(T>20): 0.034 vs 0.051); la
+mezcla la reproduce (0.051 con K=5) y el KS baja de 0.059 a 0.035. El residuo
+se concentra en t = 1–3: el primer paso de una secuencia absorbe menos que
+una acción cualquiera desde la misma zona ("efecto primer toque"). Lectura:
+Markov de primer orden falla en la liga porque mezcla tipos de posesión;
+dentro de cada tipo basta, salvo el primer paso. Extensión mínima candidata
+(no obligatoria): fila de transición propia para el primer paso.
+
+## ADR-v2-17 — El EM se inicializa por ESCALERA, no por k-means (sustituye ADR-v2-15)
+Con 461 mil secuencias, 10 arranques de k-means para K=5 dieron 9 óptimos
+locales distintos y el mejor apareció UNA vez; entre óptimos, E[T] de un tipo
+variaba hasta 12 % y π hasta 0.013. Un vocabulario que depende de la semilla no
+es un vocabulario. Se sustituye la inicialización: se ajusta K=1 y se sube de
+K-1 a K PARTIENDO un tipo (se prueba partir cada uno con `n_corto` iteraciones
+de EM y sigue el mejor). Es determinista dada la semilla y llega al mismo
+óptimo desde semillas distintas. Criterio de aceptación de un K:
+`dtcoach reproducibilidad --K k` con rango de J < 50 y acuerdo ≥ 0.95 entre
+semillas. `init=kmeans` se conserva como contraste independiente.
+
+## ADR-v2-18 — K = 4, 5 y 6 no son reproducibles; se baja al K más chico que lo sea
+Primera corrida de `dtcoach reproducibilidad` (escalera, 3 semillas por K):
+
+| K | rango de J entre semillas | acuerdo mínimo | máx. ΔE[T] relativa |
+|---|---|---|---|
+| 4 | 1,815.6 | 0.582 | 0.896 |
+| 5 | 1,225.0 | 0.567 | 0.777 |
+| 6 | 1,073.3 | 0.539 | 0.452 |
+
+Ninguno cumple el criterio (rango < 50, acuerdo ≥ 0.95). Las diferencias de J
+son del orden de 0.003 nats por secuencia: los datos casi no distinguen entre
+particiones que asignan distinto a más del 40 % de las secuencias. Lectura:
+a partir de K = 4 los "tipos" dividen un continuo de manera arbitraria; no son
+objetos identificables. Decisión, prevista en `02_ESTADO.md` (riesgo 1): se usa
+el K más chico que pase la prueba. Se evalúan K = 2 y K = 3 (K = 3 ya captura el
+73 % de la ganancia de verosimilitud fuera de muestra). La estructura fina de
+K = 5 queda como descripción ⚪, nunca como base de inferencia.
+
+## ADR-v2-19 — K = 3: el vocabulario de la Liga MX tiene tres familias
+`dtcoach reproducibilidad`: K = 2 (rango de J 0.1, acuerdo 1.000) y **K = 3
+(rango 7.8, acuerdo 0.993)** pasan; K = 4, 5 y 6 no (ADR-v2-18). K = 3 ajusta
+casi igual que K = 5 (KS 0.038 contra 0.035; E[T] 6.504 contra 6.509
+empírico). Se fija **K = 3**. `dtcoach curva-k` produce la figura que lo
+justifica (ajuste, KS y reproducibilidad contra K). Subir K no se descarta por
+costo, sino porque los tipos adicionales no son identificables: con esta
+muestra la verosimilitud siempre premia un tipo más, así que no puede ser el
+criterio. La riqueza espacial no se pierde: cada familia tiene su propia
+matriz Pᵏ de 20 × 24, su mapa de visitas y su valor de zona.
+
+## ADR-v2-20 — Nombres de las tres familias (fase 1 cerrada)
+Nombradas después de ver `tipos_K3_visitas.png` y `tipos_K3_inicio.png`
+(ADR-v2-06): **1 · Directa** (nace en la salida propia o en recuperaciones en
+el último tercio, dura 3.3 acciones y tiene el mayor valor de zona frente al
+área), **2 · Circulación estéril** (nace en medio campo, retrocede, 90 % de
+pérdidas, 0.003 xG por secuencia), **3 · Ataque elaborado** (progresa por los
+carriles exteriores del tercio 72-96, la que más remata). La curva de K hasta
+K = 9 confirma la elección: solo K = 2 y K = 3 son reproducibles, el KS no
+mejora al subir K (0.033 a 0.038) y el peso del tipo más chico cae de 0.30 a 0.07.
+
+## ADR-v2-21 — Contexto: logit multinomial fraccional con sandwich por partido
+Sustituye al M1 del roadmap original (logit por transición). La respuesta es
+el vector de responsabilidades, no una etiqueta: se usa el logit fraccional de
+Papke y Wooldridge (1996), consistente si la media está bien especificada, con
+varianza sandwich agrupada por partido (no supone la varianza multinomial y
+respeta la dependencia entre secuencias del mismo partido). Se reportan
+efectos en probabilidad promediados sobre las secuencias del foco, nunca
+coeficientes. Columnas colineales se quitan y se reportan como "no estimables".
+
+## ADR-v2-22 — Una sola referencia para ataque y defensa: los partidos sin el foco
+El modelo lleva dos indicadores: f (ataque del foco) y g (sus rivales contra
+él). La base, con f = g = 0, son exactamente las secuencias de partidos donde
+el foco no jugó. Así el ataque y la defensa se comparan contra la misma liga,
+y ninguna secuencia del foco contamina la referencia.
+
+## ADR-v2-23 — Elo con K y h por log-pérdida
+K y h minimizan la log-pérdida de los resultados (cuasi-verosimilitud
+binomial con S ∈ {0, ½, 1}) después de un calentamiento de 150 partidos. Se usa
+el Elo **previo** al partido. Se reporta la calibración (E contra S por
+quintil) y se avisa si el óptimo cae en el borde de la rejilla.
+
+## ADR-v2-24 — Fase 3: separar al técnico del plantel con sus dos clubes
+Para cada club del foco se ajusta el mismo modelo de la fase 2 contra la misma
+referencia, y los partidos de su OTRA etapa se excluyen de la referencia
+(`fase3.reasignar_foco`): si quedaran, el técnico se compararía contra sí
+mismo. Un rasgo "viaja" si aparece en ambos clubes con el mismo signo
+(H9–H11, pre-registradas antes de correr). H12 compara la mezcla ofensiva entre
+clubes con un SE aproximado (estimaciones independientes; la referencia
+compartida es casi toda la liga, así que la correlación es despreciable, pero
+no cero: declarado). El atlas de técnicos es exploratorio: solo pone en escala
+los efectos del foco. Su medida resumen es la distancia de variación total
+entre la mezcla del técnico y la de la liga en sus mismas situaciones, en pp.
+
+## ADR-v2-25 — Tiempo de los cambios: desviación suave del foco
+El logit en tiempo discreto con un efecto f proporcional subestimaba un
+adelanto sembrado de 12 minutos (traducía 3). Escalones por tramo para el foco
+lo recuperaban, pero producían separación en tramos sin cambios del foco y
+rechazaban sin efecto (p ≈ 1e-35). Versión final: la liga con tramos de 5
+minutos y el foco con nivel + pendiente en el tiempo (gl = 2). En 20 réplicas
+sin efecto, 0 rechazos; con −12 y −5 minutos sembrados, estima −11.9 y −4.6.
+Enmienda hecha ANTES de correr con datos reales y registrada en `11_HIPOTESIS.md`.
+
+## ADR-v2-26 — El panel de cambios se arma con la tabla completa (bug silencioso #4 de la v2)
+Para la referencia se excluyen los rivales del foco, pero el marcador de cada
+minuto necesita al rival. Armar el panel con la tabla ya filtrada descartaba
+TODAS las filas del foco sin error: f quedaba en cero, la columna se marcaba
+"no estimable" y H13 habría salido ⚪ con datos reales. Se detectó con una
+prueba sintética antes de tocar datos reales. Ahora el panel se arma completo y
+se filtra después, y `correr_decisiones` falla si el foco no tiene filas.
+Prueba de regresión: `test_el_panel_conserva_las_filas_del_foco`.
+
+## ADR-v2-27 — Simulador: xPts exactos y escenarios con doble incertidumbre
+Los puntos esperados salen de la Poisson-binomial exacta de los remates de cada
+equipo (sin simular), con validación en toda la liga (puntos reales contra
+esperados). Los escenarios usan el modelo de contexto de la fase 2 y la
+eficiencia por familia; su IC combina la incertidumbre de la mezcla y la de la
+eficiencia del foco. Supuesto declarado: la eficiencia dentro de cada familia
+no depende del contexto. Todo el simulador es exploratorio.
+
+## ADR-v2-28 — Réplica sobre otros técnicos y política de muestras chicas
+`scripts/correr_foco.sh "Nombre"` replica las fases 2, 3a, 3b, el simulador y el
+resaltado del atlas para cualquier técnico, sin rehacer lo que es de toda la liga
+(vocabulario, eras, Elo, atlas). La fase 3a admite N clubes: el de más partidos
+es el principal y se compara contra cada uno. Con menos de 20 partidos del foco
+en un club no se asigna 🟢 (sandwich con pocos conglomerados); con menos de 30,
+un rasgo que "no se detecta en ambos" se reporta como "sin potencia", no como
+"no viaja".
+
+## ADR-v2-29 — Paso inicial propio, arranque atado y prior fijo
+La mezcla con una sola P por tipo sobreestimaba las secuencias de una acción
+(P(T > 1): 0.821 modelado contra 0.859 observado). Se añade una matriz P⁰ por
+tipo para la primera acción de cada secuencia; la dinámica posterior sigue
+siendo Markov y las formas cerradas se conservan (E[T] = μ(1 + Q₀t), etc.).
+Validación con datos sintéticos:
+- con primer toque real, P⁰ baja el KS de 0.048 a 0.005 y reproduce P(T > 1);
+- **sin** primer toque, arrancar la escalera con P⁰ libre desordenaba la mezcla
+  (tipo corto con E[T] 1.91 contra 1.43 real): P⁰ da a cada tipo otra forma de
+  explicar secuencias cortas. Solución: los tipos se encuentran con el modelo
+  atado (P⁰ = P) y después se libera P⁰ continuando el EM (monótono);
+- un prior jerárquico (P⁰ hacia la P del mismo tipo) rompía la monotonía del
+  EM (hasta −5.8e-4 relativo): se descarta y se usa un prior fijo hacia los
+  primeros pasos de la liga.
+Si se usa o no se decide con datos (regla en `11_HIPOTESIS.md`, fase 1 v3).
+
+## ADR-v2-30 — Reproducibilidad con acuerdo SUAVE
+El acuerdo "duro" (mismo tipo más probable) castiga empates: en datos
+sintéticos, dos soluciones con ΔJ = 0.08 tenían 699 desacuerdos duros, todos en
+secuencias ambiguas (responsabilidad entre 0.35 y 0.65); el acuerdo suave
+(1 − distancia media entre responsabilidades) era 0.98. Criterio de K: rango de
+J < 50 y acuerdo suave ≥ 0.95. El duro se sigue reportando.
+
+## ADR-v2-31 — Métricas formales de la cadena: qué sí y qué no
+**Sí**, cada una con validación contra los datos: verificación formal de la
+cadena reiniciada (ρ(Q) < 1, irreducibilidad y aperiodicidad sobre el grafo de
+lo OBSERVADO —sobre la P encogida serían trivialmente ciertas—, estacionaria =
+μᵀN normalizada); espectro (vida media en acciones, distribución de Yaglom);
+irreversibilidad por producción de entropía y G² de balance detallado; análisis
+de primer paso (probabilidad y tiempo de llegada a un objetivo); memoria de
+orden 2 y de primer toque por información mutua condicional (Anderson y
+Goodman), **sin y con condicionar al tipo**.
+**No**: MCMC (la posterior por fila es Dirichlet y se muestrea exacta, y la
+incertidumbre relevante la da el bootstrap por partido); "demostrar
+reversibilidad" (la cadena no es reversible por construcción: se mide cuánto
+no lo es).
+
+## ADR-v2-32 — Calibración del mallado por densidad predictiva
+Las verosimilitudes de mallas distintas no son comparables (cambia el espacio
+muestral). Se compara la log-densidad predictiva del siguiente punto en el
+campo continuo, P(zona)/área(zona), fuera de muestra por partido. Además, una
+agregación contigua voraz desde celdas de 10 × 10 m (fusiones de regiones
+vecinas que menos información pierden; lumpability de Kemeny-Snell, agregación
+KL de Deng, Mehta y Meyn) dice cuántas zonas distinguen realmente los datos y
+dónde. La malla del pipeline sigue siendo rectangular.
+
+## ADR-v2-33 — Corrección de ADR-v2-16
+ADR-v2-16 afirmaba "la sobredispersión es heterogeneidad, no memoria". Es
+demasiado fuerte: la mezcla reproduce la cola de la duración, pero no pasa el
+KS con n = 461 mil y el residuo está en los primeros pasos. Versión correcta:
+*la heterogeneidad entre tipos explica la cola; queda un efecto de primer paso*.
+La fase 1 v3 lo mide directamente (memoria explicada por los tipos, ADR-v2-31)
+y lo modela (P⁰, ADR-v2-29).
+
+## ADR-v2-34 — La memoria se mide fuera de muestra, no con información mutua plug-in
+Con la malla 12×8, la tabla de orden 2 tiene ≈ 920 mil celdas para 2.5 millones
+de tripletas: la información mutua plug-in se infla por muestra finita, la
+corrección de Miller-Madow no alcanza, el IC por bootstrap [0.187, 0.190] no
+contenía la estimación (0.162) y la "memoria explicada por el tipo" salió
+negativa (−29.4 % en primer toque), lo cual es imposible para la cantidad
+poblacional. Sustituto: ganancia de log-verosimilitud en partidos no vistos del
+modelo de orden 2 (y del de primer toque) sobre el de orden 1, con encogimiento
+hacia el orden 1, sin y con condicionar al tipo. Validado con datos sintéticos:
+sin memoria no gana; con orden 2 sí; con dos tipos de primer orden mezclados,
+más del 70 % de la ganancia desaparece al condicionar al tipo.
+
+## ADR-v2-35 — Malla del vocabulario y criterio de reproducibilidad (enmienda)
+Ver la enmienda con fecha en `11_HIPOTESIS.md`. Resumen: la malla calibrada por
+densidad (12×8) quedó en el borde y con ella ningún K fue reproducible. La malla
+del vocabulario pasa a ser la más fina, entre 8×5, 6×4 y 5×4, con K reproducible
+≥ 3. La reproducibilidad usa el umbral de J por secuencia (1.08·10⁻⁴), acuerdo
+suave ≥ 0.95 y π mínimo ≥ 1 %. El script ya no elige un K por defecto cuando
+ninguno cumple: se detiene. Otros tres errores corregidos en la misma revisión:
+(1) las métricas por tipo usaban nombres de familias de otro K; (2) las pruebas
+dependían de `config.pitch`, que el pipeline cambia; (3) el caché de `curva-k`
+reutilizaba filas calculadas con el criterio anterior.

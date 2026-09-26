@@ -18,3 +18,10 @@ __pycache__/
 _cuarentena/
 reports/*
 !reports/.gitkeep
+.venv/
+.venv-sb/
+data/interim/
+data/processed/
+.kit_backup_*/
+reports/mezcla/*.png
+*.egg-info/
