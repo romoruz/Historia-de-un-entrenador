@@ -93,3 +93,20 @@ mallado:                     # ADR-v2-32: calibración por validación cruzada e
   lam_grid: [1, 10, 100, 1000]
   lam_agregacion: 10.0
   R_min: 4
+
+# ---------------------------------------------------------------- experimento 360 (ADR-v2-36)
+# Estado zona × nivel de presión desde los freeze frames. APAGADO aquí: el
+# experimento corre con `--config config/presion.yaml` y escribe en rutas propias.
+voronoi:
+  activo: false
+  rasgos: data/interim/rasgos_360.parquet     # `dtcoach voronoi`
+  transiciones_origen: data/processed/transitions.parquet   # las de la malla (una fase)
+  transiciones_base: data/processed/presion/base/transitions.parquet  # misma muestra, L = 1
+  R: 10.0             # radio del disco de la celda de Voronoi local (m): espacio usable en ~1 s
+  r_presion: 5.0      # rivales "encima" (m)
+  min_visible: 0.25   # fracción mínima del disco visible por la cámara; si no, área = NaN
+  min_cobertura: 0.9  # partidos con menos acciones con frame salen completos
+  candidatos: ["cuantiles:2", "cuantiles:3", "cuantiles:4", "kmeans:2", "kmeans:3", "kmeans:4", "kmeans:5"]
+  folds: 5
+  lam_grid: [1, 10, 100, 1000]
+  hilos: 4

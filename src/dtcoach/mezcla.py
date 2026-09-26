@@ -598,6 +598,8 @@ def resumen_tipos(m: Mezcla, d: DatosPosesion, r: np.ndarray, n_tipicas: int = 5
             "xG_por_posesion_modelo": q["xG"], "xG_por_posesion_empirico": float(pesos @ xg_sec),
             "visitas_por_zona": vis_z.tolist(),
             "inicio_por_zona": m.mu[k].reshape(n_zonas, d.n_phases).sum(axis=1).tolist(),
+            # con el estado zona × nivel de presión (ADR-v2-36): qué fracción de sus visitas es en cada nivel
+            "visitas_por_fase": (vis / vis.sum()).reshape(n_zonas, d.n_phases).sum(axis=0).tolist(),
             "valor_por_zona": _por_zona(q["V"], C1, n_zonas, d.n_phases),
             "posesiones_tipicas": tip,
         })

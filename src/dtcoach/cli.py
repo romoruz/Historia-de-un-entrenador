@@ -27,8 +27,13 @@ from .possessions import build_transitions, coordinate_sanity
 
 def _space(cfg: Config) -> StateSpace:
     p = cfg["pitch"]
-    return StateSpace(nx=p["nx"], ny=p["ny"], length=p["length"], width=p["width"],
-                      phases=tuple(cfg["phase_order"]))
+    vc = cfg.get("voronoi") or {}
+    if vc.get("activo"):              # ADR-v2-36: el nivel de presión ocupa el eje de "fase"
+        from .voronoi import etiquetas_niveles
+        fases = tuple(etiquetas_niveles(int(vc["L"])))
+    else:
+        fases = tuple(cfg["phase_order"])
+    return StateSpace(nx=p["nx"], ny=p["ny"], length=p["length"], width=p["width"], phases=fases)
 
 
 def _json(obj, path: Path) -> None:
@@ -809,6 +814,156 @@ def cmd_bondad(a, cfg):
 
 
 # ----------------------------------------------------------------------
+
+# ----------------------------------------------------------------------
+# Experimento 360: estado zona × nivel de presión (ADR-v2-36)
+# ----------------------------------------------------------------------
+def cmd_voronoi(a, cfg):
+    """Rasgos de cada freeze frame (celda de Voronoi local, rival más cercano) -> parquet."""
+    from .voronoi import rasgos_liga, unir_eventos
+    vc, p = cfg["voronoi"], cfg["pitch"]
+    t0 = time.time()
+    kw = {"R": vc["R"], "r_presion": vc["r_presion"], "min_visible": vc["min_visible"],
+          "largo": p["length"], "ancho": p["width"]}
+    r = rasgos_liga(cfg.ruta("raw_frames"), kw, a.hilos or vc.get("hilos", 4))
+    n_frames = r.height
+    r = unir_eventos(r, ingest.scan_events(cfg.ruta("eventos_parquet")))   # crudo: basta id, index, location
+    destino = _ruta(cfg, vc["rasgos"])
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    r.write_parquet(destino)
+    d = r["d_actor_evento"].drop_nulls()
+    def q(c, x):
+        v = r[c].fill_nan(None).drop_nulls()
+        return float(v.quantile(x)) if v.len() else float("nan")
+    res = {"frames": n_frames, "unidos_a_eventos": r.height, "partidos": int(r["match_id"].n_unique()),
+           "d_actor_evento_mediana_m": float(d.median()) if d.len() else None,
+           "frac_d_actor_evento_mayor_2m": float((d > 2).mean()) if d.len() else None,
+           "frac_sin_rival_o_actor": float(r["d_rival"].fill_nan(None).is_null().mean()),
+           "frac_area_nan": float(r["area_local"].is_nan().mean()),
+           "d_rival_p10_p50_p90": [q("d_rival", x) for x in (.1, .5, .9)],
+           "area_local_p10_p50_p90": [q("area_local", x) for x in (.1, .5, .9)],
+           "segundos": round(time.time() - t0)}
+    _json(res, cfg.ruta("reportes") / "fase1" / "voronoi_rasgos.json")
+    print(json.dumps(res, indent=2, ensure_ascii=False))
+    if res["d_actor_evento_mediana_m"] is not None and res["d_actor_evento_mediana_m"] > 2:
+        print("[ALERTA] el actor del frame no coincide con la ubicación del evento: ¿orientación distinta? "
+              "No sigas hasta revisarlo.")
+
+
+def _ruta(cfg, r: str) -> Path:
+    from .config import RAIZ
+    q = Path(r)
+    return q if q.is_absolute() else RAIZ / q
+
+
+def _presion_insumos(cfg):
+    vc = cfg["voronoi"]
+    t = pl.read_parquet(_ruta(cfg, vc["transiciones_origen"]))
+    rp = _ruta(cfg, vc["rasgos"])
+    if not rp.exists():
+        sys.exit(f"No existe {rp}. Corre `dtcoach voronoi` primero.")
+    r = pl.read_parquet(rp)
+    nz = cfg["pitch"]["nx"] * cfg["pitch"]["ny"]
+    if int(t["from_state"].max()) >= nz:
+        sys.exit("Las transiciones de origen no son de una sola fase con la malla del config.")
+    # el discretizador se ajusta con los frames de las acciones de la cadena, no con todos los eventos
+    r_acc = r.join(t.select("match_id", "event_index").unique(), on=["match_id", "event_index"], how="semi")
+    return t, r, r_acc, nz
+
+
+def cmd_presion_cv(a, cfg):
+    """¿Cuántos niveles de presión mejoran la predicción de la siguiente acción? (ADR-v2-36)"""
+    from .voronoi import Discretizador, aumentar, comparar, conteos_marginales, pliegues_partido, puntaje_cv
+    vc = cfg["voronoi"]
+    t, r, r_acc, nz = _presion_insumos(cfg)
+    base, diag = aumentar(t, r, Discretizador("cuantiles", 1), nz, vc["min_cobertura"])
+    print(json.dumps(diag, indent=2), flush=True)
+    folds = pliegues_partido(base["match_id"].to_numpy(), vc["folds"], cfg["seed"])
+    res = {"base:1": puntaje_cv(conteos_marginales(base, nz, 1, folds), nz, vc["lam_grid"])}
+    print(f"  base:1 ({nz} estados): {res['base:1']['score']:+.5f} nats/transición", flush=True)
+    niveles = {}
+    for cand in (a.candidatos or vc["candidatos"]):
+        metodo, L = cand.split(":")
+        disc = Discretizador.ajustar(r_acc, metodo, int(L), cfg["seed"])
+        tk, dk = aumentar(t, r, disc, nz, vc["min_cobertura"])
+        if dk["transiciones"] != diag["transiciones"]:
+            sys.exit(f"{cand}: la muestra cambió ({dk['transiciones']} vs {diag['transiciones']}); no es comparable")
+        res[cand] = puntaje_cv(conteos_marginales(tk, nz, int(L), folds), nz, vc["lam_grid"])
+        niveles[cand] = _describir_niveles(tk, r, disc, nz)
+        print(f"  {cand} ({nz * int(L)} estados): {res[cand]['score']:+.5f} "
+              f"({res[cand]['score'] - res['base:1']['score']:+.5f} vs base)", flush=True)
+    elegido, tab = comparar(res)
+    rep = cfg.ruta("reportes") / "fase1"
+    rep.mkdir(parents=True, exist_ok=True)
+    tab.write_csv(rep / "presion_cv.csv")
+    _json({"elegido": elegido, "muestra": diag, "tabla": tab.to_dicts(), "niveles": niveles},
+          rep / "presion_cv.json")
+    with pl.Config(tbl_rows=30, tbl_cols=20, tbl_width_chars=200):
+        print(tab)
+    mejora = bool(tab.filter(pl.col("candidato") == elegido)["mejora"][0]) if elegido != "base:1" else False
+    print(f"\nElegido (1-EE hacia menos estados): {elegido} · mejora sobre la malla sola: {mejora}")
+    if elegido in niveles:
+        print(pl.DataFrame(niveles[elegido]))
+    if not mejora:
+        print("La presión NO mejora la predicción de la siguiente acción más allá del ruido: "
+              "según la regla pre-registrada, el experimento se cierra aquí (se queda la malla 5×4).")
+    else:
+        m, L = elegido.split(":")
+        print(f"Siguiente: pon `metodo: {m}` y `L: {L}` en config/presion.yaml y corre "
+              "`dtcoach --config config/presion.yaml presion-aplicar`.")
+
+
+def _describir_niveles(t: pl.DataFrame, r: pl.DataFrame, disc, nz: int) -> list[dict]:
+    """Por nivel: participación, rasgos medianos y desenlace inmediato de la acción."""
+    L = disc.L
+    real = t.filter(pl.col("action_type") != "TERMINAL").with_columns(
+        (pl.col("from_state") % L).alias("nivel"))
+    x = real.join(r.select("match_id", "event_index", "d_rival", "n_rivales", "area_local"),
+                  on=["match_id", "event_index"], how="left")
+    nt = nz * L
+    out = []
+    for l, et in enumerate(disc.etiquetas):
+        g = x.filter(pl.col("nivel") == l)
+        to = g["to_state"].to_numpy()
+        out.append({"nivel": et, "frac_acciones": g.height / max(x.height, 1),
+                    "d_rival_mediana": _num(g["d_rival"].fill_nan(None).median()),
+                    "n_rivales_media": _num(g["n_rivales"].fill_nan(None).mean()),
+                    "area_local_mediana": _num(g["area_local"].fill_nan(None).median()),
+                    "P_remate": float(np.isin(to, [nt, nt + 1]).mean()) if len(to) else float("nan"),
+                    "P_perdida": float((to == nt + 2).mean()) if len(to) else float("nan")})
+    return out
+
+
+def _num(v) -> float:
+    return float("nan") if v is None else float(v)
+
+
+def cmd_presion_aplicar(a, cfg):
+    """Escribe las transiciones zona × nivel (y su control con L = 1) en las rutas del experimento."""
+    from .voronoi import Discretizador, aumentar
+    vc = cfg["voronoi"]
+    if not vc.get("activo"):
+        sys.exit("Este comando se corre con `--config config/presion.yaml` (voronoi.activo: true).")
+    t, r, r_acc, nz = _presion_insumos(cfg)
+    disc = Discretizador.ajustar(r_acc, vc["metodo"], int(vc["L"]), cfg["seed"])
+    ta, diag = aumentar(t, r, disc, nz, vc["min_cobertura"])
+    tb, diag_b = aumentar(t, r, Discretizador("cuantiles", 1), nz, vc["min_cobertura"])
+    if ta.height != tb.height:
+        sys.exit("El control y el experimento no tienen la misma muestra.")
+    dest = cfg.ruta("transiciones")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    ta.write_parquet(dest)
+    db = _ruta(cfg, vc["transiciones_base"])
+    db.parent.mkdir(parents=True, exist_ok=True)
+    tb.write_parquet(db)
+    disc.guardar(dest.parent / "discretizador.json")
+    _json({"discretizador": disc.nombre, "muestra": diag}, cfg.ruta("reportes") / "fase1" / "presion_aplicar.json")
+    print(json.dumps(diag, indent=2))
+    print(f"escrito: {dest} ({_space(cfg).n_transient} estados transitorios) y el control {db}")
+    print("Siguiente (cada uno tarda como la curva de K de la malla):\n"
+          "  dtcoach --config config/presion_base.yaml curva-k --k 2 3 4 5\n"
+          "  dtcoach --config config/presion.yaml curva-k --k 2 3 4 5")
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="dtcoach", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -822,6 +977,15 @@ def main(argv=None):
     s.set_defaults(f=cmd_aplanar)
 
     sp.add_parser("partidos").set_defaults(f=cmd_partidos)
+
+    s = sp.add_parser("voronoi", help="rasgos 360 por evento (ADR-v2-36)")
+    s.add_argument("--hilos", type=int, default=None)
+    s.set_defaults(f=cmd_voronoi)
+    s = sp.add_parser("presion-cv", help="¿mejora la presión la predicción? (ADR-v2-36)")
+    s.add_argument("--candidatos", nargs="*", default=None)
+    s.set_defaults(f=cmd_presion_cv)
+    sp.add_parser("presion-aplicar", help="transiciones zona × nivel (con --config config/presion.yaml)"
+                  ).set_defaults(f=cmd_presion_aplicar)
     sp.add_parser("fase0").set_defaults(f=cmd_fase0)
 
     s = sp.add_parser("cv-k")

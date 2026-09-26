@@ -252,3 +252,23 @@ los resultados de las fases 2 y 3.
 2. **Malla del vocabulario:** se prueban 8×5, 6×4 y 5×4 en ese orden (de la más fina a la más gruesa), con el paso inicial ya adoptado; se elige la **primera** cuyo mayor K reproducible sea ≥ 3, con ese K. Si ninguna llega a 3: la más fina con algún K reproducible. Si ninguna: se detiene.
 3. **La corrida 12×8 se conserva** como resultado de resolución espacial y de las métricas formales que no dependen del vocabulario (verificación, irreversibilidad, llegada de la liga).
 4. **Memoria:** la información mutua plug-in queda solo como diagnóstico. La medida oficial es la **ganancia de verosimilitud fuera de muestra** del orden 2 y del primer toque sobre el orden 1, sin y con condicionar al tipo (ADR-v2-34). La regla de lectura (≥ 50 % explicada por los tipos → domina la heterogeneidad) se mantiene.
+
+# Experimento 360: zona × nivel de presión (pre-registrado el 2026-09-26, ANTES de correrlo con datos reales; ADR-v2-36)
+
+Solo se ha corrido con datos sintéticos. Reglas:
+
+1. **¿Mejora la cadena?** `dtcoach presion-cv` compara la malla sola (L = 1)
+   contra los candidatos (cuantiles de la distancia al rival con L = 2–4;
+   k-means sobre los tres rasgos con L = 2–5). Métrica: densidad predictiva del
+   siguiente punto en partidos no vistos (ADR-v2-32). Se elige el mejor, y entre
+   los que quedan a menos de 1 EE pareado de él, el de menos estados. **Hay
+   mejora** si el elegido supera a la malla sola por más de 2 EE pareados. Si no
+   la hay, el experimento termina y se queda la malla 5×4.
+2. **¿Más tipos?** Con la regla 1 cumplida, `curva-k` (K = 2–5) sobre el control
+   y sobre el estado aumentado, con el criterio de reproducibilidad de ADR-v2-35.
+   **Se adopta el vocabulario con presión solo si su mayor K reproducible es ≥ 4
+   y mayor que el del control.** Si no, el vocabulario oficial sigue siendo 5×4
+   con K = 3, y la presión se reporta como resultado de la fase 1 (regla 1).
+3. Si se adopta, los tipos se nombran después de ver sus figuras, y las fases 2 y
+   3 se rehacen solo con partidos con 360; las conclusiones se comparan con las
+   de la §16 de `10_RESULTADOS.md`, como se hizo en la réplica v3.

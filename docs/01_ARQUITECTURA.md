@@ -111,3 +111,15 @@ Comandos: `dtcoach fase3 [--foco] [--min-partidos 30]`, `dtcoach atlas [--min-pa
 | `hipotesis.modelo_contexto` | el ajuste de la fase 2, reutilizable (lo usa el simulador) |
 
 Comandos: `dtcoach decisiones [--foco]`, `dtcoach simulador [--foco]`.
+
+## Experimento 360 (ADR-v2-36, aislado)
+
+| archivo | qué hace |
+|---|---|
+| `voronoi.py` | rasgos por freeze frame (celda de Voronoi local, rival más cercano), discretización en niveles, recodificación zona × nivel (`aumentar`), validación cruzada en la escala común |
+| `config/presion.yaml` · `config/presion_base.yaml` | heredan de `default.yaml` (`hereda:`); rutas propias; experimento y control con la misma muestra |
+| `scripts/presion.sh` | corre el experimento completo con las reglas pre-registradas |
+
+Comandos: `dtcoach voronoi`, `dtcoach presion-cv`, `dtcoach --config config/presion.yaml presion-aplicar`.
+Artefactos: `data/interim/rasgos_360.parquet`, `data/processed/presion/`, `reports/presion*/`,
+`reports/fase1/presion_cv.{csv,json}`.

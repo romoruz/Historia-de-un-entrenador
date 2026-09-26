@@ -309,3 +309,38 @@ ninguno cumple: se detiene. Otros tres errores corregidos en la misma revisión:
 (1) las métricas por tipo usaban nombres de familias de otro K; (2) las pruebas
 dependían de `config.pitch`, que el pipeline cambia; (3) el caché de `curva-k`
 reutilizaba filas calculadas con el criterio anterior.
+
+## ADR-v2-36 — Experimento: estado zona × nivel de presión desde el 360 (Voronoi local)
+**Propuesta evaluada:** sustituir la malla por estados "topológicos" (control
+aislado, disputa, ruptura) obtenidos agrupando rasgos de la teselación de
+Voronoi, para que la mezcla sostenga K ≥ 4.
+
+**Qué se adoptó y qué no:**
+- El estado es el **producto zona × nivel**, no solo el nivel. Sin la zona se
+  pierden el valor de zona, la llegada al área y el xG por lugar. El nivel ocupa
+  el eje de "fase" que `StateSpace` ya soporta, así que la mezcla, `markov` y las
+  figuras funcionan sin cambios.
+- La celda de Voronoi se **recorta a un disco de R = 10 m**, a la cancha y al
+  área visible de la cámara: el 360 solo trae a los jugadores visibles, y la
+  celda completa sería un artefacto del encuadre. Rasgos: distancia al rival más
+  cercano, rivales a menos de 5 m y área local de la celda.
+- **No DBSCAN** (deja acciones "ruido" sin estado y depende de un ε arbitrario)
+  **ni GMM con BIC** (con millones de puntos el BIC elige muchas componentes por
+  tamaño de muestra, no por dinámica). Los niveles salen de cuantiles o k-means y
+  su número se elige por **validación cruzada por partido en la escala común de
+  ADR-v2-32**: densidad predictiva del siguiente punto (zona o absorbente), con
+  1 EE pareado hacia menos estados.
+- La "ruptura" (el pase que cruza la línea) es una propiedad de la **acción**,
+  no del estado; queda fuera de este experimento.
+- La comparación de K se hace contra un **control con la misma muestra**
+  (partidos con 360, L = 1): si no, un cambio en K podría venir de cambiar de
+  partidos y no de cambiar de estado.
+
+**Advertencia registrada antes de correr:** en la fase 1 v3, mallas más finas
+dieron *menos* K reproducibles (8×5 y 12×8: ninguno). Más estados = más
+parámetros por tipo. Que la presión separe mejor los tipos es una hipótesis, no
+una consecuencia.
+
+Aislado en `config/presion.yaml` y `config/presion_base.yaml` (heredan de
+`default.yaml`); se descarta borrando `data/processed/presion`,
+`data/interim/rasgos_360.parquet` y `reports/presion*`.

@@ -1,0 +1,13 @@
+# Experimento ADR-v2-36: vocabulario con estado zona × nivel de presión (360).
+# Hereda TODO de default.yaml; solo cambia las rutas (nada pisa el vocabulario
+# oficial) y enciende el estado aumentado. L y método: los que elija
+# `dtcoach presion-cv` (reports/fase1/presion_cv.md).
+hereda: default.yaml
+rutas:
+  transiciones: data/processed/presion/transitions.parquet
+  mezcla_dir: data/processed/presion/mezcla
+  reportes: reports/presion
+voronoi:
+  activo: true
+  metodo: kmeans
+  L: 3

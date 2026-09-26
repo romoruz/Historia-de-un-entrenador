@@ -1,0 +1,8 @@
+# Control del experimento ADR-v2-36: la MISMA muestra (partidos con 360) con la
+# malla sola (L = 1). Sin esto, un cambio en K reproducible podría venir de
+# cambiar de partidos y no de cambiar de estado.
+hereda: default.yaml
+rutas:
+  transiciones: data/processed/presion/base/transitions.parquet
+  mezcla_dir: data/processed/presion/base/mezcla
+  reportes: reports/presion_base
