@@ -389,3 +389,29 @@ Nombres confirmados con `tipos_K3_inicio.png` y `tipos_K3_visitas.png`: la *Dire
 - El H1 conjunto de Jardine pasa a ⚪ (W = 2.5). En San Luis salen además H3 🟢 y H6 🟢: allí reaccionaba al marcador y al rival; en el América, no.
 - Almada en el América (7 partidos): exploratorio, sin 🟢 (regla pre-registrada). El W = 61 de H3 ilustra el problema de pocos conglomerados. Indicio: +2.6 pp de *Directa* respecto a Pachuca [+0.3, +4.9].
 - Banca: Jardine abre su primer cambio ~3 min después que la liga (H13 🟢); Almada ~2 min antes empatando o perdiendo, pero su prueba conjunta no sobrevive a BH (q = 0.106): indicio, no conclusión.
+
+---
+
+## 17. Experimento dirección: zona × dirección de llegada (ADR-v2-37, 2026-09-26)
+
+**Regla 1 (predicción), 🟢 cumplida.** Densidad predictiva de la siguiente acción en partidos no vistos (nats por transición, sobre la malla 5×4 sola):
+
+| estado | estados | ganancia | EE pareado |
+|---|---|---|---|
+| zona anterior completa (la memoria de la v3, referencia) | 420 | +0.0547 | 0.0003 |
+| adelante / lateral / atrás, ε = 5 m | 80 | +0.0444 | 0.0001 |
+| 4 sectores | 100 | +0.0554 | 0.0003 |
+| **8 sectores (elegido)** | **180** | **+0.0660** | 0.0004 |
+
+La dirección de llegada predice mejor que la zona anterior con menos de la mitad de estados. Sabida la dirección, la zona anterior aún agrega +0.039: queda memoria que no es dirección (hipótesis no medida: la distancia de la acción).
+
+**Regla 2 (vocabulario), 🔴 no cumplida.** Con 180 estados ningún K es reproducible:
+
+| K | acuerdo suave | acuerdo duro | rango de J | KS | π mínimo |
+|---|---|---|---|---|---|
+| 2 | ≈ 0.94 | 0.883 | 902 | 0.0174 | 0.483 |
+| 3 | ≈ 0.92 | 0.828 | 590 | 0.0137 | 0.297 |
+| 4 | ≈ 0.84 | 0.767 | 398 | 0.0108 | 0.178 |
+| 5 | ≈ 0.77 | 0.680 | 298 | 0.0063 | 0.132 |
+
+El rango de J por secuencia (902 / 461 mil ≈ 2·10⁻³) es ~18 veces el umbral de ADR-v2-35. **El vocabulario oficial sigue siendo 5×4, K = 3.** Es el mismo patrón que las mallas finas de la v3: más estados por tipo, menos identificabilidad. Las 8 direcciones se eligieron porque, con 3 millones de transiciones, 1 EE pareado casi no penaliza la complejidad.
