@@ -9,8 +9,8 @@
 
 - Fase 1 v3 **cerrada**: 5×4, K = 3, paso inicial, familias nombradas (`10_RESULTADOS.md` §16).
 - Fases 2 y 3 **rehechas** con el vocabulario v3 para Jardine y Almada: las conclusiones no cambian (robustez).
-- Experimento 360 (zona × nivel de presión, ADR-v2-36): implementado y probado con datos sintéticos; **falta correrlo con datos reales** (`bash scripts/presion.sh`).
-- Experimento dirección (zona × dirección de llegada, ADR-v2-37): implementado y probado con datos sintéticos; **falta correrlo con datos reales** (`bash scripts/direccion.sh`, no necesita 360).
+- Experimento 360 (ADR-v2-36): corrido. Mejora la predicción (+0.031), no sostiene el vocabulario (`10_RESULTADOS` §18).
+- Experimento dirección (ADR-v2-37): corrido. Mejora la predicción (+0.066), no sostiene el vocabulario (`10_RESULTADOS` §17). **El vocabulario oficial sigue siendo 5×4, K = 3.**
 - Pendiente opcional: memoria por aumento de estado (ahora cubierto por ADR-v2-37) (la memoria real está en el destino, no en la duración); análisis por jugador (`player_id` ya está en las transiciones).
 
 ---

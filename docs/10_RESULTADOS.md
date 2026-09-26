@@ -415,3 +415,36 @@ La dirección de llegada predice mejor que la zona anterior con menos de la mita
 | 5 | ≈ 0.77 | 0.680 | 298 | 0.0063 | 0.132 |
 
 El rango de J por secuencia (902 / 461 mil ≈ 2·10⁻³) es ~18 veces el umbral de ADR-v2-35. **El vocabulario oficial sigue siendo 5×4, K = 3.** Es el mismo patrón que las mallas finas de la v3: más estados por tipo, menos identificabilidad. Las 8 direcciones se eligieron porque, con 3 millones de transiciones, 1 EE pareado casi no penaliza la complejidad.
+
+---
+
+## 18. Experimento 360: zona × nivel de presión (ADR-v2-36, 2026-09-26)
+
+**Datos.** 5,085,117 freeze frames de 1,755 partidos; el actor del frame coincide con la ubicación del evento (mediana 0 m; 3.6 % a más de 2 m). Distancia al rival más cercano: p10 1.1 m, mediana 4.3 m, p90 13.7 m. Solo **649 de 1,767 partidos** pasan el umbral de cobertura (≥ 90 % de las acciones de la cadena con rasgos): 160 mil secuencias, un tercio de la muestra oficial.
+
+**Regla 1 (predicción), 🟢 cumplida.** Todos los candidatos mejoran; se eligió k-means con 5 niveles (100 estados), +0.031 nats por transición (EE 0.0001). Los niveles se leen en la cancha:
+
+| nivel | % acciones | rival más cercano | rivales a 5 m | área local | P(remate) | P(pérdida) |
+|---|---|---|---|---|---|---|
+| p0 | 27 % | 12.6 m | 0.0 | 232 m² | 0.2 % | 3.3 % |
+| p1 | 25 % | 6.9 m | 0.0 | 128 m² | 0.8 % | 6.7 % |
+| p2 | 21 % | 3.6 m | 1.0 | 123 m² | 1.7 % | 10.3 % |
+| p4 | 17 % | 1.9 m | 1.0 | 56 m² | 1.4 % | 11.5 % |
+| p3 | 10 % | 1.9 m | 2.2 | 34 m² | 7.4 % | 14.5 % |
+
+La pérdida crece de forma monótona con la presión (3 % → 15 %); p3 (dos rivales encima, 34 m²) es sobre todo el área rival, donde también se remata.
+
+**Regla 2 (vocabulario), 🔴 no cumplida.** Mayor K reproducible: control 2, presión 2.
+
+| K | control: acuerdo duro · rango J | presión: acuerdo duro · rango J |
+|---|---|---|
+| 2 | 0.999 · 3.3 | 0.987 · 3.9 |
+| 3 | 0.864 · 427 | 0.898 · 46 |
+| 4 | 0.761 · 102 | 0.661 · 155 |
+| 5 | 0.714 · 298 | 0.514 · 606 |
+
+**Dos lecturas, sin sobreinterpretar:**
+1. En esta submuestra ni la malla sola sostiene K = 3: la reproducibilidad del vocabulario oficial **depende del tamaño de muestra** (461 mil secuencias sí, 160 mil no).
+2. Con presión, K = 3 queda más cerca del umbral que el control (rango de J 46 contra 427), pero no lo cumple. Es un indicio, no un resultado.
+
+**Conclusión de los dos experimentos (§17 y §18):** estados más ricos (dirección, presión) **predicen mejor** la siguiente acción, pero **no sostienen más tipos reproducibles**. El vocabulario oficial sigue siendo 5×4, K = 3.
