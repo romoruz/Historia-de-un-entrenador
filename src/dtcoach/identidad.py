@@ -146,13 +146,17 @@ def ranking_reconocimiento(H: pl.DataFrame, cols: list[str], min_partidos: int =
 # ----------------------------------------------------------------------
 # 2. Nivel local: Kalman + Rauch-Tung-Striebel
 # ----------------------------------------------------------------------
-def kalman_nivel(y: np.ndarray, r: np.ndarray, q: float, m0: float, p0: float) -> dict:
+def kalman_nivel(y: np.ndarray, r: np.ndarray, q: float, m0: float, p0: float,
+                 reinicio: tuple = (), v_reinicio: float = 0.0) -> dict:
+    """`reinicio`: índices donde el nivel puede saltar (cambio de club, una INTERVENCIÓN):
+    ahí se suma `v_reinicio` a la varianza del estado y el nivel se reaprende del nuevo club."""
     n = len(y)
     mf, pf, mp, pp = np.zeros(n), np.zeros(n), np.zeros(n), np.zeros(n)
     ll = 0.0
     m, p = m0, p0
+    reinicio = set(reinicio)
     for t in range(n):
-        mp[t], pp[t] = m, p + q
+        mp[t], pp[t] = m, p + q + (v_reinicio if t in reinicio else 0.0)
         if np.isfinite(y[t]):
             s = pp[t] + r[t]
             k = pp[t] / s
@@ -170,24 +174,29 @@ def kalman_nivel(y: np.ndarray, r: np.ndarray, q: float, m0: float, p0: float) -
     return {"nivel": ms, "var": ps, "loglik": ll}
 
 
-def nivel_local(y: np.ndarray, r: np.ndarray | None = None) -> dict:
-    """q por máxima verosimilitud; si `r` es None también se estima un ruido constante."""
+def nivel_local(y: np.ndarray, r: np.ndarray | None = None, cortes: tuple = ()) -> dict:
+    """q (y el ruido r, si no se da) por máxima verosimilitud. `cortes`: cambios de club,
+    modelados como intervención (el nivel puede saltar ahí sin inflar q en el resto)."""
     y = np.asarray(y, float)
     ok = np.isfinite(y)
     m0, v0 = float(np.nanmean(y[: max(3, ok.sum() // 10)])), float(np.nanvar(y) + 1e-12)
+    vr = 10.0 * v0 if cortes else 0.0
+
+    def kal(q, rr):
+        return kalman_nivel(y, rr, q, m0, v0, tuple(cortes), vr)
     if r is None:
         def nll(th):
             q, rr = np.exp(th)
-            return -kalman_nivel(y, np.full(len(y), rr), q, m0, v0)["loglik"]
+            return -kal(q, np.full(len(y), rr))["loglik"]
         th = minimize(nll, np.log([v0 / 20, v0 / 2]), method="Nelder-Mead").x
         q, rr = np.exp(th)
         r = np.full(len(y), rr)
     else:
         r = np.asarray(r, float)
-        res = minimize_scalar(lambda lq: -kalman_nivel(y, r, np.exp(lq), m0, v0)["loglik"],
+        res = minimize_scalar(lambda lq: -kal(np.exp(lq), r)["loglik"],
                               bounds=(np.log(v0) - 20, np.log(v0) + 2), method="bounded")
         q = float(np.exp(res.x))
-    k = kalman_nivel(y, r, q, m0, v0)
+    k = kal(q, r)
     return {"nivel": k["nivel"].tolist(), "lo": (k["nivel"] - 1.96 * np.sqrt(k["var"])).tolist(),
             "hi": (k["nivel"] + 1.96 * np.sqrt(k["var"])).tolist(), "q": float(q),
             "r_medio": float(np.nanmean(r)), "q_sobre_r": float(q / max(np.nanmean(r), 1e-12)),
@@ -198,27 +207,22 @@ def evolucion(t_seq: pl.DataFrame, H: pl.DataFrame, foco: str, K: int, metricas:
     """Nivel suavizado de cada familia (ataque y defensa) y de las métricas, partido a partido."""
     Hf = H.filter(pl.col("coach") == foco).sort("match_date")
     orden = Hf.select("match_id", "team", "match_date")
-    r = [f"r_{k + 1}" for k in range(K)]
-    # ruido de un partido para las mezclas: varianza de r dentro del partido / n secuencias
-    var_a = (t_seq.group_by("match_id", "team").agg([pl.col(c).var().alias(f"v{i}") for i, c in enumerate(r)]
-                                                    + [pl.len().alias("n")]))
+    equipos = Hf["team"].to_list()
+    cortes = tuple(i for i in range(1, len(equipos)) if equipos[i] != equipos[i - 1])
     out = {"partidos": orden.with_columns(pl.col("match_date").cast(pl.Utf8)).to_dicts(), "series": {}}
-    ra = orden.join(var_a, on=["match_id", "team"], how="left")
-    rd = (orden.join(Hf.select("match_id", "team", "rival"), on=["match_id", "team"])
-          .join(var_a.rename({"team": "rival"}), on=["match_id", "rival"], how="left"))
-    for lado, V in (("ataque", ra), ("defensa", rd)):
+    # El ruido de un partido se estima por máxima verosimilitud en TODAS las series. La varianza
+    # de r dentro del partido / n (primera versión) ignora que las secuencias de un partido
+    # comparten rival y marcador: subestimaba el ruido y todo el vaivén se volvía "q" (q/r ≈ 3–7).
+    for lado in ("ataque", "defensa"):
         for k in range(K):
-            y = Hf[f"{lado}_{k + 1}"].to_numpy().astype(float)
-            rr = (V[f"v{k}"] / V["n"]).fill_null(np.nan).to_numpy().astype(float)
-            rr = np.where(np.isfinite(rr) & (rr > 0), rr, np.nanmedian(rr))
-            out["series"][f"{lado}_{k + 1}"] = nivel_local(y, rr)
+            out["series"][f"{lado}_{k + 1}"] = nivel_local(Hf[f"{lado}_{k + 1}"].to_numpy().astype(float),
+                                                           cortes=cortes)
     for m in metricas:
         if m in Hf.columns and Hf[m].drop_nulls().len() >= 10:
-            out["series"][m] = nivel_local(Hf[m].to_numpy().astype(float))
+            out["series"][m] = nivel_local(Hf[m].to_numpy().astype(float), cortes=cortes)
     # cambio de club: diferencia entre el nivel al salir de un club y al llegar al siguiente.
-    # z usa var_i + var_{i-1} e ignora su covarianza (positiva en el suavizado): es CONSERVADOR.
-    equipos = Hf["team"].to_list()
-    cortes = [i for i in range(1, len(equipos)) if equipos[i] != equipos[i - 1]]
+    # Con la intervención, el salto se estima con los partidos de cada club. z usa var_i + var_{i-1}
+    # e ignora su covarianza: es CONSERVADOR.
     out["cambios_de_club"] = []
     for i in cortes:
         fila = {"de": equipos[i - 1], "a": equipos[i], "partido": i, "series": {}}

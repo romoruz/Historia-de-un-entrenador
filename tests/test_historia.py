@@ -308,3 +308,29 @@ def test_impacto_de_los_cambios_sembrado():
     r = impacto_cambios(pl.DataFrame(filas), pl.DataFrame(subs), pl.DataFrame(tp), "F", 10, 300, 0)
     assert r["xg_propio"]["did"] == pytest.approx(0.5, abs=0.05) and r["xg_propio"]["lo"] > 0.3
     assert r["xg_rival"]["lo"] < 0 < r["xg_rival"]["hi"]
+
+
+def test_bh_global_no_da_verde_con_pocos_partidos(tmp_path):
+    import json
+
+    from dtcoach.blindaje import bh_global
+    a = tmp_path / "por_club_x.json"
+    a.write_text(json.dumps({"clubes": {"Chico": {"modelo": {"partidos_foco": 7, "aviso_foco": "pocos"},
+                                                  "hipotesis": {"H3": {"p": 1e-8, "etiqueta": "🟡"}}},
+                                        "Grande": {"modelo": {"partidos_foco": 120},
+                                                   "hipotesis": {"H3": {"p": 1e-8, "etiqueta": "🟢"}}}}}))
+    d = bh_global([a])
+    et = dict(zip(d["id"].to_list(), d["etiqueta_global"].to_list()))
+    assert et["por:Chico/H3"] == "🟡" and et["por:Grande/H3"] == "🟢"
+
+
+def test_evolucion_con_intervencion_en_el_cambio_de_club():
+    rng = np.random.default_rng(0)
+    y = np.r_[0.4 + rng.normal(0, 0.05, 60), 0.6 + rng.normal(0, 0.05, 60)]
+    a = nivel_local(y, cortes=(60,))
+    n, v = np.array(a["nivel"]), np.array(a["var"])
+    assert n[60] - n[59] == pytest.approx(0.2, abs=0.03) and (n[60] - n[59]) / np.sqrt(v[60] + v[59]) > 4
+    assert a["q_sobre_r"] < 0.05                           # el salto NO se confunde con un estilo que se mueve
+    b = nivel_local(0.4 + rng.normal(0, 0.05, 120), cortes=(60,))
+    n, v = np.array(b["nivel"]), np.array(b["var"])
+    assert abs((n[60] - n[59]) / np.sqrt(v[60] + v[59])) < 2

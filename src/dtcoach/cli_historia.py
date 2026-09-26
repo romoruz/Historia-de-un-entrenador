@@ -327,8 +327,11 @@ def cmd_jugadores(a, cfg):
         md.append(f"| {nombre} | {v['did']:+.3f} [{v['lo']:+.3f}, {v['hi']:+.3f}] | {v['p']:.4f} |")
     if "estabilidad_once__n" in M.columns:
         r = _bloque(M, ["estabilidad_once"], foco, "propio", fc, cfg["seed"])
+        # misma medida que H17 (rotación), con la misma confusión con el calendario: exploratoria
+        r["estabilidad_once"]["etiqueta"] = "🔎"
         res["estabilidad_once"] = r
         md += ["", "## Estabilidad del once (Jaccard con el partido anterior)", "",
+               "🔎 Exploratoria: como H17, se confunde con el calendario (Copa, Concachampions no están en los datos).", "",
                tabla(r, None, _percentiles(M, ["estabilidad_once"], foco, "propio", fc["min_partidos_era"]),
                      {"estabilidad_once": {"nombre": "once repetido (Jaccard)", "formato": "{:.3f}"}})]
     _json(res, out_dir / "jugadores.json")

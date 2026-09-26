@@ -448,3 +448,73 @@ La pérdida crece de forma monótona con la presión (3 % → 15 %); p3 (dos riv
 2. Con presión, K = 3 queda más cerca del umbral que el control (rango de J 46 contra 427), pero no lo cumple. Es un indicio, no un resultado.
 
 **Conclusión de los dos experimentos (§17 y §18):** estados más ricos (dirección, presión) **predicen mejor** la siguiente acción, pero **no sostienen más tipos reproducibles**. El vocabulario oficial sigue siendo 5×4, K = 3.
+
+---
+
+## 19. Capa de fútbol: Jardine y Almada (2026-09-26)
+
+Reglas de lectura pre-registradas en `11_HIPOTESIS.md` ("Capa de fútbol"). **Rasgo del técnico** =
+🟢 contra la liga + percentil ≤ 20 o ≥ 80 entre las 45 etapas + fiabilidad entre mitades ≥ 0.5.
+**Viaja** = mismo signo (🟢/🟡) en sus clubes.
+
+**Datos 360.** 3.66 M frames con bloque medible (≥ 6 defensores visibles; mediana 8) y 20,883 saques
+con marcaje. Altura del bloque: p10 20 m, mediana 48 m, p90 85 m. Distancia de marca en corners: mediana 2.5 m.
+
+### Guillermo Almada: la identidad más reconocible de la liga
+
+- **Identidad (5.2):** AUC fuera de muestra 0.887 contra la liga (2.º de 45 etapas) y 0.857 contra
+  el MISMO club con otros técnicos (nulas por permutación ≈ 0.50, p95 ≈ 0.55). No es Pachuca: es él.
+- **Rasgos que cumplen las tres condiciones (Pachuca):** presiona encima (acciones del rival con un
+  jugador suyo a ≤ 2 m: 0.208 contra 0.172, percentil 94) y antes (PPDA 8.5 contra 10.3, percentil
+  17); bloque estrecho y compacto (anchura percentil 1, área percentil 3); saques de meta largos (en
+  corto 32 % contra 47 %, percentil 8); conducciones progresivas (+6.2 por partido, percentil 99);
+  volumen de remate (16.1 contra 13.3, percentil 92) con menos xG por remate; remata tras recuperar
+  (percentil 90); juega en espacios cerrados (área de Voronoi propia, percentil 8); concede pocas
+  entradas al área (percentil 14).
+- **Viajan a Santos Laguna (20 partidos):** PPDA (6.5), presión a ≤ 2 m (0.243), saques largos
+  (22 %), bloque estrecho y contrapresión. En el América (7 partidos) solo es exploratorio.
+- **Cadena:** llega al último tercio más y en menos acciones (2.5 contra 2.8): vertical. Sus rivales
+  llegan menos (−4.5 pp) al último tercio y (−3.5 pp) frente al área.
+- **Balón parado defensivo:** concede 26 % menos remates por corner (razón 0.74 [0.65, 0.84]); marca
+  más cerca (2.45 contra 2.83 m) y con menos defensores sobrantes (2.3 contra 2.9): marca al hombre.
+- **Blindaje:** la eficiencia coincide en signo con xG, OBV y tasa de remate; H3 y H6 se sostienen
+  con bootstrap de score (p = 0.003 y 0.001; en Pachuca 0.018 y 0.001). En el América (7 partidos)
+  el Wald de H3 daba p ≈ 0 y el bootstrap p = 0.80: el sobre-rechazo con pocos partidos, visible.
+
+### André Jardine: se adapta al plantel; lo que viaja es poco y defensivo
+
+- **Identidad (5.2):** AUC 0.726 contra la liga y 0.624 contra su mismo club (ambos sobre el p95 de
+  la nula). En el América, puesto 13 de 45; en San Luis, 44 de 45: allí casi no se distinguía.
+- **Casi todo cambia de signo entre clubes:** posesión, field tilt, entradas, progresión, altura de
+  recuperación y del bloque son BAJOS en San Luis y ALTOS en el América (p. ej. field tilt 0.41 contra
+  0.61). Es la misma conclusión de la fase 3: el estilo ofensivo es del plantel.
+- **Lo que viaja:** presiona MENOS encima que la liga en los dos clubes (acciones del rival con un
+  jugador suyo a ≤ 2 m: −0.013 y −0.015, ambos 🟢; percentiles 26 y 17), y la firma de H2 (sus
+  rivales juegan menos *Directa*).
+- **Cadena:** llega más frente al área (18.2 % contra 15.7 %) pero con más acciones (6.6 contra 5.5):
+  construye con paciencia.
+- **Balón parado:** nada distinto de la liga (solo 🟡 menos goles concedidos).
+- **Blindaje:** la eficiencia del América coincide en xG, OBV y remate. **Corrección a §16:** en San
+  Luis, H3 (reacción al marcador) pasa de p = 0.016 (Wald) a 0.058 (bootstrap): ya no se afirma; H6
+  (reacción al rival) se sostiene (p = 0.019).
+
+### Transversal
+
+- **Simulador:** habilidad del 5 % sobre las frecuencias base (Brier 0.627 contra 0.660, dejando cada
+  partido fuera). Exploratorio: explica, no predice. Jardine sumó 306 puntos contra 296 esperados por
+  estilo; Almada, 276 contra 257.
+- **Calibración:** los splines de minuto y Elo no la mejoran (1.21 → 1.28; 1.36 → 1.38): el error
+  restante no está en la forma del minuto. Se queda el diseño con tramos.
+- **Impacto de los cambios:** ninguno en xG; el OBV de Jardine tras su primer cambio (+0.10
+  [+0.02, +0.18]) es exploratorio según la regla 7.
+
+### Correcciones de código hechas al leer estos resultados
+
+1. **Evolución (Kalman):** el ruido de las familias se tomaba como var(r)/n, que ignora que las
+   secuencias de un partido comparten rival y marcador; salía q/r ≈ 3–7 (falso "estilo cambiante").
+   Ahora el ruido se estima por máxima verosimilitud y el cambio de club es una **intervención** (sin
+   ella, el salto de club se diluía en q y salía z ≈ 0). **Pendiente de volver a correr.**
+2. **BH global:** subía a 🟢 hipótesis de muestras con < 20 partidos (Almada en el América). Ahora
+   respeta la regla. **Pendiente de volver a correr.**
+3. **Estabilidad del once:** es la misma medida que H17 y tiene la misma confusión con el calendario:
+   exploratoria (🔎).

@@ -48,13 +48,16 @@ def eficiencia_robusta(t_seq: pl.DataFrame, K: int, familias: list[str], n_boot:
 
 
 def _recolectar(obj, prefijo: str, out: list) -> None:
-    """Toda hipótesis con p en un JSON de resultados (fase 2, 3a por club, 3b)."""
+    """Toda hipótesis con p en un JSON de resultados (fase 2, 3a por club, 3b). Las de una
+    muestra con < 20 partidos del foco se marcan `pocos`: nunca reciben 🟢 (ADR-v2-28)."""
     if isinstance(obj, dict):
         if "hipotesis" in obj and isinstance(obj["hipotesis"], dict):
+            mod = obj.get("modelo") or {}
+            pocos = bool("aviso_foco" in mod or (mod.get("partidos_foco") or 99) < 20)
             for k, h in obj["hipotesis"].items():
                 if isinstance(h, dict) and "p" in h and h.get("etiqueta") != "🔎":
                     out.append({"id": f"{prefijo}{k}", "nombre": h.get("nombre", ""), "p": float(h["p"]),
-                                "etiqueta_familia": h.get("etiqueta", "")})
+                                "etiqueta_familia": h.get("etiqueta", ""), "pocos": pocos})
         for k, v in obj.items():
             if k != "hipotesis" and isinstance(v, dict):
                 _recolectar(v, f"{prefijo}{k}/" if k not in ("clubes",) else prefijo, out)
@@ -70,5 +73,5 @@ def bh_global(archivos: list[Path], alpha: float = 0.05) -> pl.DataFrame:
     d = pl.DataFrame(filas).filter(pl.col("p").is_not_nan())
     q, rech = benjamini_hochberg(d["p"].to_numpy(), alpha)
     return d.with_columns(pl.Series("q_global", q), pl.Series("rechaza_global", rech)).with_columns(
-        pl.when(pl.col("rechaza_global")).then(pl.lit("🟢"))
+        pl.when(pl.col("rechaza_global") & ~pl.col("pocos")).then(pl.lit("🟢"))
         .when(pl.col("p") < alpha).then(pl.lit("🟡")).otherwise(pl.lit("⚪")).alias("etiqueta_global"))
