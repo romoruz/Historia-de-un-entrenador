@@ -37,3 +37,15 @@ read -rs SB_PASSWORD; export SB_PASSWORD
 
 Los datos de StatsBomb son licenciados: `data/raw`, `data/interim` y
 `data/processed` no se versionan.
+
+## La historia de un entrenador (capa de fútbol, fases A–F)
+
+```bash
+source .venv/bin/activate
+bash scripts/correr_foco.sh "Andre Jardine" 30     # fases 2 y 3 (si no se han corrido)
+bash scripts/historia.sh "Andre Jardine"           # estilo, 360, balón parado, jugadores, identidad, simulador, blindaje
+bash scripts/historia.sh "Guillermo Almada"
+```
+
+Salidas por técnico en `reports/historia/<foco>/`: un `.md` por componente del reto, sus `.json` y figuras.
+Definiciones en `docs/03_FRAMEWORK.md` §5; reglas de lectura en `docs/11_HIPOTESIS.md`.

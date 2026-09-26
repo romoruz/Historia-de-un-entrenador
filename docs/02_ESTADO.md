@@ -7,6 +7,11 @@
 
 ## Estado
 
+- **Capa de fútbol (fases A–F) implementada** y probada con datos sintéticos (126 pruebas): estilo de juego con
+  métricas del reto, 360 (presión, bloque, marcaje), transiciones, balón parado, jugadores, identidad y evolución,
+  simulador de partido y blindaje. **Siguiente acción:** `bash scripts/historia.sh "Andre Jardine"` y
+  `bash scripts/historia.sh "Guillermo Almada"`; después, el informe (fase G).
+
 - Fase 1 v3 **cerrada**: 5×4, K = 3, paso inicial, familias nombradas (`10_RESULTADOS.md` §16).
 - Fases 2 y 3 **rehechas** con el vocabulario v3 para Jardine y Almada: las conclusiones no cambian (robustez).
 - Experimento 360 (ADR-v2-36): corrido. Mejora la predicción (+0.031), no sostiene el vocabulario (`10_RESULTADOS` §18).

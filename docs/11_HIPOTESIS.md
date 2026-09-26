@@ -291,3 +291,38 @@ Solo se ha corrido con datos sintéticos. Reglas:
 4. **Combinación con el 360:** solo si los dos experimentos cumplen por separado
    sus reglas 1 y 2. El estado combinado (zona × dirección × presión) se evalúa
    con las mismas reglas, contra el mejor de los dos por separado.
+
+# Capa de fútbol (fases A–F): reglas de lectura (pre-registradas el 2026-09-26, ANTES de correrlas con datos reales)
+
+Solo se han corrido con datos sintéticos (126 pruebas, rasgos sembrados). Reglas:
+
+1. **Diferencia con la liga (cada métrica).** Bootstrap por partido; BH dentro de
+   cada bloque (ofensiva, defensiva, transiciones, 360, concedido, balón parado).
+   🟢 q < 0.05 · 🟡 p < 0.05 sin sobrevivir BH · ⚪ no detectado. Sin 🟢 con menos
+   de 20 partidos del foco en la muestra (ADR-v2-28).
+2. **Rasgo del técnico.** Una métrica se narra como rasgo SOLO si cumple las tres:
+   🟢 contra la liga, percentil ≤ 20 o ≥ 80 entre etapas, y fiabilidad entre mitades
+   ≥ 0.5 en la liga. Si solo cumple la primera, se reporta como "diferencia en esta
+   muestra", no como identidad.
+3. **Técnico o plantel.** Un rasgo "viaja" si es 🟢 o 🟡 con el mismo signo en sus
+   dos clubes (mismo criterio que H9–H11).
+4. **Identidad (5.2).** Hay identidad reconocible si el AUC fuera de muestra contra
+   la liga supera el percentil 95 de su nula por permutación. Contra su mismo club
+   con otros técnicos, la misma regla responde "se distingue del club".
+5. **Evolución.** q/r < 0.05: identidad estable en esa serie. Un cambio de club es
+   claro si |z| > 2 (z conservador).
+6. **Balón parado.** Razón de tasas con IC sandwich; 🟢 si el IC excluye 1 y
+   sobrevive BH dentro de balón parado.
+7. **Cambios.** El impacto del primer cambio es exploratorio salvo que el IC del DiD
+   excluya 0 en xG propio o rival.
+8. **Blindaje.** Si la eficiencia (H7, H8) no coincide en signo entre xG, OBV y tasa
+   de remate, se narra como dependiente del modelo de xG. Si el p del bootstrap de
+   score de H3–H6 no confirma el del Wald, manda el bootstrap. Las etiquetas del BH
+   global se reportan junto a las de familia; si alguna baja, se dice.
+
+## Enmienda: H17 pasa a exploratoria (2026-09-26, DESPUÉS de ver la fase 3b)
+
+La rotación del once se confunde con el calendario de competiciones que no están
+en los datos (Copa, Concachampions). No es una decisión por el resultado (H17 era
+🟢 para Jardine y pasa a no contar), sino por la validez de la medida. H17 se reporta
+con su estimación y su p, pero no entra a BH ni recibe 🟢.

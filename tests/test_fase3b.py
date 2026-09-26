@@ -110,7 +110,9 @@ def test_decisiones_de_punta_a_punta():
     r = correr_decisiones(ev, tp, "F", CFG2, seed=0)
     assert set(r["hipotesis"]) == {"H13", "H14", "H15", "H16", "H17"}
     assert r["hipotesis"]["H13"]["etiqueta"] == "🟢"
-    assert all(0 <= h["q"] <= 1 for h in r["hipotesis"].values())
+    assert all(0 <= h["q"] <= 1 for k, h in r["hipotesis"].items() if k != "H17")
+    # H17 es exploratoria (enmienda 2026-09-26): se reporta sin q ni 🟢
+    assert r["hipotesis"]["H17"]["etiqueta"] == "🔎" and np.isnan(r["hipotesis"]["H17"]["q"])
     # todos los cambios sembrados son medio -> delantero: ofensivos
     assert r["tipo_cambio"]["empatando"]["P_foco"][2] > 0.95
 

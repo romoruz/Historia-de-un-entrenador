@@ -321,11 +321,17 @@ def correr_decisiones(ev: dict, tp: pl.DataFrame, foco: str, cfg2: dict, seed: i
          "H15": {"nombre": "tipo de cambio", **t15["H15"]},
          "H16": {"nombre": "reacomodos de formación por partido", **h16},
          "H17": {"nombre": "rotación del once (1 − Jaccard)", **h17}}
-    claves = list(H)
+    # H17 es EXPLORATORIA (enmienda del 2026-09-26, 11_HIPOTESIS): la rotación se confunde
+    # con el calendario de competiciones que no están en los datos. Se reporta, pero no
+    # entra a la familia de BH ni recibe 🟢.
+    claves = [k for k in H if k != "H17"]
     q, rech = benjamini_hochberg(np.array([H[k]["p"] for k in claves]), cfg2["alpha"])
     for k, qi, ri in zip(claves, q, rech):
         H[k]["q"] = float(qi)
         H[k]["etiqueta"] = "🟢" if ri else ("🟡" if H[k]["p"] < cfg2["alpha"] else "⚪")
+    H["H17"]["q"] = float("nan")
+    H["H17"]["etiqueta"] = "🔎"
+    H["H17"]["nota"] = "exploratoria: confundida con el calendario (Copa, Concachampions no están en los datos)"
     formaciones = (ep.filter(es & pl.col("tactics_formation").is_not_null())
                      .group_by("team", "tactics_formation").len().sort(["team", "len"], descending=[False, True]))
     return {"hipotesis": H, "primer_cambio": t13["primer_cambio"], "tipo_cambio": t15["por_marcador"],

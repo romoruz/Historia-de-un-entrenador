@@ -38,17 +38,20 @@ def _con(t: pl.DataFrame, col: str, val) -> pl.DataFrame:
     return t.with_columns(pl.lit(val, dtype=t.schema[col]).alias(col))
 
 
-def modelo_contexto(t: pl.DataFrame, K: int, ref: int = 1):
+def modelo_contexto(t: pl.DataFrame, K: int, ref: int = 1, suave: bool = False):
     """Ajusta el logit fraccional de la fase 2. Devuelve (modelo, D, quitadas), con
-    D(tabla, f=..., g=...) la matriz de diseño con las MISMAS columnas del ajuste."""
+    D(tabla, f=..., g=...) la matriz de diseño con las MISMAS columnas del ajuste.
+    `suave`: splines de minuto y Elo más marcador × minuto en la liga (contexto.diseno)."""
+    from .contexto import nudos_suaves
     temporadas = sorted(t["season_id"].drop_nulls().unique().to_list())
-    X_all, nombres_all = diseno(t, temporadas=temporadas)
+    nudos = nudos_suaves(t) if suave else None
+    X_all, nombres_all = diseno(t, temporadas=temporadas, suave=nudos)
     keep = columnas_estimables(X_all, nombres_all)
     nombres = [n_ for n_, k in zip(nombres_all, keep) if k]
     quitadas = [n_ for n_, k in zip(nombres_all, keep) if not k]
 
     def D(tab, **kw):
-        return diseno(tab, temporadas=temporadas, **kw)[0][:, keep]
+        return diseno(tab, temporadas=temporadas, suave=nudos, **kw)[0][:, keep]
 
     R = t.select([f"r_{k + 1}" for k in range(K)]).to_numpy()
     m = ajustar_pesos(X_all[:, keep], R, t["match_id"].to_numpy(), nombres, ref=ref)
@@ -57,7 +60,7 @@ def modelo_contexto(t: pl.DataFrame, K: int, ref: int = 1):
 
 def correr(t: pl.DataFrame, familias: list[str], cfg2: dict, seed: int) -> dict:
     K = len(familias)
-    m, D, quitadas = modelo_contexto(t, K, cfg2.get("ref", 1))
+    m, D, quitadas = modelo_contexto(t, K, cfg2.get("ref", 1), cfg2.get("suave", False))
     nombres = m.nombres
     sims = m.simular(cfg2["n_sim"], seed)
 

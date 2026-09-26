@@ -203,3 +203,55 @@ def pi_en(m: ModeloPesos, X: np.ndarray, sims: np.ndarray, nivel: float = 0.95) 
     a = (1 - nivel) / 2
     return {"pi": est.tolist(), "lo": np.quantile(draws, a, 0).tolist(),
             "hi": np.quantile(draws, 1 - a, 0).tolist(), "draws": draws}
+
+
+# ----------------------------------------------------------------------
+# Bootstrap de score por conglomerado (Kline y Santos, 2012)
+# ----------------------------------------------------------------------
+def score_bootstrap(X: np.ndarray, R: np.ndarray, grupos: np.ndarray, nombres: list[str], prueba: list[str],
+                    ref: int = 1, n_boot: int = 999, seed: int = 0, ridge: float = 1e-6) -> dict:
+    """p-valor de H0: coeficientes de `prueba` = 0, VÁLIDO CON POCOS PARTIDOS.
+
+    El Wald con sandwich sobre-rechaza con pocos conglomerados (Cameron, Gelbach y
+    Miller, 2008). El bootstrap de score: (1) ajusta el modelo RESTRINGIDO (sin las
+    columnas de la prueba); (2) toma los scores por partido de los coeficientes probados,
+    ortogonalizados contra los estorbos con la Hessiana; (3) LM = S'V⁻¹S; (4) repite con
+    pesos de Rademacher por partido. No reajusta nada en cada réplica.
+    """
+    presentes = [n_ for n_ in prueba if n_ in nombres]
+    if not presentes:
+        return {"p_boot": float("nan"), "nota": "no estimable"}
+    j_prueba = [nombres.index(n_) for n_ in presentes]
+    j_resto = [j for j in range(len(nombres)) if j not in j_prueba]
+    m0 = ajustar_pesos(X[:, j_resto], R, grupos, [nombres[j] for j in j_resto], ref=ref, ridge=ridge)
+    n, p = X.shape
+    K = R.shape[1]
+    libres = [k for k in range(K) if k != ref]
+    Km = K - 1
+    B = np.zeros((p, K))
+    B[np.ix_(j_resto, libres)] = m0.theta.reshape(len(j_resto), Km)
+    Z = X @ B
+    P = np.exp(Z - logsumexp(Z, axis=1, keepdims=True))
+    H = np.zeros((p, Km, p, Km))
+    for ia, a in enumerate(libres):
+        for ib, b in enumerate(libres):
+            w = P[:, a] * ((a == b) - P[:, b])
+            H[:, ia, :, ib] = X.T @ (X * w[:, None])
+    H = H.reshape(p * Km, p * Km) + ridge * n * np.eye(p * Km)
+    U = (R - P)[:, libres]
+    codigos, _ = _factorizar(grupos)
+    G = int(codigos.max()) + 1
+    S = np.stack([_agrupar(codigos, G, X * U[:, ia][:, None]) for ia in range(Km)], axis=2).reshape(G, p * Km)
+    t_idx = [j * Km + a for j in j_prueba for a in range(Km)]
+    r_idx = [j * Km + a for j in j_resto for a in range(Km)]
+    A = H[np.ix_(t_idx, r_idx)] @ np.linalg.pinv(H[np.ix_(r_idx, r_idx)])
+    St = S[:, t_idx] - S[:, r_idx] @ A.T              # score eficiente por partido
+    Vi = np.linalg.pinv(St.T @ St)
+    s = St.sum(0)
+    LM = float(s @ Vi @ s)
+    rng = np.random.default_rng(seed)
+    w = rng.choice([-1.0, 1.0], size=(n_boot, G))
+    Sb = w @ St
+    LMb = np.einsum("bi,ij,bj->b", Sb, Vi, Sb)
+    return {"LM": LM, "p_boot": float((1 + np.sum(LMb >= LM)) / (n_boot + 1)), "partidos": G,
+            "p_chi2": float(stats.chi2.sf(LM, len(t_idx))), "gl": len(t_idx)}

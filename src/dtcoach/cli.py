@@ -554,7 +554,7 @@ def cmd_simulador(a, cfg):
     figura_xpts(x.filter(pl.col("coach") == foco), foco, rep / f"xpts_{slug}.png")
     print("escenarios y calibración del modelo de contexto...", flush=True)
     t = _tabla_fase2(cfg, foco)
-    m, D, _ = modelo_contexto(t, K, c2.get("ref", 1))
+    m, D, _ = modelo_contexto(t, K, c2.get("ref", 1), c2.get("suave", False))
     pf = perfiles(t, K, n_boot=c2["n_boot"], seed=cfg["seed"])
     xg_f, xg_l = pf["ataque"]["foco"][K:2 * K], pf["ataque"]["liga"][K:2 * K]
     se_f = [(h - l) / 3.92 for l, h in zip(pf["ataque"]["lo"][K:2 * K], pf["ataque"]["hi"][K:2 * K])]
@@ -1075,6 +1075,8 @@ def main(argv=None):
     s.set_defaults(f=cmd_aplanar)
 
     sp.add_parser("partidos").set_defaults(f=cmd_partidos)
+    from .cli_historia import registrar
+    registrar(sp)
 
     s = sp.add_parser("voronoi", help="rasgos 360 por evento (ADR-v2-36)")
     s.add_argument("--hilos", type=int, default=None)

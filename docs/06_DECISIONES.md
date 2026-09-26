@@ -373,3 +373,35 @@ el "90 % de pérdida en circulación estéril" no es una cifra del proyecto.
 estados OBSERVADOS (y reporta `estados_sin_observar`). Con un estado aumentado
 hay combinaciones que nunca ocurren (arrancar una secuencia en el área rival) y
 cada una contaba como una componente. En la malla 5×4 sin aumentar no cambia nada.
+
+## ADR-v2-38 — La capa de fútbol: un motor, tres preguntas por métrica
+Cada métrica del reto (5.1, 5.4, 5.5) es una razón de sumas por equipo-partido.
+Una sola maquinaria (`comparar.py`) responde para todas: (1) foco contra la liga
+sin sus partidos, con bootstrap por partido; (2) percentil entre todas las etapas
+técnico-club con ≥ 30 partidos (la comparación con OTROS técnicos, sin elegirlos a
+mano); (3) fiabilidad entre mitades de partidos (Spearman-Brown), que separa un
+rasgo de un técnico de una diferencia de muestra. El "lado rival" de cada métrica
+es lo que le hacen al foco (la fase defensiva sin inventar objetos nuevos). Las
+métricas de la cadena (llegada, V = Nc) usan la misma malla y el mismo encogimiento
+que la fase 1: nada contradice al vocabulario.
+
+## ADR-v2-39 — Matemática de la capa de fútbol: qué sí y qué no
+Sí: cadenas absorbentes (llegada, valor, cadena sobre jugadores), álgebra lineal
+(N, espectro, laplaciano), geometría computacional (Voronoi local, envolvente
+convexa, asignación húngara), procesos de Poisson (tasas a balón parado, llegada de
+secuencias en el simulador), supervivencia (Kaplan-Meier), un sistema dinámico
+lineal con ruido (nivel local con Kalman y RTS), un clasificador supervisado
+interpretable (logit L2 con AUC fuera de muestra y permutación) e inferencia por
+bootstrap de partidos. No: GNN y RNN (≈ 180 partidos por técnico, sin etiqueta
+natural y sin lectura de cancha), topología algebraica (sin tracking no hay
+trayectorias). Cada herramienta entra solo si responde una pregunta del reto con
+algo que un aficionado pueda leer.
+
+## ADR-v2-40 — Blindaje
+(1) Eficiencia con xG, OBV y tasa de remate; (2) bootstrap de score por conglomerado
+(Kline y Santos, 2012) para H3–H6, porque el Wald sandwich sobre-rechaza con pocos
+partidos (en la liga sintética sin efecto de contexto: Wald p = 0.003, bootstrap
+p = 0.39); (3) BH global sobre todas las hipótesis del foco como sensibilidad;
+(4) splines cúbicos restringidos de minuto y Elo más marcador × minuto en la parte
+de la liga, como sensibilidad de la calibración 1.3–1.4 (`fase2.suave`, apagado por
+defecto: los resultados oficiales no cambian).

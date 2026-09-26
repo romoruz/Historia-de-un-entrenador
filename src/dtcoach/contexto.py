@@ -75,12 +75,38 @@ INTERACCIONES_ATAQUE = ("perdiendo", "ganando", "tramo_75+", "local", "elo_dif")
 INTERACCIONES_DEFENSA = ("local",)
 
 
+def rcs(x: np.ndarray, nudos: np.ndarray) -> np.ndarray:
+    """Spline cúbico restringido (natural) de Harrell: lineal fuera de los nudos
+    extremos. Devuelve las k−2 columnas NO lineales (la lineal va aparte)."""
+    x = np.asarray(x, float)
+    t = np.asarray(nudos, float)
+    k = len(t)
+    esc = (t[-1] - t[0]) ** 2
+
+    def c3(u):
+        return np.clip(u, 0, None) ** 3
+    cols = [(c3(x - t[j]) - c3(x - t[k - 2]) * (t[k - 1] - t[j]) / (t[k - 1] - t[k - 2])
+             + c3(x - t[k - 1]) * (t[k - 2] - t[j]) / (t[k - 1] - t[k - 2])) / esc for j in range(k - 2)]
+    return np.column_stack(cols) if cols else np.zeros((len(x), 0))
+
+
+def nudos_suaves(t: pl.DataFrame) -> dict:
+    """Nudos en los cuantiles 5-35-65-95 % (Harrell, 4 nudos) de minuto y Elo."""
+    q = [0.05, 0.35, 0.65, 0.95]
+    return {"minuto": np.quantile(t["minute"].to_numpy(), q), "elo": np.quantile(t["elo_dif"].to_numpy(), q)}
+
+
 def diseno(t: pl.DataFrame, f: np.ndarray | None = None, g: np.ndarray | None = None,
-           temporadas: list | None = None) -> tuple[np.ndarray, list[str]]:
+           temporadas: list | None = None, suave: dict | None = None) -> tuple[np.ndarray, list[str]]:
     """Matriz de diseño. `f` y `g` se pueden sustituir para contrafactuales.
 
     Referencia: empatando, minuto 0-29, visitante, Elo igual, juego abierto,
     primera temporada, fuera del foco.
+
+    `suave` (nudos de `nudos_suaves`): en la parte de LA LIGA, el minuto y el Elo
+    entran como splines cúbicos restringidos y se agrega marcador × minuto. Las
+    desviaciones del foco (f × ...) no cambian: H3–H6 prueban lo mismo con una
+    referencia mejor especificada (sensibilidad a la calibración 1.3–1.4).
     """
     n = t.height
     f = t["f"].to_numpy().astype(float) if f is None else np.asarray(f, float)
@@ -100,6 +126,17 @@ def diseno(t: pl.DataFrame, f: np.ndarray | None = None, g: np.ndarray | None = 
     for s in temporadas[1:]:
         base[f"temporada_{s}"] = (t["season_id"] == s).to_numpy().astype(float)
     cols = dict(base)
+    if suave is not None:
+        mi = t["minute"].to_numpy().astype(float)
+        for c in [c for c in cols if c.startswith("tramo_")]:
+            del cols[c]                                   # el minuto entra como spline
+        cols["minuto"] = mi / 90.0
+        for j, v in enumerate(rcs(mi, suave["minuto"]).T):
+            cols[f"minuto_s{j + 1}"] = v
+        for j, v in enumerate(rcs(base["elo_dif"], suave["elo"]).T):
+            cols[f"elo_s{j + 1}"] = v
+        cols["perdiendo×minuto"] = base["perdiendo"] * mi / 90.0
+        cols["ganando×minuto"] = base["ganando"] * mi / 90.0
     cols["f"] = f
     for c in INTERACCIONES_ATAQUE:
         cols[f"f×{c}"] = f * base[c]

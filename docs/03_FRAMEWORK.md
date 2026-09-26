@@ -85,3 +85,60 @@ secuencias de cada tipo. La estacionaria de una cadena absorbente es degenerada
   malla. Es un hallazgo sobre la rotación de la Liga MX, no un defecto.
 - La malla 5 × 4 es una elección prudente por esparsidad, no un límite
   matemático.
+
+---
+
+## 5. Capa de fútbol (fases B–F): objetos y métricas
+
+> Todo se mide sobre los MISMOS eventos que la cadena (`eventos.leer`): marco de
+> ataque de quien ejecuta, tiempo reglamentario, destino de pases, conducciones y
+> remates como en `extract_actions`. Umbrales en `config.futbol`.
+
+### 5.1 Objetos nuevos
+
+| objeto | definición operativa |
+|---|---|
+| **Equipo-partido** | la unidad de todas las métricas: un equipo en un partido, con su técnico (eras) y el técnico rival |
+| **Métrica** | razón de sumas por equipo-partido (`m__n / m__d`): "por partido" si el denominador es 1, "por pase", "por corner", etc. si cuenta oportunidades |
+| **Lado** | *propio* = lo que hace el equipo del técnico; *rival* = lo que hacen sus rivales contra él (lo concedido) |
+| **Liga de referencia** | los equipo-partido de partidos donde el foco no jugó (ADR-v2-22) |
+| **Acción progresiva** | pase completo de juego (sin balón parado) o conducción que termina ≥ 10 m más cerca del centro del arco y a ≤ 75 % de su distancia inicial |
+| **Entrada** | pase completo o conducción que empieza fuera y termina dentro del último tercio (x ≥ 80) o del área (x ≥ 102, 18 ≤ y ≤ 62) |
+| **Field tilt** | pases del equipo iniciados en su último tercio / los de ambos equipos |
+| **PPDA** | pases del rival en su 60 % (x ≤ 72 en su marco) / acciones defensivas propias (Duel, Interception, Foul Committed) en x ≥ 48 del marco propio |
+| **Recuperación** | Ball Recovery o Interception; su altura es la x en el marco propio |
+| **Pérdida** | posesión propia sin remate seguida de una posesión rival en juego abierto (Regular Play) |
+| **Recuperación tras pérdida** | la siguiente posesión propia en juego abierto, sin remate rival de por medio; tiempo = su inicio − el inicio de la posesión rival. Censurada si la secuencia la corta un balón parado, un remate rival o el fin del tiempo |
+| **Transición ofensiva** | posesión propia en juego abierto que sigue a una del rival; se mide lo que produce en sus primeros 10 s |
+| **Presión (360)** | una acción está presionada si un rival visible está a ≤ 2 m (distancia de `rasgos_360`, ADR-v2-36) |
+| **Bloque (360)** | los jugadores visibles del equipo sin balón (sin portero), con ≥ 6 visibles: altura media, anchura, profundidad y área de su envolvente convexa, en su marco |
+| **Jugada a balón parado** | posesión From Corner / From Free Kick / From Throw In; tiro libre solo si el saque es en x ≥ 60 y lateral solo si es en x ≥ 80 |
+| **Marcaje (360)** | en el frame del saque de corner o tiro libre, asignación óptima defensor–atacante dentro de x ≥ 96, 14 ≤ y ≤ 66 (algoritmo húngaro) |
+| **Etapa** | técnico-club; los percentiles y la fiabilidad usan etapas con ≥ 30 partidos |
+| **Huella** | por equipo-partido: su mezcla de familias en ataque, la de sus rivales y las métricas estandarizadas contra la liga |
+
+### 5.2 Cantidades derivadas
+
+| cantidad | lectura en la cancha |
+|---|---|
+| P(llegar) y acciones hasta el último tercio o el área | desde el inicio de la secuencia, con la cadena del grupo encogida hacia la liga (primer paso, `markov.llegada`) |
+| V = N c del grupo contra la liga | dónde el balón "vale" más para el técnico que para la liga |
+| S(t) de la pérdida | Kaplan-Meier: P(aún sin recuperar a los t segundos) |
+| Cadena sobre jugadores | N, ν (por quién pasa el balón), B (P(remate) desde cada jugador) |
+| Grupos espectrales | comunidades del grafo de pases (laplaciano normalizado, eigengap) |
+| AUC de reconocimiento | qué tan distinguible es su huella en partidos no vistos |
+| Nivel local (Kalman + RTS) | la tendencia de cada rasgo partido a partido; q/r ≈ 0 = identidad estable |
+| Simulación de partido | P(gana/empata/pierde), marcadores y dominio de xG a partir de la mezcla de ambos equipos |
+
+### 5.3 Supuestos y límites adicionales
+
+1. **Los umbrales son convenciones declaradas**, no descubrimientos: 10 m / 75 %
+   (progresiva), 2 m (presión), 5 s y 10 s (transiciones), ≥ 6 defensores (bloque).
+2. **El 360 no es tracking.** El bloque y el marcaje se miden con los jugadores
+   visibles; con menos de 6 defensores visibles el frame no cuenta.
+3. **OBV y xG son modelos del proveedor.** Por eso la eficiencia se contrasta con
+   ambos y con la tasa de remate, que no depende de ningún modelo (fase A).
+4. **Una métrica que no se repite entre mitades de partidos no describe a un
+   técnico** (fiabilidad de Spearman-Brown < 0.5), aunque salga significativa.
+5. **El simulador es exploratorio**: supone independencia entre secuencias dado el
+   estilo y no cambia la mezcla con el marcador dentro del partido.

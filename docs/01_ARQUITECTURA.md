@@ -134,3 +134,24 @@ Artefactos: `data/interim/rasgos_360.parquet`, `data/processed/presion/`, `repor
 
 Comandos: `dtcoach direccion-cv`, `dtcoach --config config/direccion.yaml direccion-aplicar`.
 Reutiliza la CV en escala común de `voronoi.py` (`conteos_marginales`, `puntaje_cv`, `comparar`).
+
+## Capa de fútbol (fases A–F, ADR-v2-38 a 40)
+
+| archivo | qué hace |
+|---|---|
+| `eventos.py` | lectura única de eventos (coordenadas, reloj) y tabla de posesiones |
+| `comparar.py` | motor: foco contra liga (bootstrap por partido), percentiles entre etapas, fiabilidad entre mitades |
+| `futbol.py` | B: ofensiva, defensiva, transiciones (Kaplan-Meier), 360, llegada y valor con la cadena |
+| `geometria.py` | bloque (envolvente convexa) y marcaje (asignación húngara) desde los frames |
+| `balon_parado.py` | E: jugadas, Poisson con exposición, densidad de zonas de remate |
+| `jugadores.py` | D: cadena sobre jugadores, grupos espectrales, protagonistas por familia, impacto de cambios, estabilidad del once |
+| `identidad.py` | C: huella, logit L2 con AUC y permutación, nivel local (Kalman + RTS) |
+| `simulacion.py` | F: simulador de partido con validación dejando el partido fuera |
+| `blindaje.py` | A: eficiencia con OBV, BH global (y `pesos.score_bootstrap`) |
+| `graficas_historia.py` | figuras con la paleta validada |
+| `cli_historia.py` | comandos; salidas en `reports/historia/<foco>/` |
+| `scripts/historia.sh` | corre todo para un técnico |
+
+Comandos: `dtcoach {geometria, futbol, balon-parado, jugadores, identidad, simular, blindaje} [--foco]`.
+Artefacto compartido: `data/processed/futbol/equipo_partido.parquet` (todas las métricas, toda la liga;
+se recalcula con `dtcoach futbol --rehacer`).

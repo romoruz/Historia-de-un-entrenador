@@ -122,3 +122,29 @@ direccion:
   candidatos: ["x3:2", "x3:5", "x3:10", "cuad4", "oct8", "previa"]
   folds: 5
   lam_grid: [1, 10, 100, 1000]
+
+# ---------------------------------------------------------------- capa de fútbol (fases B–F, 03_FRAMEWORK §5)
+futbol:
+  tabla: data/processed/futbol/equipo_partido.parquet     # todas las métricas, toda la liga
+  bloque: data/interim/bloque_360.parquet                 # `dtcoach geometria`
+  marcaje: data/interim/marcaje_360.parquet
+  prog_min_m: 10.0        # progresiva: termina ≥ 10 m más cerca del centro del arco...
+  prog_frac: 0.75         # ...y a ≤ 75 % de la distancia inicial
+  saque_corto_m: 35.0     # saque de meta "en corto"
+  ventana_perdida: 5      # s: recuperar tras perder (contrapresión)
+  ventana_recuperar: 10   # s: xG tras recuperar (transición ofensiva)
+  presion_m: 2.0          # 360: "presionado" = un rival a ≤ 2 m
+  min_defensores: 6       # 360: defensores visibles mínimos para medir el bloque
+  tl_min_x: 60.0          # tiro libre en campo rival
+  lateral_min_x: 80.0     # lateral en zona de peligro
+  min_partidos_era: 30    # técnico-club mínimo para percentiles y fiabilidad
+  min_partidos_club: 7    # club del foco que se reporta por separado
+  n_boot: 1000
+  lam_llegada: 10.0       # encogimiento de la cadena del grupo hacia la liga
+  min_acciones_jugador: 150
+  ventana_cambio: 10      # min antes y después del primer cambio del 2º tiempo
+  n_perm: 200             # permutaciones del reconocimiento
+  lam_logit: 1.0
+  sim_rep: 10000
+  sim_a: 200.0            # pseudo-secuencias de encogimiento del simulador
+  sim_validacion_rep: 2000
