@@ -1,6 +1,6 @@
 # 02 — Estado del proyecto
 
-> Actualizado 2026-09-24, al cierre técnico de la Fase 1.
+> Actualizado 2026-09-26: Fase 1 v3 cerrada y fases 2–3 replicadas con el vocabulario v3.
 > Qué está hecho, qué falta y **cuál es la siguiente acción**.
 
 ---
@@ -23,9 +23,10 @@
 | Secuencia como unidad de la cadena (ADR-v2-14) | ✅ validado (E[T] 6.502 vs 6.509) |
 | Mezcla de cadenas: EM-MAP, CV de K, bondad | ✅ |
 | Eras: de 2,916 discrepancias a 0 personas distintas; sin DT 0.25 % | ✅ aplicadas (`eras_api_v2`) |
-| Inicialización reproducible (escalera) | ✅ K = 3 reproducible (acuerdo 0.993) |
-| K elegido | ✅ K = 3 (ADR-v2-19) |
-| Tipos nombrados | ✅ Directa · Circulación estéril · Ataque elaborado (ADR-v2-20) |
+| Inicialización reproducible (escalera) | ✅ K = 3 reproducible (v3: acuerdo suave 0.997) |
+| Malla y paso inicial (v3) | ✅ 5×4 por la regla enmendada (ADR-v2-35); P⁰ por tipo (KS 0.0051) |
+| K elegido | ✅ K = 3 (ADR-v2-19; confirmado en v3) |
+| Tipos nombrados | ✅ Directa · Circulación estéril · Ataque elaborado (ADR-v2-20; confirmados con las figuras v3 y ya en `config/default.yaml`) |
 | Técnico focal | ✅ André Jardine (178 partidos, 2 clubes, 360 al 99.4 %) |
 
 **Bugs de la v2 encontrados y corregidos: 4.** Los tres silenciosos, ninguno
@@ -41,24 +42,24 @@ lanzó una excepción:
 
 | fase | contenido | estado |
 |---|---|---|
-| 2 — contexto y defensa | H1–H8 con FDR sobre Jardine | ✅ corrida: H1 🟢 (pequeña), H2 🟢, H7.2–7.3 🟢, H8.3 🟢, H3–H6 ⚪ |
-| 3a — ¿él o el plantel? | por club (H9–H12) y atlas | ✅ la defensa viaja (H9); la eficiencia es del América (H10, H11 ❌) |
-| 3b — decisiones y simulador | H13–H17 y simulador | ✅ H13 🟢 (cambia ~3 min después), H17 🟢 (rota más), H14–H16 ⚪; xPts dentro del azar |
-| 3b (plan original) | `decisiones.py` (riesgo de cambios y `Tactical Shift`, formación vs rival, rotación); movers (Jardine en 2 clubes, Almada en el América); figuras 360; simulador | ⬜ |
-| 4 — narrativa | reporte HTML, ensayo con lector ajeno, congelar | ⬜ |
+| 2 — contexto y defensa | H1–H8 con FDR sobre Jardine y Almada | ✅ v3: Jardine H1 ⚪ (antes 🟢 pequeña), H2 🟢, H7 🟢, H3–H6 ⚪ en conjunto (🟢 H3 y H6 solo en San Luis); Almada H3 🟢, H6 🟢, H8.1 y H8.3 🟢 |
+| 3a — ¿él o el plantel? | por club (H9–H12) y atlas | ✅ v3: la defensa de Jardine viaja (H9); la eficiencia es del América (H10, H11 ❌); atlas 1.º (San Luis) y 3.º (América) de 15. Almada en el América (7 partidos): exploratorio |
+| 3b — decisiones y simulador | H13–H17 y simulador | ✅ v3 (no dependen del vocabulario): Jardine H13 🟢 (~3 min después), H17 🟢; Almada H15, H16 🟢, H13 ⚪ (q = 0.106, indicio); xPts de ambos dentro del azar |
+| 3b (pendiente) | figuras 360 | ⬜ |
+| 4 — narrativa | guion en lenguaje llano (`12_NARRATIVA.md`, borrador), reporte HTML, ensayo con lector ajeno, congelar | 🟡 borrador del guion |
 
 ---
 
 ## Riesgos vivos
 
-1. **K podría no ser reproducible con ningún valor.** Si `reproducibilidad`
-   falla para 4, 5 y 6, el vocabulario se construye con el K más chico que sí lo
-   sea, aunque ajuste peor. Un vocabulario inestable no se puede narrar.
+1. ~~K podría no ser reproducible con ningún valor.~~ Resuelto: K = 3 es
+   reproducible en 5×4; K = 4 y 5 no lo son en ninguna malla probada.
 2. **El contexto puede salir nulo.** En la versión anterior ningún ajuste al
    marcador sobrevivió a Benjamini-Hochberg. Comprimir 84 estados en K−1 pesos
    debería dar más potencia, pero si vuelve a salir nulo la historia es
    "identidad por encima de reactividad", que también es una conclusión.
 3. **Cobertura 360 parcial en algunos torneos.** Verificar antes de prometer el
    capítulo de bloque defensivo.
-4. **6.4 % de las filas sin DT asignado.** Debe bajar al aplicar `eras_api_v2`;
-   si no baja, investigar antes de la Fase 2.
+4. ~~6.4 % de las filas sin DT asignado.~~ Resuelto con `eras_api_v2` (0.25 %).
+5. **Almada en el América tiene 7 partidos.** Todo lo de ese club es
+   exploratorio hasta que haya más partidos.

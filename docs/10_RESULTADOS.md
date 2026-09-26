@@ -309,6 +309,8 @@ con esos tamaños de celda.
 
 ## 13. El retrato completo de André Jardine
 
+> Escrito con el vocabulario v2. Con el v3 se sostiene (§16), con un matiz en el punto 4: en San Luis sí reaccionaba al marcador y al rival (H3 🟢, H6 🟢); en el América, no.
+
 1. **Su firma es defensiva y viaja con él** (H2 🟢, H9 ✅). Contra sus
    equipos, los rivales renuncian a la jugada directa y tienen que elaborar,
    y el atlas lo pone entre las etapas más distintas de la liga en ese rasgo.
@@ -320,6 +322,18 @@ con esos tamaños de celda.
    banca** (H13 🟢: tarda ~3 min más en su primer cambio). Rota más su once
    (H17 🟢), con la advertencia del calendario.
 5. **Sus resultados son los que merecía** (xPts: +9.9, dentro del azar).
+
+---
+
+## 14. Lo que este bloque NO dice
+
+- Nada sobre el estilo de ningún técnico: la Fase 1 construye el vocabulario de
+  la liga, no describe a nadie. Eso es la Fase 2.
+- Nada causal. π, δ y las tarjetas describen lo que hizo un equipo; no aíslan
+  decisiones del técnico del plantel ni del calendario.
+- Los nombres de los tipos (*Directa*, *Circulación estéril*, *Ataque
+  elaborado*) resumen sus figuras y sus secuencias típicas con el ajuste
+  reproducible (ADR-v2-06, ADR-v2-20); son etiquetas, no definiciones.
 
 ---
 
@@ -336,17 +350,6 @@ con esos tamaños de celda.
 - 🔴 Memoria por información mutua plug-in (sesgo de muestra finita; ADR-v2-34).
 - 🔴 K = 2 con 12×8 como vocabulario: ningún K cumplió la regla y el script eligió por defecto (ADR-v2-35).
 - 🔴 Los nombres "Directa" y "Circulación estéril" en `MARKOV.md` de esa corrida: eran de otro K.
-
----
-
-## 14. Lo que este bloque NO dice
-
-- Nada sobre el estilo de ningún técnico: la Fase 1 construye el vocabulario de
-  la liga, no describe a nadie. Eso es la Fase 2.
-- Nada causal. π, δ y las tarjetas describen lo que hizo un equipo; no aíslan
-  decisiones del técnico del plantel ni del calendario.
-- Los tipos no están nombrados: se nombran después de ver sus figuras y sus
-  secuencias típicas, con el ajuste reproducible (ADR-v2-06).
 
 ---
 

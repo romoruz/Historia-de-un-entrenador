@@ -73,7 +73,7 @@ foco:
 
 fase2:
   K: 3
-  familias: [Tipo 1, Tipo 2, Tipo 3]   # orden = tipo 1, 2, 3 (por E[T])
+  familias: [Directa, Circulación estéril, Ataque elaborado]   # orden = tipo 1, 2, 3 (por E[T]); ADR-v2-20, confirmados en v3 (10_RESULTADOS §16)
   ref: 1                      # familia de referencia del logit (0-based): Circulación estéril
   n_boot: 2000
   n_sim: 1000

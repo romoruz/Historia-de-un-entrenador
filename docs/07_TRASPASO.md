@@ -15,7 +15,7 @@ decisiones, y si esa mezcla viaja con él cuando cambia de club.
 3. `10_RESULTADOS.md` — los hallazgos con su etiqueta 🟢🟡🔴⚪. **No cites un
    número sin leer su fila**; la §6 está explícitamente marcada como no citable.
 4. `03_FRAMEWORK.md` — las definiciones (reto 5.6). Todo debe trazarse aquí.
-5. `06_DECISIONES.md` — ADR-v2-01 a 17. No reabrir sin argumento nuevo.
+5. `06_DECISIONES.md` — ADR-v2-01 a 35. No reabrir sin argumento nuevo.
 6. `01_ARQUITECTURA.md` — qué hace cada archivo y qué se rompe al tocarlo.
 7. `proyecto_viejo/` — solo lectura. Sus cifras **no** son citables: se
    calcularon con otra unidad (posesión, no secuencia) y otra referencia.
@@ -31,6 +31,24 @@ decisiones, y si esa mezcla viaja con él cuando cambia de club.
 - Los tipos se nombran **después** de ver sus figuras.
 - Los datos de StatsBomb son licenciados: `data/raw`, `interim` y `processed` no
   se versionan.
+
+## Flujo de trabajo: todo pasa por git
+
+Los cambios de código y documentación **no** se aplican con `tar` + `aplicar.sh`
+desde Descargas: ese flujo dejó el config con "Tipo 1, 2, 3" mientras los
+reportes locales ya tenían los nombres, y dejó el paquete instalado apuntando a
+una copia en `/tmp`. La regla ahora:
+
+1. Todo cambio vive en una rama (`git switch -c <tema>`), se prueba con
+   `pytest -q` y entra a `main` por merge o PR.
+2. En la máquina de análisis: `git pull` y `pip install -e .` desde **esta**
+   carpeta (verifica con `python -c "import dtcoach; print(dtcoach.__file__)"`).
+3. Los cambios al config (nombres, malla, K) se hacen con commit, nunca con un
+   `sed` suelto en la terminal.
+4. Los paquetes de revisión (`scripts/empaquetar_revision.sh`) y cualquier
+   `.zip`/`.tar.gz` se comparten fuera del repo; el `.gitignore` los excluye.
+5. Los datos de StatsBomb y `reports/` no se versionan; si algo de `reports/`
+   es citable, su cifra va a `10_RESULTADOS.md`.
 
 ## El patrón de riesgo, otra vez
 

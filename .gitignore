@@ -25,3 +25,7 @@ data/processed/
 .kit_backup_*/
 reports/mezcla/*.png
 *.egg-info/
+# paquetes de revisión (scripts/empaquetar_revision.sh): se comparten fuera de git
+dtcoach_revision_*.zip
+*.zip
+*.tar.gz
