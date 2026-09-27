@@ -11,10 +11,9 @@
 - **Capa de fútbol (fases A–F) implementada y corrida** con datos reales (129 pruebas): estilo de juego,
   360 (presión, bloque, marcaje), transiciones, balón parado, jugadores, identidad y evolución, simulador
   y blindaje. Resultados en `RESULTADOS_ALMADA.md` y `10_RESULTADOS` §19.
-- **Siguiente acción:** volver a correr para Almada `dtcoach decisiones`, `dtcoach simulador` y
-  `dtcoach blindaje` (la corrida anterior se cortó por el error de la etiqueta 🔎, ya corregido);
-  luego `bash scripts/publicar_figuras.sh "Guillermo Almada"` y subir `docs/figuras/`. Después, el
-  informe (fase G).
+- Decisiones, simulador y blindaje de Almada **recorridos** (2026-09-27) y figuras publicadas en
+  `docs/figuras/` (26).
+- **Siguiente acción:** el informe (fase G).
 
 - Fase 1 v3 **cerrada**: 5×4, K = 3, paso inicial, familias nombradas (`10_RESULTADOS.md` §16).
 - Fases 2 y 3 **rehechas** con el vocabulario v3 para Jardine y Almada: las conclusiones no cambian (robustez).
@@ -55,7 +54,7 @@ lanzó una excepción:
 |---|---|---|
 | 2 — contexto y defensa | H1–H8 con FDR sobre Jardine y Almada | ✅ v3: Jardine H1 ⚪ (antes 🟢 pequeña), H2 🟢, H7 🟢, H3–H6 ⚪ en conjunto (🟢 H3 y H6 solo en San Luis); Almada H3 🟢, H6 🟢, H8.1 y H8.3 🟢 |
 | 3a — ¿él o el plantel? | por club (H9–H12) y atlas | ✅ v3: la defensa de Jardine viaja (H9); la eficiencia es del América (H10, H11 ❌); atlas 1.º (San Luis) y 3.º (América) de 15. Almada en el América (7 partidos): exploratorio |
-| 3b — decisiones y simulador | H13–H17 y simulador | ✅ v3 (no dependen del vocabulario): Jardine H13 🟢 (~3 min después), H17 🟢; Almada H15, H16 🟢, H13 ⚪ (q = 0.106, indicio); xPts de ambos dentro del azar |
+| 3b — decisiones y simulador | H13–H17 y simulador | ✅ v3 (no dependen del vocabulario): Jardine H13 🟢 (~3 min después), H17 🟢; Almada (corrida 2026-09-27) H15, H16 🟢, H13 ⚪ (q = 0.085, indicio), H14 ⚪, H17 🔎; xPts de ambos dentro del azar |
 | 3b (pendiente) | figuras 360 | ⬜ |
 | 4 — narrativa | guion en lenguaje llano (`12_NARRATIVA.md`, borrador), reporte HTML, ensayo con lector ajeno, congelar | 🟡 borrador del guion |
 

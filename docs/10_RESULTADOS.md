@@ -391,7 +391,7 @@ Nombres confirmados con `tipos_K3_inicio.png` y `tipos_K3_visitas.png`: la *Dire
 **Cambios y novedades:**
 - El H1 conjunto de Jardine pasa a ⚪ (W = 2.5). En San Luis salen además H3 🟢 y H6 🟢: allí reaccionaba al marcador y al rival; en el América, no.
 - Almada en el América (7 partidos): exploratorio, sin 🟢 (regla pre-registrada). El W = 61 de H3 ilustra el problema de pocos conglomerados. Indicio: +2.6 pp de *Directa* respecto a Pachuca [+0.3, +4.9].
-- Banca: Jardine abre su primer cambio ~3 min después que la liga (H13 🟢); Almada ~2 min antes empatando o perdiendo, pero su prueba conjunta no sobrevive a BH (q = 0.106): indicio, no conclusión.
+- Banca: Jardine abre su primer cambio ~3 min después que la liga (H13 🟢); Almada ~2 min antes empatando o perdiendo, pero su prueba conjunta no sobrevive a BH (q = 0.106; 0.085 en la corrida del 2026-09-27, §19): indicio, no conclusión.
 
 ---
 
@@ -519,10 +519,11 @@ con marcaje. Altura del bloque: p10 20 m, mediana 48 m, p90 85 m. Distancia de m
    ella, el salto de club se diluía en q y salía z ≈ 0). Resultado corregido abajo.
 2. **BH global:** subía a 🟢 hipótesis de muestras con < 20 partidos (Almada en el América). Ahora
    respeta la regla: con Almada ninguna etiqueta cambia; con Jardine, América/H8.2 baja a 🟡.
-4. **Atlas:** reutilizaba un `atlas.csv` guardado con los nombres "Tipo k"; ahora detecta el desfase
+3. **Atlas:** reutilizaba un `atlas.csv` guardado con los nombres "Tipo k"; ahora detecta el desfase
    y se recalcula.
-3. **Estabilidad del once:** es la misma medida que H17 y tiene la misma confusión con el calendario:
+4. **Estabilidad del once:** es la misma medida que H17 y tiene la misma confusión con el calendario:
    exploratoria (🔎).
+5. **Figura de decisiones:** faltaba la etiqueta 🔎 y la corrida se cortaba; corregido con prueba.
 
 ### Evolución (corregida: ruido por máxima verosimilitud, cambio de club como intervención)
 
@@ -537,6 +538,38 @@ clubes) y con las tablas por club.
 
 **Almada, Santos → Pachuca → América: nada salta** (todas |z| < 2 salvo *Directa* de sus rivales en
 Santos → Pachuca, z = −2.6). Su estilo llega igual a cada club.
+
+### Almada: decisiones, puntos y blindaje (corrida del 2026-09-27)
+
+Corrida completa tras corregir la figura de decisiones. H17 ya es exploratoria, así que BH de la
+familia de decisiones cubre H13–H16.
+
+| id | qué se prueba | resultado | p | q (BH) | evidencia |
+|---|---|---|---|---|---|
+| H13 | tiempo de los cambios | W = 5.1 (gl 2) | 0.076 | 0.085 | ⚪ |
+| H14 | banca contra el marcador | W = 4.9 (gl 2) | 0.085 | 0.085 | ⚪ |
+| H15 | tipo de cambio | W = 44.6 (gl 4) | < 0.001 | < 0.001 | 🟢 |
+| H16 | reacomodos por partido | 1.40 contra 1.81 (−0.41 [−0.57, −0.24]) | 0.0005 | 0.001 | 🟢 |
+| H17 | rotación del once | 0.358 contra 0.339 (+0.019 [−0.019, +0.060]) | 0.34 | — | 🔎 |
+
+- **En la cancha:** perdiendo, 82 % de cambios del mismo puesto (liga 72 %, +9.4 pp [+2.1, +14.8]) y
+  11 % ofensivos (liga 20 %, −9.0 pp [−12.9, −3.9]). Primer cambio del 2º tiempo: −2.2 min perdiendo
+  [−3.5, −0.8], −1.7 empatando [−3.4, −0.1], −0.5 ganando [−2.0, +1.0].
+- **Formaciones iniciales:** 4-2-3-1 en los tres clubes (Pachuca 66 %, Santos 60 %, América 100 % de 7).
+- **xPts (Poisson-binomial exacta):** 276 puntos contra 262.6 esperados por xG (+13.4, z = +0.95,
+  p = 0.34): dentro del azar. Validación en la liga: 4,833 reales contra 4,856 esperados (0.48 %).
+  El simulador de estilo (fase F) esperaba 257: las dos lecturas coinciden.
+- **Eficiencia con tres medidas:** en ataque, xG y OBV por secuencia iguales a la liga en las tres
+  familias, pero **más secuencias terminan en remate** (Directa +1.0 pp [+0.1, +1.8], Circulación
+  +0.3 [+0.1, +0.6], Elaborado +1.3 [+0.7, +2.0]): volumen, no calidad (H7 ⚪ se sostiene). En defensa,
+  las tres medidas bajan en las tres familias (H8.1 y H8.3 🟢 se sostienen; en Circulación, OBV y
+  remate bajan aunque el xG no alcanza).
+- **Bootstrap de score:** H3 y H6 se sostienen en todos (0.003, 0.001) y en Pachuca (0.018, 0.001).
+  En Santos (20 partidos) H3 pasa de 0.0005 (Wald) a **0.052**: al borde, no se afirma por club. En el
+  América (7), H3 pasa de < 0.001 a 0.80: el caso de libro de pocos conglomerados.
+- **Sensibilidad del diseño:** con splines de minuto y Elo, H4 (final del partido) baja a p = 0.021;
+  con el diseño pre-registrado (tramos) es 0.096. Se reporta ⚪ por la regla; es una pista.
+- **BH global** (52 hipótesis en una familia): ninguna etiqueta cambia.
 
 ### La historia en dos líneas (para el informe)
 

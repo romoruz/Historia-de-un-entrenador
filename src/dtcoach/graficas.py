@@ -334,7 +334,7 @@ def figura_xpts(x, foco: str, path: Path) -> Path:
     ax.set_xlabel(f"partidos de {foco} (en orden)")
     ax.set_ylabel("puntos")
     ax.set_title("¿Sacó los puntos que su xG merecía? (xPts exactos por Poisson-binomial)", fontsize=10)
-    ax.legend(fontsize=8, loc="upper left")
+    ax.legend(fontsize=8, loc="lower left")
     fig.tight_layout()
     fig.savefig(path, dpi=140)
     plt.close(fig)

@@ -41,7 +41,8 @@ Todo lo que se afirma pasó por **reglas escritas antes de ver los resultados**
 | **Balón parado defensivo** | marca al hombre y más cerca; le rematan 26 % menos por córner | 🟢 |
 | **No se pone nervioso** | su mezcla reacciona menos que la de la liga al marcador y al rival | 🟢 (H3, H6, H8) |
 | **Viaja con él** | ningún rasgo suyo da un salto al cambiar de club (Kalman con intervención) | 🔎 descriptivo |
-| **Puntos** | 276 reales vs 257 esperados por el simulador | dentro del azar |
+| **Desde la banca** | cambios del mismo puesto y pocos reacomodos de formación | 🟢 (H15, H16) |
+| **Puntos** | 276 reales vs 263 esperados por su xG y 257 por su estilo | dentro del azar |
 
 <p align="center">
   <img src="docs/figuras/estilo_percentiles.png" width="80%" alt="Percentiles de Almada frente a los técnicos de la liga"><br>

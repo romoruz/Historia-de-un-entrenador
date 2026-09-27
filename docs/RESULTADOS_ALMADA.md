@@ -156,8 +156,19 @@ fuerte**, pasa lo mismo: **reacciona menos que la liga**. Su receta aguanta el p
 *Hipótesis H3 (marcador) y H6 (rival): confirmadas, también con la prueba más estricta para
 pocos partidos.*
 
-Desde la banca, sus cambios suelen ser **del mismo puesto** (un delantero por un delantero) y
-**casi no reacomoda** el sistema durante el partido (H15, H16).
+**Desde la banca pasa lo mismo: no desarma su equipo.**
+
+* Cuando va perdiendo, **82 de cada 100** de sus cambios son del **mismo puesto** (un delantero
+  por un delantero); en la liga, 72. Mete **la mitad de cambios ofensivos** que la liga
+  (11 contra 20 de cada 100). No cambia de idea: cambia de piernas (H15 🟢).
+* Reacomoda la formación **1.4 veces por partido**; la liga, 1.8 (H16 🟢).
+* Hace su primer cambio del segundo tiempo **unos 2 minutos antes** que la liga cuando va
+  perdiendo o empatando. Ojo: juntando los tres marcadores, la prueba no alcanza (H13 ⚪):
+  es una pista, no una conclusión.
+
+![Las decisiones de Almada desde la banca, contra la liga](figuras/fase3_decisiones.png)
+
+*Gris = la liga; azul = Almada. Las rayitas negras son el margen de error.*
 
 ### 9. La lleva a todos lados
 
@@ -177,10 +188,19 @@ al pasar de San Luis al América. Almada no: **impone su idea**.
 
 ### 10. ¿Y eso le da puntos?
 
-Simulamos cada uno de sus partidos 10 mil veces con su estilo y el de su rival. Por estilo
-esperábamos **257 puntos**; sacó **276**. Ojo: el simulador sirve para **explicar**, no para
-adivinar resultados (acierta solo un poco más que tirar una moneda cargada con las
-frecuencias de la liga).
+Lo medimos de dos maneras, y las dos dicen lo mismo:
+
+* **Por sus ocasiones:** con la calidad de cada remate a favor y en contra (xG), sus 166 partidos
+  valían **263 puntos**; sacó **276**. Son 13 de más, pero eso **cabe en la suerte** (la línea
+  azul nunca sale de la zona gris).
+* **Por su estilo:** simulando cada partido 10 mil veces con su manera de jugar y la del rival,
+  esperábamos **257**.
+
+O sea: **sus puntos se explican por cómo juega**, no por suerte ni por magia. Ojo: el simulador
+sirve para **explicar**, no para adivinar resultados (acierta solo un poco más que tirar una
+moneda cargada con las frecuencias de la liga).
+
+![Puntos reales menos puntos esperados, partido a partido](figuras/fase3_xpts.png)
 
 ![Almada contra un rival promedio, 10 mil veces](figuras/simulacion_pachuca.png)
 
@@ -196,8 +216,13 @@ frecuencias de la liga).
 | ¿Cambia en los últimos minutos? (H4) | No detectamos diferencia | ⚪ |
 | ¿Juega distinto de local? (H5) | No detectamos diferencia | ⚪ |
 | ¿Reacciona al rival fuerte distinto? (H6) | Sí: reacciona **menos** que la liga | 🟢 confirmado |
-| ¿Sus ataques son más eficientes? (H7) | No: genera más por **volumen**, no por calidad | ⚪ |
+| ¿Sus ataques son más eficientes? (H7) | No: más jugadas suyas terminan en remate, pero cada una vale lo mismo en xG y en OBV. Gana por **volumen**, no por calidad | ⚪ |
 | ¿Sus rivales son menos eficientes? (H8) | Sí, en Directa y en Ataque elaborado | 🟢 confirmado |
+| ¿Cambia antes que la liga? (H13) | Unos 2 min antes perdiendo o empatando, pero no alcanza | ⚪ pista |
+| ¿Su banca reacciona distinto al marcador? (H14) | No detectamos diferencia | ⚪ |
+| ¿Qué tipo de cambios hace? (H15) | Del mismo puesto; pocos ofensivos | 🟢 confirmado |
+| ¿Reacomoda la formación? (H16) | Menos que la liga (1.4 contra 1.8) | 🟢 confirmado |
+| ¿Rota su once? (H17) | Casi igual que la liga | 🔎 solo exploratorio |
 | ¿Su huella viaja a otro club? (H9) | Sí (Directa del rival), y todas las métricas de presión y bloque | 🟢 |
 | ¿Se le reconoce? | Sí: 89 de 100, 2.º de 45 | 🟢 (p < 0.01) |
 | ¿Es él y no el club? | Sí: 86 de 100 contra Pachuca sin él | 🟢 (p < 0.01) |
@@ -207,6 +232,8 @@ vez · ⚪ = no encontramos diferencia (no quiere decir que no exista).
 
 ## Lo que NO sabemos (y lo decimos)
 
+* **En Santos solo dirigió 20 partidos.** Ahí también reaccionaba menos al marcador, pero con la
+  prueba estricta para pocos partidos queda justo en la raya (p = 0.052).
 * **En el América solo lleva 7 partidos.** Todo lo del América es exploratorio: con tan pocos
   partidos, las pruebas se equivocan fácil (lo comprobamos: una prueba decía "segurísimo" y la
   prueba correcta para pocos partidos decía "ni idea").
