@@ -100,7 +100,7 @@ def test_modelo_tiempo_sin_adelanto_no_inventa():
     assert r["H13"]["p"] > 0.01
 
 
-def test_decisiones_de_punta_a_punta():
+def test_decisiones_de_punta_a_punta(tmp_path):
     ev, tp = _liga_cambios(n=200, adelanto=10)
     ev["pos"] = pl.DataFrame({"match_id": ev["sub"]["match_id"], "player_id": ev["sub"]["substitution_replacement_id"],
                               "puesto_entra": ["Striker"] * ev["sub"].height})
@@ -113,6 +113,9 @@ def test_decisiones_de_punta_a_punta():
     assert all(0 <= h["q"] <= 1 for k, h in r["hipotesis"].items() if k != "H17")
     # H17 es exploratoria (enmienda 2026-09-26): se reporta sin q ni 🟢
     assert r["hipotesis"]["H17"]["etiqueta"] == "🔎" and np.isnan(r["hipotesis"]["H17"]["q"])
+    # regresión: la figura conoce la etiqueta exploratoria (KeyError '🔎' en la corrida real)
+    from dtcoach.graficas import figura_decisiones
+    assert figura_decisiones(r, "foco", tmp_path / "d.png").exists()
     # todos los cambios sembrados son medio -> delantero: ofensivos
     assert r["tipo_cambio"]["empatando"]["P_foco"][2] > 0.95
 

@@ -15,7 +15,10 @@ secuencia de la Liga MX (ADR-v2-19).
 | 2 | **Circulación estéril** | 27 % | 6.6 | 0.031 | 0.003 |
 | 3 | **Ataque elaborado** | 41 % | 9.0 | 0.144 | 0.011 |
 
-Técnico foco: **André Jardine** (América 129 partidos, San Luis 54).
+Técnico foco original: **André Jardine** (América 129 partidos, San Luis 54). Las mismas
+reglas se aplicaron a **Guillermo Almada** desde la fase 2; el 2026-09-27, **después** de
+ver los resultados de ambos, se decidió exponer a Almada. La decisión no cambia ninguna
+regla ni ningún umbral.
 Referencia: la **liga sin el foco**, es decir, las secuencias de los partidos
 donde su equipo no jugó (ADR-v2-22).
 

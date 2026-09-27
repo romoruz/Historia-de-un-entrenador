@@ -117,7 +117,7 @@ bash VERIFICAR.sh        # integridad (sha256) + instala + corre las pruebas
 dtcoach aplanar && dtcoach partidos && dtcoach fase0
 dtcoach mezcla --K 3 && dtcoach reproducibilidad --K 3 && dtcoach bondad --K 1 3
 dtcoach elo
-bash scripts/correr_foco.sh "Andre Jardine" 30
+bash scripts/correr_foco.sh "Guillermo Almada" 7
 bash scripts/correr_foco.sh "Guillermo Almada" 7
 ```
 

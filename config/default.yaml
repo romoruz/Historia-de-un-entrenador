@@ -69,7 +69,7 @@ bondad:
 
 # ---------------------------------------------------------------- fase 2
 foco:
-  coach: Andre Jardine        # nombre EXACTO como en las eras (ver reports/cobertura_eras.csv)
+  coach: Guillermo Almada     # técnico que expone la historia; nombre EXACTO como en las eras
 
 fase2:
   K: 3

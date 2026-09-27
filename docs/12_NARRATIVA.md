@@ -1,5 +1,10 @@
 # 12 — Narrativa (Fase 4, borrador)
 
+> **Foco actual: Guillermo Almada.** La historia pública es
+> [`RESULTADOS_ALMADA.md`](RESULTADOS_ALMADA.md). La §2 de abajo (André Jardine) se
+> conserva como **contraste**: un técnico que se adapta al plantel frente a uno cuya
+> idea viaja con él.
+
 > Guion en lenguaje de fútbol para jueces y lectores no técnicos. Cada frase
 > se apoya en una fila de `10_RESULTADOS.md` (entre corchetes). El detalle
 > técnico (nats, ρ(Q), W, q) **no** aparece aquí: vive en los documentos de

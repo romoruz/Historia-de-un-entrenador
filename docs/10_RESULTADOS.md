@@ -158,6 +158,9 @@ config (§ pasos pendientes de `02_ESTADO.md`).
 
 ## 8. 🟡 Técnico focal: André Jardine
 
+> **Nota 2026-09-27:** el foco expuesto es ahora Guillermo Almada (§19 y
+> `RESULTADOS_ALMADA.md`). Las secciones de Jardine se conservan como contraste.
+
 | dt | partidos | clubes | fase regular | 360 |
 |---|---|---|---|---|
 | **Andre Jardine** | **178** | **2** (América 127, San Luis 51) | 148 | 0.994 |

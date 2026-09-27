@@ -1,16 +1,20 @@
 # 02 — Estado del proyecto
 
-> Actualizado 2026-09-26: Fase 1 v3 cerrada y fases 2–3 replicadas con el vocabulario v3.
+> Actualizado 2026-09-27: el foco del proyecto es **Guillermo Almada**; capa de fútbol corrida; documentación reescrita.
 > Qué está hecho, qué falta y **cuál es la siguiente acción**.
 
 ---
 
 ## Estado
 
-- **Capa de fútbol (fases A–F) implementada** y probada con datos sintéticos (126 pruebas): estilo de juego con
-  métricas del reto, 360 (presión, bloque, marcaje), transiciones, balón parado, jugadores, identidad y evolución,
-  simulador de partido y blindaje. **Siguiente acción:** `bash scripts/historia.sh "Andre Jardine"` y
-  `bash scripts/historia.sh "Guillermo Almada"`; después, el informe (fase G).
+- **Foco: Guillermo Almada** (decidido 2026-09-27; Jardine queda como contraste en `12_NARRATIVA` §2).
+- **Capa de fútbol (fases A–F) implementada y corrida** con datos reales (129 pruebas): estilo de juego,
+  360 (presión, bloque, marcaje), transiciones, balón parado, jugadores, identidad y evolución, simulador
+  y blindaje. Resultados en `RESULTADOS_ALMADA.md` y `10_RESULTADOS` §19.
+- **Siguiente acción:** volver a correr para Almada `dtcoach decisiones`, `dtcoach simulador` y
+  `dtcoach blindaje` (la corrida anterior se cortó por el error de la etiqueta 🔎, ya corregido);
+  luego `bash scripts/publicar_figuras.sh "Guillermo Almada"` y subir `docs/figuras/`. Después, el
+  informe (fase G).
 
 - Fase 1 v3 **cerrada**: 5×4, K = 3, paso inicial, familias nombradas (`10_RESULTADOS.md` §16).
 - Fases 2 y 3 **rehechas** con el vocabulario v3 para Jardine y Almada: las conclusiones no cambian (robustez).
@@ -34,7 +38,7 @@
 | Malla y paso inicial (v3) | ✅ 5×4 por la regla enmendada (ADR-v2-35); P⁰ por tipo (KS 0.0051) |
 | K elegido | ✅ K = 3 (ADR-v2-19; confirmado en v3) |
 | Tipos nombrados | ✅ Directa · Circulación estéril · Ataque elaborado (ADR-v2-20; confirmados con las figuras v3 y ya en `config/default.yaml`) |
-| Técnico focal | ✅ André Jardine (178 partidos, 2 clubes, 360 al 99.4 %) |
+| Técnico focal | ✅ Guillermo Almada (antes André Jardine; se cambió el 2026-09-27) |
 
 **Bugs de la v2 encontrados y corregidos: 4.** Los tres silenciosos, ninguno
 lanzó una excepción:

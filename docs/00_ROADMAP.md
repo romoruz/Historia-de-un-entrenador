@@ -2,6 +2,9 @@
 
 > Hackathon ISAC 2026 · «La historia de un entrenador a través de los datos».
 > Este documento manda. Si otro documento lo contradice, gana este.
+>
+> **Foco (2026-09-27): Guillermo Almada.** Las hipótesis se corrieron desde el principio
+> sobre Jardine y Almada; se decidió exponer a Almada y dejar a Jardine como contraste.
 
 ## La idea en un párrafo
 

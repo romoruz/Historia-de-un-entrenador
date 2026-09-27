@@ -114,7 +114,8 @@ def curva_estabilidad(tabla, path: Path) -> Path:
 # ======================================================================
 COLOR_FOCO, COLOR_LIGA = "#1f4e9c", "#9aa3ad"
 # matplotlib no dibuja emojis con las fuentes por defecto
-ETIQUETA_TEXTO = {"🟢": "probado (FDR)", "🟡": "medido, no sobrevive FDR", "⚪": "no detectado"}
+ETIQUETA_TEXTO = {"🟢": "probado (FDR)", "🟡": "medido, no sobrevive FDR", "⚪": "no detectado",
+                  "🔎": "exploratoria"}
 
 
 def perfil_familias(res: dict, familias: list[str], foco: str, path: Path) -> Path:

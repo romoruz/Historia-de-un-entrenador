@@ -10,6 +10,7 @@ decisiones, y si esa mezcla viaja con él cuando cambia de club.
 
 ## Orden de lectura
 
+0. `../README.md` y `RESULTADOS_ALMADA.md` — qué es y qué encontró, en diez minutos.
 1. `00_ROADMAP.md` — el plan. Manda sobre todo lo demás.
 2. `02_ESTADO.md` — dónde estamos y **cuál es la siguiente acción**.
 3. `10_RESULTADOS.md` — los hallazgos con su etiqueta 🟢🟡🔴⚪. **No cites un
@@ -17,6 +18,7 @@ decisiones, y si esa mezcla viaja con él cuando cambia de club.
 4. `03_FRAMEWORK.md` — las definiciones (reto 5.6). Todo debe trazarse aquí.
 5. `06_DECISIONES.md` — ADR-v2-01 a 35. No reabrir sin argumento nuevo.
 6. `01_ARQUITECTURA.md` — qué hace cada archivo y qué se rompe al tocarlo.
+6b. `04_MODELO_MATEMATICO.md` — cada paso del modelo, enunciado y demostrado.
 7. `proyecto_viejo/` — solo lectura. Sus cifras **no** son citables: se
    calcularon con otra unidad (posesión, no secuencia) y otra referencia.
 
@@ -68,5 +70,5 @@ contrastes cruzados: son el sistema inmune del proyecto.
 > no la posesión (ADR-v2-14); la sobredispersión que rechazó a Markov es
 > heterogeneidad entre tipos; K se elige por reproducibilidad, no por ajuste
 > (ADR-v2-17); las eras corregidas viven en `eras_api_v2` y **hay que apuntar el
-> config**; el técnico focal es Jardine. Quiero trabajar en [X]; antes corro
+> config**; el técnico focal es Guillermo Almada. Quiero trabajar en [X]; antes corro
 > `pytest -q`.
