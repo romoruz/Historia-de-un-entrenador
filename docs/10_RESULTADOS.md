@@ -513,8 +513,31 @@ con marcaje. Altura del bloque: p10 20 m, mediana 48 m, p90 85 m. Distancia de m
 1. **Evolución (Kalman):** el ruido de las familias se tomaba como var(r)/n, que ignora que las
    secuencias de un partido comparten rival y marcador; salía q/r ≈ 3–7 (falso "estilo cambiante").
    Ahora el ruido se estima por máxima verosimilitud y el cambio de club es una **intervención** (sin
-   ella, el salto de club se diluía en q y salía z ≈ 0). **Pendiente de volver a correr.**
+   ella, el salto de club se diluía en q y salía z ≈ 0). Resultado corregido abajo.
 2. **BH global:** subía a 🟢 hipótesis de muestras con < 20 partidos (Almada en el América). Ahora
-   respeta la regla. **Pendiente de volver a correr.**
+   respeta la regla: con Almada ninguna etiqueta cambia; con Jardine, América/H8.2 baja a 🟡.
+4. **Atlas:** reutilizaba un `atlas.csv` guardado con los nombres "Tipo k"; ahora detecta el desfase
+   y se recalcula.
 3. **Estabilidad del once:** es la misma medida que H17 y tiene la misma confusión con el calendario:
    exploratoria (🔎).
+
+### Evolución (corregida: ruido por máxima verosimilitud, cambio de club como intervención)
+
+**Dentro de cada club, las dos identidades son estables:** q/r < 0.006 en todas las series (familias
+en ataque y de sus rivales, PPDA, field tilt, altura de recuperación y del bloque, presión 360).
+
+**Jardine, San Luis → América: cambio claro (|z| > 2), en bloque.** Field tilt +0.18 (z = +7.1),
+*Directa* −5.5 pp (z = −6.5) y *Ataque elaborado* +6.5 pp (z = +3.3); bloque 4.0 m más arriba
+(z = +3.3); recupera 3.8 m más arriba (z = +2.7); PPDA +2.8 (z = +2.5: presiona menos). Lo único que
+NO salta es la presión encima (z = +0.2): el rasgo que viaja. Coincide con H12 (mezcla distinta entre
+clubes) y con las tablas por club.
+
+**Almada, Santos → Pachuca → América: nada salta** (todas |z| < 2 salvo *Directa* de sus rivales en
+Santos → Pachuca, z = −2.6). Su estilo llega igual a cada club.
+
+### La historia en dos líneas (para el informe)
+
+- **Almada impone:** la misma idea en tres clubes (presión encima, bloque estrecho, salida larga,
+  verticalidad), la más reconocible de la liga.
+- **Jardine se adapta:** su equipo juega como el plantel le permite (cambio en bloque al llegar al
+  América); lo que conserva es cómo le cambia el partido al rival (H2) y una presión menos agresiva.

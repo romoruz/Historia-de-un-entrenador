@@ -460,8 +460,13 @@ def cmd_atlas(a, cfg):
     rep = cfg.ruta("reportes") / "fase3"
     rep.mkdir(parents=True, exist_ok=True)
     csv = rep / "atlas.csv"
-    if csv.exists() and not a.rehacer:
-        tab = pl.read_csv(csv)
+    tab = pl.read_csv(csv) if csv.exists() and not a.rehacer else None
+    if tab is not None and not all(f"efic_ataque_{f}" in tab.columns for f in c2["familias"]):
+        # atlas guardado con otros nombres de familias (p. ej. "Tipo 1" antes de nombrarlas): se recalcula
+        print(f"{csv.name} es de otras familias ({[c for c in tab.columns if c.startswith('efic_ataque_')]}); "
+              "se recalcula")
+        tab = None
+    if tab is not None:
         print(f"atlas reutilizado de {csv.name} ({tab.height} eras); --rehacer para recalcular")
     else:
         t = _tabla_fase2(cfg, cfg["foco"]["coach"])
