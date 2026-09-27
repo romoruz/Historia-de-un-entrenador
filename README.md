@@ -1,146 +1,260 @@
-# dtcoach — la historia de Guillermo Almada contada con datos
+# dtcoach — La historia de Guillermo Almada a través de los datos
 
-Proyecto para el **Hackathon ISAC 2026, "La Historia de un Entrenador a través de los Datos"**.
-Usa los eventos y el 360 de StatsBomb de la Liga MX (1,767 partidos) para responder
-**cómo juega Guillermo Almada, qué parte de eso es suyo y qué parte de sus planteles, y
-si su idea viaja con él de club en club.**
+Proyecto para el **Hackathon ISAC 2026 — "La Historia de un Entrenador a través de los Datos"**.
 
-> **¿Solo quieres los resultados?** → [`docs/RESULTADOS_ALMADA.md`](docs/RESULTADOS_ALMADA.md)
-> (explicado para cualquiera, con dibujos).
-> **¿Quieres la matemática?** → [`docs/04_MODELO_MATEMATICO.md`](docs/04_MODELO_MATEMATICO.md)
-> (cada paso enunciado y demostrado).
+El reto pide contar, con datos, **quién es un entrenador**: cómo juega, qué decide y si su
+huella es suya o de sus jugadores. Este repositorio lo hace para **Guillermo Almada**
+(Santos Laguna → Pachuca → América, 166 partidos) con los eventos y el tracking 360 de
+StatsBomb de **toda la Liga MX** (1,767 partidos, 5.7 millones de eventos). Toda comparación
+se hace **contra la liga completa** y contra los otros 44 técnicos, no contra una opinión.
+
+| Si buscas… | Abre |
+|---|---|
+| Los resultados, explicados sin tecnicismos y con gráficas | [`docs/RESULTADOS_ALMADA.md`](docs/RESULTADOS_ALMADA.md) |
+| Todas las cifras con su intervalo, su prueba y su etiqueta de evidencia | [`docs/10_RESULTADOS.md`](docs/10_RESULTADOS.md) (§16 y §19) |
+| La matemática del modelo, con proposiciones y demostraciones | [`docs/04_MODELO_MATEMATICO.md`](docs/04_MODELO_MATEMATICO.md) |
+| Qué hace cada archivo y cómo fluyen los datos | [`docs/01_ARQUITECTURA.md`](docs/01_ARQUITECTURA.md) |
+| Las hipótesis, escritas **antes** de ver los resultados | [`docs/11_HIPOTESIS.md`](docs/11_HIPOTESIS.md) |
 
 ---
 
-## La idea en tres líneas
+## 1. La pregunta y cómo se responde
 
-1. **Un idioma común para la liga.** Cada jugada es un paseo del balón por una malla de
-   5×4 zonas que termina en remate, pérdida o salida. Una **mezcla de cadenas de Markov**
-   aprendida sobre 461 mil jugadas encuentra tres maneras de atacar: 🏃 **Directa**,
-   🔁 **Circulación estéril** y 🧩 **Ataque elaborado**.
-2. **El técnico como una mezcla de ese idioma.** Cuánto usa cada familia su equipo,
-   cuánto deja usar al rival y cómo cambia eso con el marcador, el rival y el minuto
-   (logit multinomial fraccional con errores por partido y control del error por FDR).
-3. **La capa de fútbol.** Las métricas del reto (presión, PPDA, bloque, transiciones,
-   balón parado, redes de pase), medidas contra toda la liga, con percentiles entre
-   técnicos, fiabilidad, pruebas de reconocimiento (¿se le distingue?) y un simulador
-   de partido validado fuera de muestra.
+El proyecto contesta cuatro preguntas, en este orden:
 
-Todo lo que se afirma pasó por **reglas escritas antes de ver los resultados**
-([`docs/11_HIPOTESIS.md`](docs/11_HIPOTESIS.md)).
+1. **¿Almada tiene un estilo propio?** ¿Se distinguen sus partidos de los del resto de la liga?
+2. **¿Cómo es ese estilo?** Ataque, defensa, transiciones, presión, bloque, balón parado, red de pases.
+3. **¿Cambia con el partido?** Marcador, minuto, localía, fuerza del rival, decisiones desde la banca.
+4. **¿Es suyo o del plantel?** ¿Su estilo se mantiene cuando cambia de club?
 
-## Lo que encontramos (resumen)
+Para eso el proyecto tiene tres capas, cada una construida sobre la anterior.
+
+**Capa 1 — Un idioma común para toda la liga (cadenas de Markov).** Cada jugada se modela
+como un recorrido del balón por una malla de 5×4 zonas de la cancha que termina en remate,
+pérdida o salida del balón (una *cadena de Markov absorbente*). Sobre las 461,454 jugadas de
+la liga se ajusta una **mezcla de cadenas**, y el algoritmo encuentra que las jugadas se
+agrupan en tres familias reproducibles:
+
+| familia | qué es | duración media | termina en remate |
+|---|---|---|---|
+| 🏃 Directa | recuperar y buscar el arco rápido | 3–4 acciones | 14 % |
+| 🔁 Circulación estéril | toques en medio campo sin llegar | ~7 acciones | 2–3 % |
+| 🧩 Ataque elaborado | construir y llegar por las bandas | ~9 acciones | 12 % |
+
+También se probó con 4, 5 o más familias y con estados más ricos (dirección de llegada,
+presión 360). Esos modelos predicen un poco mejor, pero sus familias cambian de una corrida a
+otra, así que no se adoptaron.
+
+**Capa 2 — El técnico como una mezcla de ese idioma.** Cada técnico queda descrito por
+**cuánto usa su equipo cada familia y cuánto se la deja usar al rival**, y por cómo cambian
+esas proporciones con el marcador, el minuto, la localía y el Elo del rival. Se estima con un
+logit multinomial fraccional, con errores agrupados por partido y bootstrap, y se controla la
+tasa de falsos positivos con Benjamini-Hochberg. Son las hipótesis H1–H17.
+
+**Capa 3 — La capa de fútbol.** Son las métricas que pide el reto, todas medidas como "Almada
+contra la liga", con su percentil entre los 45 técnicos y su fiabilidad entre mitades de la
+muestra: presión a ≤2 m del poseedor y PPDA, ancho y área del bloque defensivo, marcaje en
+balón parado, transiciones, red de pases y roles de los jugadores. Las medidas que dependen de
+la posición de los jugadores salen del tracking 360 (Voronoi local, envolvente convexa,
+algoritmo húngaro). Encima de eso van:
+
+- una prueba de **reconocimiento**: ¿un clasificador distingue sus partidos de los del resto?;
+- la **evolución** partido a partido con un filtro de Kalman: ¿salta algo al cambiar de club?;
+- un **simulador de partido** validado fuera de muestra.
+
+**Regla de oro:** qué cuenta como "confirmado" se escribió antes de mirar los resultados
+(`docs/11_HIPOTESIS.md`). Las etiquetas son:
+
+- 🟢 confirmado, después de controlar los falsos positivos;
+- 🟡 medido, pero no sobrevive ese control;
+- ⚪ no detectado;
+- 🔎 solo exploratorio.
+
+## 2. Qué encontramos
 
 | | resultado | evidencia |
 |---|---|---|
-| **Se le reconoce** | un clasificador distingue a sus equipos del resto con AUC 0.887 (2.º de 45 técnicos) y de su propio club con otros técnicos con 0.857 | 🟢 contra una nula por permutación |
-| **Presiona encima** | más presión a ≤2 m del poseedor (percentil 94), PPDA 8.5 vs 10.3 de la liga | 🟢 |
-| **Bloque estrecho** | la anchura de su bloque está en el percentil 1 y el área, en el 3 | 🟢 |
-| **Ataque vertical** | saca largo (31.5 % en corto vs 47.1 %), conduce hacia adelante (percentil 99) y remata más (16.1 vs 13.3 por partido) | 🟢 |
-| **El rival la pasa mal** | le rematan menos (11.9 vs 13.3) y le entran menos al área (9.5 vs 11.5) | 🟢 |
-| **Balón parado defensivo** | marca al hombre y más cerca; le rematan 26 % menos por córner | 🟢 |
-| **No se pone nervioso** | su mezcla reacciona menos que la de la liga al marcador y al rival | 🟢 (H3, H6, H8) |
-| **Viaja con él** | ningún rasgo suyo da un salto al cambiar de club (Kalman con intervención) | 🔎 descriptivo |
-| **Desde la banca** | cambios del mismo puesto y pocos reacomodos de formación | 🟢 (H15, H16) |
-| **Puntos** | 276 reales vs 263 esperados por su xG y 257 por su estilo | dentro del azar |
+| **Se le reconoce** | un clasificador distingue sus partidos con AUC 0.887 (2.º de 45 técnicos), y de los de Pachuca con otros técnicos con 0.857 | 🟢 contra permutación |
+| **Presiona encima** | presión a ≤2 m del poseedor en el percentil 94; PPDA 8.5 contra 10.3 de la liga | 🟢 |
+| **Bloque estrecho** | anchura del bloque en el percentil 1 y área en el percentil 3 | 🟢 |
+| **Ataque vertical** | saca largo (31.5 % en corto contra 47.1 %), conduce hacia adelante (percentil 99), remata 16.1 contra 13.3 por partido | 🟢 |
+| **Su rival sufre** | le rematan 11.9 veces por partido contra 13.3; el rival rinde menos en *Directa* y *Ataque elaborado* (H8) | 🟢 |
+| **Balón parado** | marca al hombre y más pegado; le rematan 26 % menos por córner en contra | 🟢 |
+| **No se altera** | su mezcla reacciona menos que la de la liga al marcador y al rival (H3, H6) | 🟢 |
+| **Banca conservadora** | cambios del mismo puesto y pocos reacomodos de formación (H15, H16) | 🟢 |
+| **Viaja con él** | ningún rasgo suyo salta al cambiar de club | 🔎 descriptivo |
+| **Puntos** | 276 reales contra 263 esperados por xG y 257 por estilo | dentro del azar |
+
+**En una frase:** Almada impone la misma idea en cada club (aprieta encima, defiende
+estrecho, sale largo y remata mucho). Es el segundo técnico más reconocible de la Liga MX y
+su estilo no cambia ni con el marcador ni con el club.
 
 <p align="center">
-  <img src="docs/figuras/estilo_percentiles.png" width="80%" alt="Percentiles de Almada frente a los técnicos de la liga"><br>
-  <img src="docs/figuras/fase2_familias.png" width="48%" alt="Mezcla de familias de Almada contra la liga">
-  <img src="docs/figuras/identidad_evolucion.png" width="48%" alt="Evolución de sus rasgos a través de sus clubes">
+  <img src="docs/figuras/estilo_percentiles.png" width="85%" alt="Percentiles de Almada frente a los técnicos de la liga"><br>
+  <em>Dónde queda Almada contra los 45 técnicos en cada rasgo.</em>
+</p>
+<p align="center">
+  <img src="docs/figuras/fase2_familias.png" width="49%" alt="Mezcla de familias de Almada contra la liga">
+  <img src="docs/figuras/identidad_evolucion.png" width="49%" alt="Evolución de sus rasgos a través de sus clubes">
 </p>
 
-> Las figuras aparecen cuando se generan y publican con
-> `bash scripts/publicar_figuras.sh "Guillermo Almada"` (ver abajo). Son agregados: no
-> contienen datos crudos de StatsBomb.
+**Lo que no se afirma:**
+
+- Nada de esto es causal.
+- En el América solo hay 7 partidos, así que todo lo de ese club es exploratorio.
+- El 360 solo ve a los jugadores que están en cámara.
+- xG y OBV son modelos del proveedor; por eso la eficiencia se revisa también con la tasa de
+  remate, que no depende de ningún modelo.
 
 ---
 
-## Instalación
+## 3. Requisitos
+
+**Software**
+
+| qué | versión | para qué |
+|---|---|---|
+| Python | ≥ 3.12 | todo |
+| `polars` | ≥ 1.20 | tablas de eventos y transiciones (parquet, evaluación perezosa) |
+| `numpy` | ≥ 2.0 | álgebra de las cadenas, EM, bootstraps |
+| `scipy` | ≥ 1.13 | Voronoi, envolventes, algoritmo húngaro, distribuciones |
+| `matplotlib` | ≥ 3.9 | todas las figuras |
+| `pyyaml` | ≥ 6 | leer `config/default.yaml` |
+| `orjson` | ≥ 3.10 | lectura rápida de los JSON de StatsBomb |
+| `pytest`, `ruff` | ≥ 8, ≥ 0.6 | pruebas y estilo (extra `dev`) |
+| `requests` | cualquiera | **solo** el descargador del 360, en un entorno aparte |
+
+Las dependencias del paquete están declaradas en `pyproject.toml`; `requests` se instala
+aparte, solo en el entorno de descarga. El análisis no usa GPU, redes neuronales ni servicios
+externos; la única conexión es la descarga del 360.
+
+**Datos** (licenciados, no están en el repo)
+
+| dato | origen | ruta esperada |
+|---|---|---|
+| eventos, partidos, alineaciones (JSON de StatsBomb) | entregados por el hackathon; se verifica su integridad con `sha256sum -c data/MANIFIESTO_RAW.sha256` | `data/raw/statsbomb/{events,matches,lineups}/` |
+| frames 360 | se descargan con `scripts/descargar/descargar_360.py` y credenciales de StatsBomb | `data/raw/statsbomb/frames/` |
+| eras de técnicos (quién dirigió qué club y cuándo, verificadas a mano) | **incluidas en el repo** | `data/referencia/eras_api_v2/` |
+
+⚠️ `data/raw`, `data/interim`, `data/processed` y `reports/` están en `.gitignore`: los datos de
+StatsBomb **nunca** se suben. Lo único publicado son las eras y figuras agregadas (`docs/figuras/`).
+
+## 4. Instalación
 
 ```bash
+git clone https://github.com/romoruz/Historia-de-un-entrenador.git && cd Historia-de-un-entrenador
+
 python3.12 -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
-pytest -q                                   # 129 pruebas; si algo falla, no seguir
-```
+pip install -e ".[dev]"          # instala el paquete y el comando `dtcoach`
+pytest -q                        # 129 pruebas; si alguna falla, no sigas
 
-Hay un segundo entorno, separado, solo para descargar el 360 (así la descarga no toca el
-entorno de análisis):
-
-```bash
+# entorno aparte, solo para descargar el 360
 python3.12 -m venv .venv-sb && .venv-sb/bin/pip install requests
 ```
 
-## Qué datos usa y qué descarga
-
-| dato | origen | dónde queda |
-|---|---|---|
-| eventos, partidos, alineaciones | entregados para el hackathon; se verifican con `sha256sum -c data/MANIFIESTO_RAW.sha256` | `data/raw/statsbomb/{events,matches,lineups}/` |
-| 360 (posición de los jugadores visibles en cada evento) | **se descarga** con `scripts/descargar/descargar_360.py` (reanudable, ~1,755 partidos) | `data/raw/statsbomb/frames/` |
-| eras de técnicos (quién dirigió qué club y cuándo) | verificadas a mano, **versionadas** | `data/referencia/eras_api_v2/` |
-
-Las credenciales van **solo** por variables de entorno. Escribe cada línea por separado;
-no se ve lo que tecleas:
+La descarga del 360 se puede reanudar: si se corta, se vuelve a lanzar y sigue donde iba.
+Las credenciales se leen de variables de entorno. Escribe cada línea por separado (no se ve
+lo que tecleas):
 
 ```bash
 read -rs SB_USERNAME; export SB_USERNAME
 read -rs SB_PASSWORD; export SB_PASSWORD
-.venv-sb/bin/python scripts/descargar/descargar_360.py --dry-run
+.venv-sb/bin/python scripts/descargar/descargar_360.py --dry-run   # comprueba sin descargar
 .venv-sb/bin/python scripts/descargar/descargar_360.py
 ```
 
-⚠️ **Los datos de StatsBomb son licenciados.** `data/raw`, `data/interim`,
-`data/processed` y `reports/` están en `.gitignore` y nunca se suben.
+## 5. Correr el análisis
 
-## De cero a la historia
+Cada paso escribe lo que el siguiente lee. Lo de la liga se calcula **una vez** y se reutiliza.
 
-```bash
-source .venv/bin/activate
+| # | comando | qué hace | deja |
+|---|---|---|---|
+| 1 | `dtcoach aplanar` | JSON de StatsBomb → parquet plano | `data/interim/events/` |
+| 2 | `dtcoach partidos` | fechas, marcadores, técnico por partido | `data/interim/partidos.parquet` |
+| 3 | `dtcoach fase0` | eventos → transiciones → secuencias; asigna las eras | `data/processed/transitions.parquet` |
+| 4 | `bash scripts/vocabulario.sh` | malla, número de familias, mezcla, reproducibilidad, bondad de ajuste y propiedades de la cadena | `data/processed/mezcla/`, `reports/mezcla/`, `reports/fase1/` |
+| 5 | `dtcoach elo` | Elo previo a cada partido | `data/processed/elo.parquet` |
+| 6 | `bash scripts/correr_foco.sh "Guillermo Almada" 7` | fase 2 (H1–H8), por club (H9–H12), atlas, decisiones (H13–H17), xPts | `reports/fase2/`, `reports/fase3/` |
+| 7 | `bash scripts/historia.sh "Guillermo Almada"` | 360 (Voronoi, bloque, marcaje), estilo, balón parado, jugadores, identidad, simulador, blindaje | `reports/historia/guillermo_almada/` |
+| 8 | `bash scripts/publicar_figuras.sh "Guillermo Almada"` | copia las figuras que usan los documentos | `docs/figuras/` |
 
-# 1. la liga (una sola vez)
-dtcoach aplanar && dtcoach partidos && dtcoach fase0
-bash scripts/vocabulario.sh                 # malla, K, mezcla, bondad y verificación de Markov
-dtcoach elo
+`historia.sh` corre las pruebas primero y guarda un log fechado junto a las salidas. Para
+analizar a otro técnico basta repetir los pasos 6–8 con su nombre exacto, tal como aparece en
+las eras. Todos los parámetros (malla, K, encogimiento, semillas, umbrales) están en
+`config/default.yaml`; ninguno está escrito en el código.
 
-# 2. el técnico: contexto, clubes, decisiones (fases 2 y 3)
-bash scripts/correr_foco.sh "Guillermo Almada" 7
+**Dónde leer las salidas del técnico:**
 
-# 3. el 360 y la capa de fútbol
-dtcoach voronoi
-bash scripts/historia.sh "Guillermo Almada"
-
-# 4. publicar las figuras que usan los documentos
-bash scripts/publicar_figuras.sh "Guillermo Almada"
-```
-
-Las salidas del técnico quedan en `reports/historia/Guillermo Almada/` (un `.md` por
-componente del reto, sus `.json` y sus figuras). El foco por omisión está en
-`config/default.yaml` (`foco.coach`).
-
-## Mapa de la documentación
-
-| documento | para qué |
+| archivo | contenido |
 |---|---|
-| [`RESULTADOS_ALMADA.md`](docs/RESULTADOS_ALMADA.md) | los resultados, explicados de forma sencilla, con figuras |
-| [`04_MODELO_MATEMATICO.md`](docs/04_MODELO_MATEMATICO.md) | el modelo sección por sección, con proposiciones y demostraciones |
-| [`01_ARQUITECTURA.md`](docs/01_ARQUITECTURA.md) | qué datos entran, cómo fluyen, qué hace cada módulo |
-| [`03_FRAMEWORK.md`](docs/03_FRAMEWORK.md) | definiciones exactas de cada métrica y objeto |
-| [`11_HIPOTESIS.md`](docs/11_HIPOTESIS.md) | hipótesis H1–H17 y reglas de lectura, pre-registradas |
-| [`10_RESULTADOS.md`](docs/10_RESULTADOS.md) | todas las cifras con su intervalo y su etiqueta 🟢🟡⚪🔎 |
-| [`06_DECISIONES.md`](docs/06_DECISIONES.md) | por qué se eligió cada cosa (ADR) |
-| [`12_NARRATIVA.md`](docs/12_NARRATIVA.md) | guion en lenguaje de cancha |
-| [`00_ROADMAP.md`](docs/00_ROADMAP.md), [`02_ESTADO.md`](docs/02_ESTADO.md), [`07_TRASPASO.md`](docs/07_TRASPASO.md) | plan, estado y cómo retomar |
+| `reports/fase2/RESULTADOS_guillermo_almada.md` | H1–H8: mezcla de familias, contexto, eficiencia |
+| `reports/fase3/POR_CLUB_guillermo_almada.md` | H9–H12 y atlas: ¿es él o el plantel? |
+| `reports/fase3/DECISIONES_guillermo_almada.md` | H13–H17: cambios, reacomodos, rotación |
+| `reports/fase3/SIMULADOR_guillermo_almada.md` | puntos esperados y escenarios |
+| `reports/historia/guillermo_almada/FUTBOL.md` | métricas del reto contra la liga, con percentiles |
+| `…/BALON_PARADO.md`, `…/JUGADORES.md` | balón parado; red de pases, roles y protagonistas |
+| `…/IDENTIDAD.md` | reconocimiento (AUC) y evolución por club |
+| `…/SIMULACION.md`, `…/BLINDAJE.md` | simulador de partido; pruebas de robustez |
 
-`docs/proyecto_viejo/` es la primera versión del proyecto, solo de consulta: sus cifras no
-son citables.
+Cada `.md` viene acompañado de sus `.json` (cifras exactas) y sus `.png`.
 
-## Estructura
+## 6. Mapa del repositorio
 
 ```
-config/          parámetros (default.yaml) y configuraciones de experimento
-data/referencia/ eras de técnicos verificadas (lo único de data/ que se versiona)
-docs/            documentación y figuras publicadas
-scripts/         descargas y corridas completas (vocabulario, correr_foco, historia, publicar_figuras)
-src/dtcoach/     el paquete (comando `dtcoach`)
-tests/           129 pruebas: verdades exactas y ligas sintéticas con rasgos sembrados
+config/default.yaml        todos los parámetros; foco.coach = técnico que se analiza
+config/{presion,direccion}.yaml   experimentos no adoptados (heredan de default)
+data/MANIFIESTO_RAW.sha256 huellas de los datos crudos del hackathon
+data/referencia/           eras de técnicos verificadas (lo único de data/ que se versiona)
+scripts/                   corridas completas (.sh) y descargador del 360
+src/dtcoach/               el paquete; `dtcoach --help` lista todos los comandos
+tests/                     129 pruebas (incluye ligas sintéticas con rasgos sembrados)
+docs/                      documentación y figuras publicadas
 ```
+
+**El código, por capa** (el detalle y las dependencias entre módulos están en `docs/01_ARQUITECTURA.md`):
+
+| capa | módulos clave |
+|---|---|
+| Datos | `aplanar.py` (JSON → parquet), `partidos.py`, `eras.py` (quién es el técnico en cada partido), `eventos.py` |
+| Cadena y vocabulario | `grid.py` (malla), `possessions.py` (secuencias), `absorbing.py` (fórmulas cerradas de la cadena), `mezcla.py` (EM y reproducibilidad), `mallado.py`, `markov.py` |
+| El técnico | `elo.py`, `contexto.py`, `pesos.py` (logit fraccional y bootstrap), `hipotesis.py` (H1–H8 y BH), `fase3.py`, `decisiones.py`, `simulador.py` |
+| Capa de fútbol | `comparar.py` (motor foco contra liga), `futbol.py`, `voronoi.py`, `geometria.py`, `balon_parado.py`, `jugadores.py`, `identidad.py`, `simulacion.py`, `blindaje.py` |
+| Salida | `graficas.py`, `graficas_historia.py`, `cli.py`, `cli_historia.py` |
+
+## 7. Documentación
+
+Orden de lectura recomendado:
+
+1. [`RESULTADOS_ALMADA.md`](docs/RESULTADOS_ALMADA.md): la historia, con las figuras.
+2. [`11_HIPOTESIS.md`](docs/11_HIPOTESIS.md): qué se preguntó y con qué regla se contesta.
+3. [`10_RESULTADOS.md`](docs/10_RESULTADOS.md): cada cifra con su intervalo y su prueba.
+4. [`04_MODELO_MATEMATICO.md`](docs/04_MODELO_MATEMATICO.md): por qué cada método mide lo que dice medir.
+5. [`03_FRAMEWORK.md`](docs/03_FRAMEWORK.md): la definición exacta de cada métrica.
+6. [`01_ARQUITECTURA.md`](docs/01_ARQUITECTURA.md): el código y el flujo de datos.
+7. [`06_DECISIONES.md`](docs/06_DECISIONES.md): por qué se eligió cada cosa y qué se descartó.
+
+Para retomar el trabajo:
+
+- [`02_ESTADO.md`](docs/02_ESTADO.md): qué falta.
+- [`07_TRASPASO.md`](docs/07_TRASPASO.md): reglas de trabajo.
+- [`00_ROADMAP.md`](docs/00_ROADMAP.md): el plan.
+
+[`12_NARRATIVA.md`](docs/12_NARRATIVA.md) es el guion para la presentación. `docs/proyecto_viejo/`
+es la primera versión del proyecto y queda solo como referencia: sus cifras no son citables.
+
+## 8. Cómo se sabe que funciona
+
+- **Pruebas contra verdades conocidas:**
+  - cuentas exactas en partidos armados a mano;
+  - áreas comparadas con fórmulas analíticas;
+  - ligas sintéticas (`tests/sinteticos.py`) con rasgos sembrados, que cada método debe
+    encontrar sin inventar nada donde no se sembró.
+- **Contrastes con los datos reales:**
+  - duración esperada de la cadena contra la observada;
+  - llegada al área modelada contra la observada;
+  - validación del simulador dejando cada partido fuera;
+  - xPts de toda la liga contra sus puntos reales (error del 0.48 %).
+- **Robustez:**
+  - eficiencia medida con xG, OBV y tasa de remate;
+  - bootstrap de score donde hay pocos partidos;
+  - control de falsos positivos sobre las 52 hipótesis juntas (ninguna etiqueta cambia).
