@@ -58,12 +58,12 @@ def main():
             nuevo_fin = r["match_date"]
         if nuevo_fin and str(nuevo_fin) > era["end_date"]:
             cambios.append(f"{slug}: «{era['coach']}» {era['end_date']} → {nuevo_fin}")
+            viejo = era["end_date"]
             era["end_date"] = str(nuevo_fin)
-            if a.aplicar:
-                with open(f, "w", newline="", encoding="utf-8") as fh:
-                    w = csv.DictWriter(fh, fieldnames=campos)
-                    w.writeheader()
-                    w.writerows(filas)
+            if a.aplicar:      # edición en sitio: no cambia comillas ni saltos de línea del resto del archivo
+                ls = f.read_text(encoding="utf-8").splitlines(keepends=True)
+                ls[ult + 1] = ls[ult + 1].replace(f",{viejo},", f",{nuevo_fin},", 1)
+                f.write_text("".join(ls), encoding="utf-8", newline="")
     print("Eras que se alargan:" if cambios else "Ninguna era que alargar.")
     for c in cambios:
         print("  ", c)

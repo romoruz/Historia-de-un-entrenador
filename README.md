@@ -79,15 +79,15 @@ local, envolvente convexa, algoritmo húngaro, visibilidad del arco).
 
 | | resultado | evidencia |
 |---|---|---|
-| **Se le reconoce** | un clasificador distingue sus partidos con AUC 0.886 (4.º de 45 técnicos), y de los de Pachuca con otros técnicos con 0.857 | 🟢 contra permutación |
+| **Se le reconoce** | un clasificador distingue sus partidos con AUC 0.882 (4.º de 45 técnicos), y de los de Pachuca con otros técnicos con 0.857 | 🟢 contra permutación |
 | **Presiona encima** | presión a ≤2 m del poseedor en el percentil 94; PPDA 8.5 contra 10.3 de la liga | 🟢 |
 | **Bloque estrecho** | anchura del bloque en el percentil 1 y área en el percentil 3 | 🟢 |
 | **Ataque vertical** | saca largo (31.5 % en corto contra 47.1 %), conduce hacia adelante (percentil 99), remata 16.1 contra 13.3 por partido | 🟢 |
 | **Su rival sufre** | le rematan 11.9 veces por partido contra 13.3; el rival rinde menos en *Directa* y *Ataque elaborado* (H8) | 🟢 |
 | **Ataque** | vertical (28 cm de cada metro hacia el arco, p88), entra al área conduciendo (47 % contra 37 %) y casi sin centros; remata de más lejos | 🟢 (H18, H20, H21) |
-| **Balón parado** | marca al hombre, pegado y con menos gente en el área (H26); le rematan 14 % menos por córner, pero esos remates llegan algo más limpios (xDefense, H25). La "receta Arsenal" no da ventaja en la Liga MX | 🟢 / ⚪ |
+| **Balón parado** | marca al hombre, pegado y con menos gente en el área (H26); le rematan 15 % menos por córner, pero esos remates llegan algo más limpios (xDefense, H25). La "receta Arsenal" no da ventaja en la Liga MX | 🟢 / ⚪ |
 | **Banca** | sus cambios no mueven el xG (H23 ⚪), pero su equipo juega menos Directa tras ellos | ⚪ |
-| **En el América** | proyección de 29.6 puntos en 17 partidos y liguilla directa en 73 % de los torneos; la receta casi no le gana a la inercia y sus intervalos son estrechos | 🔎 exploratorio |
+| **En el América** | proyección de 29.6 puntos en 17 partidos (conforme 80 %: 21–38) y liguilla directa en 73 % de los torneos; la receta no le gana a la inercia (p = 0.32) | 🔎 exploratorio |
 | **No se altera** | su mezcla reacciona menos que la de la liga al marcador y al rival (H3, H6) | 🟢 |
 | **Banca conservadora** | cambios del mismo puesto y pocos reacomodos de formación (H15, H16) | 🟢 |
 | **Viaja con él** | ningún rasgo suyo salta al cambiar de club | 🔎 descriptivo |
