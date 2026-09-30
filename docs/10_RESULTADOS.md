@@ -465,7 +465,7 @@ con marcaje. Altura del bloque: p10 20 m, mediana 48 m, p90 85 m. Distancia de m
 
 ### Guillermo Almada: la identidad más reconocible de la liga
 
-- **Identidad (5.2):** AUC fuera de muestra 0.887 contra la liga (2.º de 45 etapas) y 0.857 contra
+- **Identidad (5.2):** AUC fuera de muestra 0.887 contra la liga (2.º de 45 etapas; 4.º con la huella de la fase G, §20) y 0.857 contra
   el MISMO club con otros técnicos (nulas por permutación ≈ 0.50, p95 ≈ 0.55). No es Pachuca: es él.
 - **Rasgos que cumplen las tres condiciones (Pachuca):** presiona encima (acciones del rival con un
   jugador suyo a ≤ 2 m: 0.208 contra 0.172, percentil 94) y antes (PPDA 8.5 contra 10.3, percentil
@@ -478,7 +478,7 @@ con marcaje. Altura del bloque: p10 20 m, mediana 48 m, p90 85 m. Distancia de m
   (22 %), bloque estrecho y contrapresión. En el América (7 partidos) solo es exploratorio.
 - **Cadena:** llega al último tercio más y en menos acciones (2.5 contra 2.8): vertical. Sus rivales
   llegan menos (−4.5 pp) al último tercio y (−3.5 pp) frente al área.
-- **Balón parado defensivo:** concede 26 % menos remates por corner (razón 0.74 [0.65, 0.84]); marca
+- **Balón parado defensivo:** concede 26 % menos remates por corner (razón 0.74 [0.65, 0.84]; con la jugada de 15 s de la fase G, 0.86 [0.76, 0.97], §20); marca
   más cerca (2.45 contra 2.83 m) y con menos defensores sobrantes (2.3 contra 2.9): marca al hombre.
 - **Blindaje:** la eficiencia coincide en signo con xG, OBV y tasa de remate; H3 y H6 se sostienen
   con bootstrap de score (p = 0.003 y 0.001; en Pachuca 0.018 y 0.001). En el América (7 partidos)
@@ -580,17 +580,149 @@ familia de decisiones cubre H13–H16.
 
 ---
 
-## 20. Fase G — las secciones nuevas (⏳ pendiente de la corrida con datos reales)
+## 20. Fase G — las secciones nuevas (corrida del 2026-09-30)
 
-Programada y probada el 2026-09-29 (pruebas sembradas y prueba integral sobre una liga sintética en
-formato crudo). Hipótesis H18–H26 pre-registradas en `11_HIPOTESIS.md` ANTES de correrlas. Esta
-sección se llena con `reports/historia/guillermo_almada/<sección>/`:
+Hipótesis H18–H26 pre-registradas en `11_HIPOTESIS.md` antes de correr. Salidas en
+`reports/historia/guillermo_almada/<sección>/`; figuras en `docs/figuras/<sección>/`.
 
-| sección | qué se llena aquí | hipótesis |
-|---|---|---|
-| identidad | puntos y xG por estrato de rival; ajuste al rival | H22 |
-| ofensiva | salida, verticalidad, carriles, tipo de entrada y de asistencia, motivos, camino típico por familia | H18–H21 |
-| defensa | curva de presión, presión por tercio, bloque con control de cámara | regla 5 de la fase G |
-| jugadores | dif. en dif. de todos los cambios y por tipo, reacomodo tras el cambio, quién entra | H23 |
-| balón parado | modelos del xDefense (AUC, ΔAUC), prevención y supresión con contracción, línea de tiros libres, receta Arsenal | H24–H26 |
-| simulación | proyección en el América, validación con todas las llegadas de la liga | exploratoria |
+**Insumos.**
+- Tabla extra: 1,890,911 filas (43,532 centros, 5,046 filtrados, 3,340 pases atrás).
+- 360: 3,664,104 frames de bloque; 26,570 de 40,216 saques con frame; ancho visible mediano 72.9 m.
+- Tabla de la liga: 3,534 filas × 113 métricas.
+
+### Tabla de hipótesis (BH global sobre 61 hipótesis)
+
+| H | pregunta | resultado | veredicto |
+|---|---|---|---|
+| H18 | verticalidad | directness 0.281 contra 0.248 (p88); velocidad de avance 2.78 contra 2.48 m/s (p81) | 🟢 |
+| H19 | carriles de progresión | interiores 40.8 % contra 39.5 % | 🟢 en la sección, **🟡 en el global** (q = 0.073) |
+| H20 | entrada al área y asistencia | conduciendo 47.4 % contra 37.3 % (p99); con centro 15.1 % contra 20.0 % (p12); asistido por centro 12.1 % contra 15.1 % (p6) | 🟢 |
+| H21 | motivos de pase | ABCD 62.4 % contra 59.6 % (p90); ABCA 7.7 % contra 8.6 % (p1) | 🟢 |
+| H22 | ajuste al rival distinto de la liga | todos los Δ(fuertes − débiles) ⚪ | ⚪ |
+| H23 | efecto de sus cambios (xG, OBV, xG rival, tilt) | prueba conjunta p = 0.954 | ⚪ |
+| H24 | prevención (capa 1) | +0.0142 [−0.011, +0.040] remates evitados por centro | ⚪ |
+| H25 | supresión (capa 2) | **−0.0048 [−0.008, −0.002]** xG por remate: concede remates algo *más* limpios | 🟢 en sentido contrario |
+| H26 | organización a balón parado | defensores en el área 6.65 contra 8.66 (p3); al hombre 52.5 % contra 38.6 % (p99); distancia de marca 2.21 contra 2.71 m (p1) | 🟢 |
+
+### Identidad
+- **Reconocimiento:**
+  - AUC 0.886 contra la liga (nula p95 0.544) y 0.857 contra el club.
+  - En el ranking de 45 queda **4.º** (AUC 0.896 con la huella nueva; en §19 era 2.º con la huella anterior).
+- **Rival por Elo** (cortes: débil ≤ 1456, fuerte ≥ 1557):
+
+  | rival | puntos Almada | puntos liga | diferencia [IC 95 %] |
+  |---|---|---|---|
+  | fuerte | 1.19 | 0.98 | [−0.21, +0.63] |
+  | medio | 1.70 | 1.39 | +0.31 [+0.05, +0.58] |
+  | débil | 2.03 | 1.67 | — |
+
+  No hay ajuste diferencial al rival (H22 ⚪).
+- **Evolución:** ningún cambio de nivel al cambiar de club.
+
+### Ofensiva
+- **Salida:**
+  - pase largo de juego igual que la liga (0.199);
+  - completa menos pases bajo presión (0.687 contra 0.715, 🟢).
+- **Progresión:**
+  - con conducción 39.3 % contra 32.2 % (p99);
+  - zona 14: 21.4 contra 16.8 por partido (p81).
+- **Ocasión:**
+  - remata desde más lejos: 21.2 contra 19.8 m (p97);
+  - menos remates dentro del área (51.1 % contra 58.1 %, p3);
+  - menos de cabeza (14.9 % contra 19.7 %, p3);
+  - menos de primera (29.7 % contra 33.1 %).
+  - Esto explica el menor xG por remate de §19.
+  - xG de juego abierto: 0.71 contra 0.63 (🟡).
+- **Camino típico por familia** (zonas de la malla 5×4):
+
+  | familia | Almada | liga |
+  |---|---|---|
+  | Directa | [1, 17] | [1, 13] |
+  | Circulación estéril | [11, 18] (empieza en la banda del medio campo) | [2, 14, 18] |
+  | Ataque elaborado | [15, 18] | [15, 18] |
+
+  La probabilidad del camino exacto es < 1 %: se reporta como ruta modal, no como jugada.
+
+### Defensa
+- **Presión a ≤ 2 m por tercio** donde recibe el rival:
+
+  | tercio | Almada | liga | percentil |
+  |---|---|---|---|
+  | alto | 0.153 | 0.123 | p99 |
+  | medio | 0.207 | 0.162 | p97 |
+  | bajo | 0.265 | 0.244 | p81 |
+
+- **Control de cámara del bloque** (ancho visible ≥ 70 m):
+  - anchura 38.2 contra 40.1 m (**p1**): el rasgo sobrevive;
+  - el ancho visible difiere solo 0.6 m (69.7 contra 70.3).
+- **Concedido:**
+  - la velocidad de avance del rival sube: 2.76 contra 2.48 m/s (🟢). Es el costo de la presión alta;
+  - remates 11.9 contra 13.3; entradas al área 9.5 contra 11.5.
+
+### Jugadores
+- **Diferencia en diferencias** emparejada por minuto y marcador (489 cambios suyos contra 8,638 de la liga):
+  - xG ⚪;
+  - Directa −2.3 pp [−3.8, −0.9]; Elaborado +1.9 pp [+0.4, +3.5];
+  - field tilt +0.031 [−0.005, +0.067].
+- **Reacomodo de formación tras el cambio:** 37 % contra 52 % (−14.6 pp [−19.7, −9.4]).
+- **Entran más:** J. E. López 46, I. Hernández 38, R. de la Rosa 31, M. Hinestroza 31.
+
+### Balón parado
+- **A favor:**
+  - corners por partido 6.15 contra 4.93 (p90);
+  - cortos 34.5 % contra 20.7 %; cerrados 58.7 % contra 43.5 %;
+  - atacantes en el área 5.15 contra 5.48; encima del portero 0.05 contra 0.13;
+  - corners con remate 0.323 contra 0.366; xG por corner 0.029 contra 0.035 (🟡);
+  - razón de remates por corner 0.88 [0.80, 0.97].
+- **En contra:**
+  - corners con remate 0.327 contra 0.366;
+  - **razón de remates por corner 0.86 [0.76, 0.97]**. Con la jugada de 15 s cortada en la siguiente reanudación reemplaza el 0.74 de §19, que solo contaba el primer remate;
+  - primer palo cubierto 7.5 % contra 15.2 %; segundo 0.5 % contra 2.5 %;
+  - defensores sobrantes 2.21 contra 2.96.
+- **Tiros libres en contra** (línea *táctica*: sin los defensores con x ≥ 118):
+  - altura 14.9 contra 14.2 m (⚪);
+  - defensores en la línea 4.70 contra 5.28 (🟢);
+  - fuera de lugar provocado ⚪.
+- **xDefense:**
+  - **Capa 1:**
+    - 28,216 centros, 31.5 % con remate;
+    - AUC fuera de muestra 0.632, calibración 1.000.
+  - **Capa 2:**
+    - 46,641 remates (14,731 a balón parado, 1,061 goles);
+    - AUC 0.758 → 0.785 con la geometría defensiva (ΔAUC +0.027 [+0.022, +0.031]);
+    - goal_open +0.40, gk_prof +0.27.
+  - **Contracción entre 45 técnicos-club** (puesto 1 = mejor defensa):
+
+    | métrica | τ² | contraído | puesto |
+    |---|---|---|---|
+    | prevención | 3.0e-4 | +0.0099 | 17 de 45 |
+    | supresión | 2.85e-6 ≈ 0 | −0.0021 | 45 de 45 |
+
+    En la supresión no se detecta variación real entre equipos, así que su puesto no significa nada.
+  - **Lectura:** marca al hombre con pocos defensores y concede algo menos de remates (0.86), pero más limpios. En la liga, lo que separa equipos es la capa 1, no la 2.
+- **Rutinas y receta Arsenal:**
+  - la rutina más productiva es cerrado (inswinging) → punto penal (0.045 xG por corner; media 0.035);
+  - receta Arsenal (cerrado al área chica o primer palo, con atacantes a ≤ 2 m del portero): 0.036 contra 0.035 (+0.001 [−0.007, +0.012], p = 0.75), **sin ventaja en la Liga MX**;
+  - Almada la usa en el 1 % de sus corners; la liga, en el 3 %.
+
+### Simulación y proyección en el América
+- **Puntos:**
+  - xPts 262.6 contra 276 reales (p = 0.34); por estilo, 257.1;
+  - Brier 0.628 contra 0.659 (−4.8 %).
+- **Proyección** (llegó el 2026-07-19):
+  - **Plantel que encontró:** ataque 1.11, defensa 0.78.
+  - **Efecto de llegada** (1 llegada propia, Pachuca, contraída hacia 69 llegadas de la liga):
+    - ataque +1 % (liga +5 %);
+    - lo concedido −10 % (liga −2 %).
+  - **Con Almada:** 1.48–0.97 xG por partido; 29.6 puntos en 17 partidos [23, 36]; posición media 5.0; liguilla directa 73 %, play-in 19 %.
+  - **Inercia:** 29.2 puntos, posición 5.3, 70 % / 21 %.
+  - **Primeros 7 partidos:** proyectado 12.8 [9, 17] contra 16 reales (xG real 11.1–8.6).
+- **Validación con las 69 llegadas:**
+  - error 0.30 puntos por partido contra 0.31 de la inercia: **casi no le gana**;
+  - correlación 0.61;
+  - **cobertura del intervalo del 80 %: 67 %**. Los intervalos son demasiado estrechos porque no incluyen la incertidumbre de la fuerza de los rivales ni del efecto del plantel;
+  - se reporta como exploratoria.
+
+### Blindaje
+- BH global sobre 61 hipótesis: el único cambio de veredicto es H19 (🟢 → 🟡).
+- Las de fases anteriores no cambian.

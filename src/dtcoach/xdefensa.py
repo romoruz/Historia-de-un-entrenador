@@ -370,7 +370,10 @@ def contraccion(theta: np.ndarray, var: np.ndarray) -> dict:
 
 
 def por_etapa(M: pl.DataFrame, m: str, lado: str = "propio", min_partidos: int = 30) -> pl.DataFrame:
-    """Una fila por técnico-club: θ (razón de sumas), su varianza por partidos y el θ contraído."""
+    """Una fila por técnico-club: θ (razón de sumas), su varianza por partidos y el θ contraído.
+
+    Ordenada de mayor a menor θ contraído: en xd_prev y xd_remate más alto = mejor defensa, así que la
+    fila 1 es la mejor."""
     coach, team = ("coach", "team") if lado == "propio" else ("coach_rival", "rival")
     filas = []
     for (c, t), g in M.filter(pl.col(coach).is_not_null()).group_by(coach, team):
@@ -383,4 +386,4 @@ def por_etapa(M: pl.DataFrame, m: str, lado: str = "propio", min_partidos: int =
     E = pl.DataFrame(filas)
     cc = contraccion(E["theta"].to_numpy(), E["var"].to_numpy())
     return E.with_columns(pl.Series("contraido", cc["contraido"]), pl.Series("confiabilidad", cc["confiabilidad"]),
-                          pl.lit(cc["mu"]).alias("mu"), pl.lit(cc["tau2"]).alias("tau2")).sort("contraido")
+                          pl.lit(cc["mu"]).alias("mu"), pl.lit(cc["tau2"]).alias("tau2")).sort("contraido", descending=True)

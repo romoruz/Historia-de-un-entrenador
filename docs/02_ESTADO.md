@@ -17,9 +17,10 @@
   rival por Elo; defensa explicada con control de cámara; sustituciones a fondo; balón parado completo
   con xDefense en dos capas, línea del fuera de lugar y receta Arsenal; proyección en el club actual.
   Probada con pruebas sembradas y con una prueba integral (liga sintética en formato crudo).
-- **Siguiente acción:** correr con datos reales `dtcoach extra`, `dtcoach geometria` (rehace el 360 con el
-  ancho visible y el frame del saque) y `bash scripts/historia.sh "Guillermo Almada"`; publicar figuras;
-  llenar los ⏳ de `RESULTADOS_ALMADA.md` y `10_RESULTADOS.md`. Después, el informe HTML.
+- **Fase G corrida con datos reales** (2026-09-30): 7 secciones, 46 figuras publicadas y BH global
+  sobre 61 hipótesis. Resultados en `RESULTADOS_ALMADA.md` y `10_RESULTADOS` §20.
+- **Siguiente acción:** el informe HTML final. Para regenerar la figura de familias y el ranking del xDefense
+  (ahora puesto 1 = mejor), volver a correr `dtcoach ofensiva` y `dtcoach balon-parado`, y publicar las figuras.
 
 - Fase 1 v3 **cerrada**: 5×4, K = 3, paso inicial, familias nombradas (`10_RESULTADOS.md` §16).
 - Fases 2 y 3 **rehechas** con el vocabulario v3 para Jardine y Almada: las conclusiones no cambian (robustez).

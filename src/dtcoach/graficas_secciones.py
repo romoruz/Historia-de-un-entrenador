@@ -94,8 +94,7 @@ def familias_cancha(fams: list[dict], familias: list[str], nx: int, ny: int, foc
                 ax.add_patch(FancyArrowPatch(a, b, arrowstyle="-|>", mutation_scale=12, color=col, lw=2.2,
                                              zorder=4))
             ax.scatter(*pts[0], s=60, color=col, zorder=5, edgecolor=SUPERFICIE)
-        ax.set_title(f"{nombre}\n{foco}: {100 * f['foco']['prob_camino']:.1f} % · liga: "
-                     f"{100 * f['liga']['prob_camino']:.1f} %\nde sus secuencias siguen ese camino exacto",
+        ax.set_title(f"{nombre}\nflecha = la ruta más frecuente entre las zonas\n(cada jugada real se desvía de ella)",
                      loc="left", fontsize=8)
     fig.suptitle(f"Las tres maneras de atacar, dibujadas · azul = {foco} pasa el balón por ahí más que la liga "
                  f"(rojo, menos); flechas = el camino más probable hasta el remate (azul {foco}, naranja liga)",

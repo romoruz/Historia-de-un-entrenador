@@ -783,7 +783,7 @@ def cmd_balon_parado(a, cfg):
         md += [f"**{tit}** — contracción empírico-bayesiana entre {E.height} técnicos-club (τ² = "
                f"{float(E['tau2'][0]):.2e}; τ² ≈ 0 = no se detecta variación real entre equipos):", ""]
         md += [f"- {f['team']}: crudo {f['theta']:+.4f} ± {1.96 * np.sqrt(f['var']):.4f}, contraído "
-               f"{f['contraido']:+.4f} (confiabilidad {f['confiabilidad']:.2f}; puesto {f['puesto']} de {E.height})"
+               f"{f['contraido']:+.4f} (confiabilidad {f['confiabilidad']:.2f}; puesto {f['puesto']} de {E.height}, 1 = la mejor defensa)"
                for f in fila]
         md.append("")
     # rutinas y receta Arsenal
