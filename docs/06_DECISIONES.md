@@ -1,6 +1,6 @@
 # 06 — Decisiones v2
 
-Las ADR del proyecto viejo (`proyecto_viejo/06_DECISIONS.md`) siguen vigentes
+Las ADR del proyecto viejo (`archivo/proyecto_viejo/06_DECISIONS.md`) siguen vigentes
 salvo que una de estas las sustituya. Numeración propia: `ADR-v2-NN`.
 
 ## ADR-v2-01 — La referencia es la liga del mismo torneo, sin el club
@@ -405,3 +405,58 @@ p = 0.39); (3) BH global sobre todas las hipótesis del foco como sensibilidad;
 (4) splines cúbicos restringidos de minuto y Elo más marcador × minuto en la parte
 de la liga, como sensibilidad de la calibración 1.3–1.4 (`fase2.suave`, apagado por
 defecto: los resultados oficiales no cambian).
+
+## ADR-v2-41 — La historia se organiza por las secciones del reto
+Cada comando es una sección (identidad, ofensiva, defensa, jugadores, balón parado,
+simulación, blindaje) con su carpeta en `reports/historia/<foco>/` y en `docs/figuras/`.
+Lo que es de toda la liga (campos extra, 360, tabla equipo-partido, xDefense) se calcula
+una vez en `tabla-liga`, que guarda una versión junto a la tabla y se rehace sola si cambia
+lo que calcula o si llegan insumos nuevos (extra, 360). Motivo: el jurado lee el reto por
+secciones, y un resultado debe poder encontrarse donde el reto lo pide.
+
+## ADR-v2-42 — Campos extra del JSON en una tabla lateral (`dtcoach extra`)
+Centros, pases filtrados, pases atrás, técnica del cobro, asistencias y remates de primera
+se leen de los mismos JSON y se guardan aparte, con la llave (match_id, id). Rehacer el
+aplanado obligaría a rehacer el vocabulario y las fases 2–3 sin ganar nada. Sin la tabla,
+las métricas que la usan se reportan "sin datos"; nunca se imputan.
+
+## ADR-v2-43 — Balón parado: jugada = saque con ventana, y xDefense en dos capas
+La jugada es el SAQUE, con su desenlace en 15 s cortados en la siguiente reanudación (no la
+posesión de StatsBomb, que corta en el primer despeje y pierde la segunda jugada). La defensa
+se mide en dos capas (Prop. 16.1): prevención con el frame 360 del cobro (corrige el sesgo
+de selección del trabajo previo, que solo veía la foto del remate) y supresión con la foto
+del remate (visibilidad del arco). Las dos con predicciones fuera de muestra por partido y
+contracción empírico-bayesiana entre técnicos-club. PyMC no entra: la contracción
+normal-normal responde la misma pregunta ("¿hay variación real entre equipos?") sin otra
+dependencia, y el jerárquico bayesiano queda como extensión documentada.
+
+## ADR-v2-44 — Receta Arsenal: se prueba en la Liga MX, no se importa
+No hay datos de la Premier. Lo que se puede decir con datos es si la receta (corner cerrado
+al área chica o primer palo con atacantes encima del portero) rinde más que el resto en la
+Liga MX y si el foco la usa. Es descriptivo: el equipo que elige una rutina no es aleatorio.
+
+## ADR-v2-45 — Contexto por nivel del rival con cortes de la liga
+Rivales fuertes, medios y débiles por el Elo previo con los percentiles 25 y 75 de toda la
+liga, fijados antes de mirar al foco. Dentro de cada estrato, foco contra liga en el mismo
+estrato; la pregunta del reto ("¿ajusta según el rival?") es la diferencia de diferencias
+fuertes − débiles contra la de la liga (H22).
+
+## ADR-v2-46 — Bloque: control del encuadre de la cámara
+El 360 solo ve lo que enfoca la cámara. El "bloque estrecho" se afirma solo si sobrevive en
+frames con ≥ 70 m de ancho visible; si no, se retira. `geometria` guarda el ancho visible de
+cada frame.
+
+## ADR-v2-47 — Sustituciones: todas, emparejadas por celda
+El efecto de un cambio es una dif. en dif. contra los cambios de la liga en la misma celda
+(tramo de 5 min × signo del marcador), para todos los cambios y por tipo (como H15), con
+medidas de juego (field tilt, mezcla de familias) además de xG y OBV. Reemplaza al efecto
+solo del primer cambio del segundo tiempo.
+
+## ADR-v2-48 — Proyección: plantel que encontró × efecto de llegada contraído
+"¿Cómo le iría en su club actual?" se responde con un modelo multiplicativo de xG (Maher):
+los índices del club en sus 17 partidos anteriores a la llegada (el plantel), por el efecto
+de llegada del técnico medido en sus llegadas anteriores y contraído hacia la media de todas
+las llegadas de la liga (que incluye la regresión a la media tras un despido). La fuerza de
+los rivales se estima SIN los partidos del equipo evaluado (Prop. 19.1: si no, una mejora se
+esconde a sí misma). La receta se valida proyectando cada llegada de la liga; si no le gana a
+la inercia, se dice.

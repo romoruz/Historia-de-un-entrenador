@@ -1,6 +1,6 @@
 # 02 — Estado del proyecto
 
-> Actualizado 2026-09-27: el foco del proyecto es **Guillermo Almada**; capa de fútbol corrida; documentación reescrita.
+> Actualizado 2026-09-29: fase G programada (secciones nuevas) y probada con datos sintéticos; falta correrla con datos reales.
 > Qué está hecho, qué falta y **cuál es la siguiente acción**.
 
 ---
@@ -11,9 +11,15 @@
 - **Capa de fútbol (fases A–F) implementada y corrida** con datos reales (129 pruebas): estilo de juego,
   360 (presión, bloque, marcaje), transiciones, balón parado, jugadores, identidad y evolución, simulador
   y blindaje. Resultados en `RESULTADOS_ALMADA.md` y `10_RESULTADOS` §19.
-- Decisiones, simulador y blindaje de Almada **recorridos** (2026-09-27) y figuras publicadas en
-  `docs/figuras/` (26).
-- **Siguiente acción:** el informe (fase G).
+- Decisiones, simulador y blindaje de Almada **recorridos** (2026-09-27).
+- **Fase G programada** (2026-09-29, ADR-v2-41 a 48; hipótesis H18–H26 pre-registradas): la historia
+  por secciones; ofensiva completa (salida, progresión, llegada, ocasión, motivos, familias dibujadas);
+  rival por Elo; defensa explicada con control de cámara; sustituciones a fondo; balón parado completo
+  con xDefense en dos capas, línea del fuera de lugar y receta Arsenal; proyección en el club actual.
+  Probada con pruebas sembradas y con una prueba integral (liga sintética en formato crudo).
+- **Siguiente acción:** correr con datos reales `dtcoach extra`, `dtcoach geometria` (rehace el 360 con el
+  ancho visible y el frame del saque) y `bash scripts/historia.sh "Guillermo Almada"`; publicar figuras;
+  llenar los ⏳ de `RESULTADOS_ALMADA.md` y `10_RESULTADOS.md`. Después, el informe HTML.
 
 - Fase 1 v3 **cerrada**: 5×4, K = 3, paso inicial, familias nombradas (`10_RESULTADOS.md` §16).
 - Fases 2 y 3 **rehechas** con el vocabulario v3 para Jardine y Almada: las conclusiones no cambian (robustez).

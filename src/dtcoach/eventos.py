@@ -19,7 +19,8 @@ COLUMNAS = ["id", "index", "match_id", "period", "minute", "second", "type", "te
             "possession_team", "play_pattern", "player", "player_id", "position", "location", "duration",
             "under_pressure", "counterpress", "pass_end_location", "pass_outcome", "pass_type",
             "pass_recipient_id", "carry_end_location", "shot_end_location", "shot_outcome",
-            "shot_statsbomb_xg", "obv_total_net", "substitution_replacement_id"]
+            "shot_statsbomb_xg", "obv_total_net", "substitution_replacement_id", "shot_type", "shot_body_part",
+            "pass_height"]
 
 AREA = (102.0, 18.0, 62.0)          # x ≥ 102 y 18 ≤ y ≤ 62: el área rival (marco de quien ataca)
 ULTIMO_TERCIO = 80.0

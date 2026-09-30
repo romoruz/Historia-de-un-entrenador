@@ -4,12 +4,12 @@
 # data/raw, data/interim, data/processed, *.parquet, *.json.gz ni credenciales.
 #
 # Uso (desde cualquier lugar):
-#   bash scripts/empaquetar_revision.sh                 # sin docs/proyecto_viejo
-#   bash scripts/empaquetar_revision.sh --con-historial # incluye docs/proyecto_viejo
+#   bash scripts/utilidades/empaquetar_revision.sh                 # sin docs/archivo/proyecto_viejo
+#   bash scripts/utilidades/empaquetar_revision.sh --con-historial # incluye docs/archivo/proyecto_viejo
 #
 # Resultado: <raíz del repo>/dtcoach_revision_AAAAMMDD_HHMM.zip
 set -euo pipefail
-RAIZ="$(cd "$(dirname "$0")/.." && pwd)"
+RAIZ="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$RAIZ"
 PY=".venv/bin/python"; [ -x "$PY" ] || PY="python3"
 HISTORIAL=0; [ "${1:-}" = "--con-historial" ] && HISTORIAL=1
@@ -37,7 +37,7 @@ def excluido(p: Path) -> str | None:
         return "entorno/caché"
     if str(rel).startswith(("data/raw", "data/interim", "data/processed")):
         return "datos licenciados"
-    if not historial and str(rel).startswith("docs/proyecto_viejo"):
+    if not historial and str(rel).startswith("docs/archivo/proyecto_viejo"):
         return "historial (usa --con-historial)"
     if p.name in EXCLUIR_NOMBRES or p.name.startswith(".env"):
         return "credenciales"

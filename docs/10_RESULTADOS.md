@@ -577,3 +577,20 @@ familia de decisiones cubre H13–H16.
   verticalidad), la más reconocible de la liga.
 - **Jardine se adapta:** su equipo juega como el plantel le permite (cambio en bloque al llegar al
   América); lo que conserva es cómo le cambia el partido al rival (H2) y una presión menos agresiva.
+
+---
+
+## 20. Fase G — las secciones nuevas (⏳ pendiente de la corrida con datos reales)
+
+Programada y probada el 2026-09-29 (pruebas sembradas y prueba integral sobre una liga sintética en
+formato crudo). Hipótesis H18–H26 pre-registradas en `11_HIPOTESIS.md` ANTES de correrlas. Esta
+sección se llena con `reports/historia/guillermo_almada/<sección>/`:
+
+| sección | qué se llena aquí | hipótesis |
+|---|---|---|
+| identidad | puntos y xG por estrato de rival; ajuste al rival | H22 |
+| ofensiva | salida, verticalidad, carriles, tipo de entrada y de asistencia, motivos, camino típico por familia | H18–H21 |
+| defensa | curva de presión, presión por tercio, bloque con control de cámara | regla 5 de la fase G |
+| jugadores | dif. en dif. de todos los cambios y por tipo, reacomodo tras el cambio, quién entra | H23 |
+| balón parado | modelos del xDefense (AUC, ΔAUC), prevención y supresión con contracción, línea de tiros libres, receta Arsenal | H24–H26 |
+| simulación | proyección en el América, validación con todas las llegadas de la liga | exploratoria |

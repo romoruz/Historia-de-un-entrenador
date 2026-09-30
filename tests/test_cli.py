@@ -9,7 +9,8 @@ from dtcoach import cli
 COMANDOS = ["aplanar", "partidos", "fase0", "cv-k", "mezcla", "reproducibilidad", "curva-k", "bondad",
             "elo", "fase2", "fase3", "atlas", "decisiones", "simulador", "mallado", "markov", "comparar-paso",
             "voronoi", "presion-cv", "presion-aplicar", "direccion-cv", "direccion-aplicar",
-            "geometria", "futbol", "balon-parado", "jugadores", "identidad", "simular", "blindaje"]
+            "extra", "geometria", "tabla-liga", "identidad", "ofensiva", "defensa", "jugadores", "balon-parado",
+            "simular", "blindaje"]
 
 
 @pytest.mark.parametrize("cmd", COMANDOS)

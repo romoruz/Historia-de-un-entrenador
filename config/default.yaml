@@ -7,6 +7,7 @@ rutas:
   raw_matches: data/raw/statsbomb/matches      # <comp>_<season>.json.gz
   raw_frames: data/raw/statsbomb/frames        # 360 (scripts/descargar/descargar_360.py)
   eventos_parquet: data/interim/events         # salida de `dtcoach aplanar`
+  eventos_extra: data/interim/eventos_extra.parquet   # `dtcoach extra`: centros, técnica, asistencias (G0)
   partidos: data/interim/partidos.parquet
   dt_partido: data/interim/dt_por_partido.parquet
   eras_dir: data/referencia/eras_api_v2           # eras VERIFICADAS del proyecto viejo
@@ -127,7 +128,7 @@ direccion:
 futbol:
   tabla: data/processed/futbol/equipo_partido.parquet     # todas las métricas, toda la liga
   bloque: data/interim/bloque_360.parquet                 # `dtcoach geometria`
-  marcaje: data/interim/marcaje_360.parquet
+  saques: data/interim/saques_360.parquet      # frame 360 del saque a balón parado (G5)
   prog_min_m: 10.0        # progresiva: termina ≥ 10 m más cerca del centro del arco...
   prog_frac: 0.75         # ...y a ≤ 75 % de la distancia inicial
   saque_corto_m: 35.0     # saque de meta "en corto"
@@ -137,6 +138,15 @@ futbol:
   min_defensores: 6       # 360: defensores visibles mínimos para medir el bloque
   tl_min_x: 60.0          # tiro libre en campo rival
   lateral_min_x: 80.0     # lateral en zona de peligro
+  ventana_bp: 15.0        # s: desenlace de una jugada a balón parado (cortada en la siguiente reanudación)
+  contacto_s: 5.0         # s: plazo del primer contacto tras el saque
+  cobertura_min: 0.8      # 360: fracción del área visible para contar jugadores en un saque
+  xd_folds: 5             # xDefense: validación cruzada por partido
+  xd_lam: 1.0             # xDefense: penalización L2 de los logits
+  largo_m: 30.0           # pase largo
+  cambio_m: 35.0          # cambio de orientación: |Δy| ≥ 35 m
+  ancho_min: 70.0         # 360: frames con ≥ 70 m de ancho visible (control del encuadre del bloque)
+  ventana_shift: 3        # min: reacomodo que acompaña a un cambio
   min_partidos_era: 30    # técnico-club mínimo para percentiles y fiabilidad
   min_partidos_club: 7    # club del foco que se reporta por separado
   n_boot: 1000
@@ -148,3 +158,11 @@ futbol:
   sim_rep: 10000
   sim_a: 200.0            # pseudo-secuencias de encogimiento del simulador
   sim_validacion_rep: 2000
+
+# ---------------------------------------------------------------- proyección (G6)
+proyeccion:
+  n_pre: 17               # partidos del club antes de la llegada: "el plantel que encontró"
+  n_post: 17              # partidos con el técnico para medir el efecto de una llegada (un torneo)
+  n_sim: 10000            # torneos simulados
+  directos: 6             # lugares a liguilla directa
+  play_in: [7, 10]        # lugares de play-in

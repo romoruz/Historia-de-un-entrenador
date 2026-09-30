@@ -9,7 +9,7 @@
 # Para descartar el experimento sin dejar rastro:
 #   rm -rf data/interim/rasgos_360.parquet data/processed/presion reports/presion reports/presion_base
 set -euo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."
 mkdir -p reports/presion
 LOG="reports/presion/corrida_$(date +%Y%m%d_%H%M).log"
 KS_GRID="${KS:-2 3 4 5}"

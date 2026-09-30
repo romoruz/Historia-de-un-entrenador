@@ -112,8 +112,8 @@ secuencias de cada tipo. La estacionaria de una cadena absorbente es degenerada
 | **Transición ofensiva** | posesión propia en juego abierto que sigue a una del rival; se mide lo que produce en sus primeros 10 s |
 | **Presión (360)** | una acción está presionada si un rival visible está a ≤ 2 m (distancia de `rasgos_360`, ADR-v2-36) |
 | **Bloque (360)** | los jugadores visibles del equipo sin balón (sin portero), con ≥ 6 visibles: altura media, anchura, profundidad y área de su envolvente convexa, en su marco |
-| **Jugada a balón parado** | posesión From Corner / From Free Kick / From Throw In; tiro libre solo si el saque es en x ≥ 60 y lateral solo si es en x ≥ 80 |
-| **Marcaje (360)** | en el frame del saque de corner o tiro libre, asignación óptima defensor–atacante dentro de x ≥ 96, 14 ≤ y ≤ 66 (algoritmo húngaro) |
+| **Jugada a balón parado** | un SAQUE (corner, tiro libre, lateral) con su desenlace en una ventana de 15 s; definición completa en §6 |
+| **Marcaje (360)** | en el frame del saque, asignación óptima defensor–atacante dentro de x ≥ 96, 14 ≤ y ≤ 66 (algoritmo húngaro); §6 |
 | **Etapa** | técnico-club; los percentiles y la fiabilidad usan etapas con ≥ 30 partidos |
 | **Huella** | por equipo-partido: su mezcla de familias en ataque, la de sus rivales y las métricas estandarizadas contra la liga |
 
@@ -142,3 +142,93 @@ secuencias de cada tipo. La estacionaria de una cadena absorbente es degenerada
    técnico** (fiabilidad de Spearman-Brown < 0.5), aunque salga significativa.
 5. **El simulador es exploratorio**: supone independencia entre secuencias dado el
    estilo y no cambia la mezcla con el marcador dentro del partido.
+
+---
+
+## 6. Balón parado (G5)
+
+> Código: `balon_parado.py`, `geometria.saque`, `xdefensa.py`. Umbrales en `config.futbol`.
+
+| objeto | definición operativa |
+|---|---|
+| **Saque** | pase con `pass_type` Corner, Free Kick o Throw-in, o remate con `shot_type` Free Kick |
+| **Tipos** | `corner`; `tl_directo` (el saque es el remate); `tl_centrado` (x ≥ 60 y destino en el área); `tl_otro` (x ≥ 60, destino fuera del área); `lateral_largo` (destino en el área); `lateral_zona` (x ≥ 80, destino fuera del área) |
+| **Centro a balón parado** | corner, tiro libre al área o lateral largo: la unidad del xDefense |
+| **Desenlace** | remates, xG y goles del equipo que saca en los 15 s siguientes, cortados en la siguiente reanudación de cualquier tipo (incluye la segunda jugada) |
+| **Zona de destino** | con u = (y_fin − 40)·s, s = −1 si el saque viene de y < 40: *corto* (fuera del área), *primer palo* (u > 4), *segundo palo* (u < −4), *área chica* (\|u\| ≤ 4, x ≥ 114), *penal* (\|u\| ≤ 4, x < 114) |
+| **Técnica** | cerrado (Inswinging), abierto (Outswinging), recto (Straight), de `dtcoach extra` |
+| **Rutina** | técnica × zona de destino |
+| **Primer contacto** | primer evento con balón tras el saque en ≤ 5 s (sin recepciones ni duelos): del que saca = ataque; del rival = defensa |
+| **Frame del saque (360)** | atacantes y defensores en el área y en el área chica, poste cercano/lejano cubierto (defensor a ≤ 2 m), atacantes a ≤ 2 m del portero; solo cuenta con ≥ 80 % del área visible |
+| **Marca al hombre / zonal** | defensor del área cuya asignación óptima (húngaro) está a ≤ 2 m de su atacante / el resto |
+| **Línea del fuera de lugar** | legal: x del penúltimo defensor, portero incluido (regla 11), en el frame de un tiro libre; **táctica** (la que se narra): la misma sin los defensores parados sobre la línea de gol (x ≥ 118); altura = 120 − x (m desde su arco); solo con el portero visible |
+| **Receta Arsenal** | corner cerrado al área chica o al primer palo con ≥ 1 atacante a ≤ 2 m del portero |
+| **xD prevención** | Σ (p̂(remate) − remate) / centros en contra; p̂ de un logit L2 fuera de muestra con la INTENCIÓN del cobro y el ataque, sin rasgos de la defensa |
+| **xD supresión** | Σ (xG_base − xG_full) / remates a balón parado concedidos; los dos modelos difieren solo en la geometría defensiva de la foto del remate |
+| **Visibilidad del arco** | fracción del ángulo del arco no tapada por defensores de campo entre el remate y el arco (discos de 0.5 m) |
+
+**Supuestos declarados.** (1) El destino de un pase interceptado es donde se cortó: la zona
+puede subestimar centros despejados. (2) La capa 1 no puede separar la defensa de la
+calidad del cobro que el rival elige contra esa defensa. (3) El 360 ve una foto del saque,
+no los bloqueos ni los movimientos. (4) La capa 2 se ajusta con todos los remates de la
+liga: supone que la física del arco es la misma en juego abierto y a balón parado (el tipo
+de jugada entra como covariable).
+
+## 7. Fase ofensiva (G1)
+
+> Código: `ofensiva.py`. Umbrales en `config.futbol`.
+
+| objeto | definición operativa |
+|---|---|
+| **Carril** | banda (y < 18 o y > 62), interior (18–30 o 50–62), centro (30–50): las líneas del área y del área chica |
+| **Pérdida en su tercio** | pase de juego fallado, Miscontrol o Dispossessed con x < 40 |
+| **Pase largo** | pase de juego de ≥ 30 m |
+| **Verticalidad (directness)** | Σ (x_fin − x) / Σ longitud en pases completos de juego y conducciones (Fernández-Navarro et al. 2016) |
+| **Velocidad de avance** | Σ (x_max − x0) / Σ duración, en posesiones de juego que nacen antes de x = 60 |
+| **Cambio de orientación** | pase completo de juego con \|Δy\| ≥ 35 m |
+| **Tipo de entrada al área** | pase atrás (cut back), filtrado (through ball), centro (cross), conducción u otro pase, en ese orden de prioridad |
+| **Zona 14** | 84 ≤ x < 102, 30 ≤ y ≤ 50 |
+| **Asistencia de un remate** | el key pass de StatsBomb (`shot_key_pass_id`) con su tipo; sin key pass = remate individual o rechace |
+| **Motivo de pase** | tres pases seguidos del equipo, cada uno recibido por quien da el siguiente; se reetiquetan los cuatro jugadores por orden de aparición (ABAB, ABAC, ABCA, ABCB, ABCD) |
+| **Camino típico de una familia** | ruta de máxima probabilidad desde su zona de inicio más frecuente hasta el remate en la cadena de esa familia (Dijkstra con pesos −log P); la del foco usa su cadena encogida hacia la de la liga |
+
+## 8. Contexto por nivel del rival (G2)
+
+| objeto | definición operativa |
+|---|---|
+| **Estrato del rival** | por el Elo PREVIO del rival: fuerte (≥ p75 de la liga), medio, débil (≤ p25); cortes de toda la liga |
+| **Ajuste al rival** | Δ = (foco − liga)_fuertes − (foco − liga)_débiles de una métrica; ≠ 0 = se ajusta distinto que la liga |
+
+## 9. Fase defensiva, lo nuevo (G3)
+
+| objeto | definición operativa |
+|---|---|
+| **Presión por tercio** | fracción de toques del rival con un defensor a ≤ 2 m según dónde toca: en su tercio (x < 40, presión alta), en el medio, o en el tercio del que defiende (x ≥ 80) |
+| **Curva de presión** | para r = 0.5…8 m, P(el defensor más cercano está a ≤ r) en los toques del rival |
+| **Cámara abierta** | frame cuya área visible cubre ≥ 70 m del ancho de la cancha: control del encuadre para el bloque |
+| **Bloque típico** | medianas de altura, anchura y profundidad del bloque con la cámara abierta |
+
+## 10. Sustituciones (G4)
+
+| objeto | definición operativa |
+|---|---|
+| **Efecto de un cambio** | Δ = medida en los 10 min siguientes − en los 10 anteriores, menos el Δ medio de los cambios de la liga en la misma celda (tramo de 5 min × signo del marcador) |
+| **Medidas** | xG propio, OBV propio, xG del rival, field tilt, fracción de secuencias de cada familia |
+| **Reacomodo tras el cambio** | Tactical Shift del mismo equipo en ≤ 3 min después del cambio |
+| **Quién entra** | suplentes del foco: entradas, minuto medio y xG del equipo por 90' con él en cancha contra antes (descriptivo) |
+
+## 11. Proyección (G6)
+
+| objeto | definición operativa |
+|---|---|
+| **Índices de un equipo** | ataque A y defensa D en una ventana: xG a favor (en contra) sobre el esperado ante sus rivales, con la fuerza de cada rival estimada por Maher SIN sus partidos contra el equipo y ajustada por localía |
+| **Llegada** | un técnico nuevo en un club con ≥ 17 partidos antes y ≥ 17 con él |
+| **Efecto de llegada** | log A(post) − log A(pre) y lo mismo con D |
+| **Efecto del técnico** | la media de sus llegadas anteriores al club que se proyecta, contraída hacia la media de todas las llegadas de la liga (normal-normal) |
+| **Plantel que encontró** | los índices del club en sus 17 partidos anteriores a la llegada |
+| **Proyección** | torneo a una vuelta simulado 10 000 veces con goles ~ Poisson(xG esperado) |
+
+**Supuestos declarados.** Los goles de un partido son Poisson independientes dado el xG
+esperado (sin la corrección de Dixon-Coles de marcadores bajos); el efecto de un técnico
+es multiplicativo y constante; los rivales conservan la fuerza de sus 17 partidos previos.
+

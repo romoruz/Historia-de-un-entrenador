@@ -7,7 +7,7 @@
 # Uso (raíz del repo, venv activo):   bash scripts/direccion.sh      |   KS="2 3 4 5 6" bash scripts/direccion.sh
 # Para descartarlo sin rastro:        rm -rf data/processed/direccion reports/direccion reports/fase1/direccion_cv.*
 set -euo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."
 mkdir -p reports/direccion
 LOG="reports/direccion/corrida_$(date +%Y%m%d_%H%M).log"
 KS_GRID="${KS:-2 3 4 5}"

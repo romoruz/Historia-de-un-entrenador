@@ -3,6 +3,9 @@
 > Hackathon ISAC 2026 · «La historia de un entrenador a través de los datos».
 > Este documento manda. Si otro documento lo contradice, gana este.
 >
+> **Fase G (2026-09-29):** la historia por secciones del reto (identidad, ofensiva, defensa, jugadores,
+> balón parado, simulación), con H18–H26 pre-registradas y ADR-v2-41 a 48. Estado en `02_ESTADO.md`.
+>
 > **Foco (2026-09-27): Guillermo Almada.** Las hipótesis se corrieron desde el principio
 > sobre Jardine y Almada; se decidió exponer a Almada y dejar a Jardine como contraste.
 
@@ -36,7 +39,7 @@ Fase 1 técnicamente completa; faltan dos pasos de cierre (apuntar el config a
 
 ## Fase 1 v3 (rediseño del 2026-09-25)
 
-`bash scripts/fase1.sh` hace, en orden y con reglas pre-registradas:
+`bash scripts/experimentos/fase1.sh` hace, en orden y con reglas pre-registradas:
 
 1. **Mallado calibrado** por log-densidad predictiva fuera de muestra (ADR-v2-32),
    con agregación contigua como diagnóstico de cuántas zonas distinguen los datos.
@@ -79,7 +82,7 @@ Pendientes menores: `λ` de la mezcla por CV (hoy fijo en 100); copiar
   (`coach_faced`): qué tipos le logran contra él vs contra la liga.
 - `elo.py`: Elo con K y ventaja de local por máxima verosimilitud.
 - Bootstrap **por partido** (ADR-v2-04) para todos los IC técnico-vs-liga.
-- Suelo de detección de la variación de pesos: `scripts/23_potencia_tau2.py`.
+- Suelo de detección de la variación de pesos: `scripts/experimentos/23_potencia_tau2.py`.
 - Descarga 360 en paralelo (`.venv-sb`).
 
 ## Semana 3 — decisiones, 360 y simulador

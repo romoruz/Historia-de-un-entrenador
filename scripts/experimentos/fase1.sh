@@ -7,7 +7,7 @@
 #   bash scripts/fase1.sh                 # K candidatos 2..6
 #   KS="2 3 4 5 6 7 8" bash scripts/fase1.sh
 set -euo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."
 mkdir -p reports/fase1
 LOG="reports/fase1/corrida_fase1_v3_$(date +%Y%m%d_%H%M).log"
 KS_GRID="${KS:-2 3 4 5 6}"

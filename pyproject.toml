@@ -27,6 +27,8 @@ packages = ["src/dtcoach"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = ["lento: prueba integral del pipeline completo (pytest -m lento)"]
+addopts = "-m 'not lento'"
 
 [tool.ruff]
 line-length = 110

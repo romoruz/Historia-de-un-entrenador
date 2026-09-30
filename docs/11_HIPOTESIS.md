@@ -329,3 +329,50 @@ La rotación del once se confunde con el calendario de competiciones que no est�
 en los datos (Copa, Concachampions). No es una decisión por el resultado (H17 era
 🟢 para Jardine y pasa a no contar), sino por la validez de la medida. H17 se reporta
 con su estimación y su p, pero no entra a BH ni recibe 🟢.
+
+# Fase G — las secciones nuevas (pre-registrado el 2026-09-29, ANTES de correrlas con datos reales)
+
+Programadas y probadas solo con datos sintéticos (`tests/test_secciones.py`, efectos sembrados, y
+`tests/test_integral.py`, el pipeline completo sobre una liga sintética). Foco: Guillermo Almada.
+
+## Hipótesis
+
+| id | sección | pregunta | métricas que deciden (03_FRAMEWORK) |
+|---|---|---|---|
+| H18 | ofensiva | ¿Ataca más vertical que la liga? | `directness`, `velocidad_avance` |
+| H19 | ofensiva | ¿Progresa por carriles distintos a los de la liga? | `prog_banda`, `prog_interior`, `prog_centro` |
+| H20 | ofensiva | ¿Llega al área y genera remates de otra manera? | `entrada_*` (centro, filtrado, atrás, conducción) y `asist_*` (centro, filtrado, atrás, sin pase) |
+| H21 | ofensiva | ¿Sus motivos de pase difieren de los de la liga? | `motivo_ABAB`, `ABAC`, `ABCA`, `ABCB`, `ABCD` |
+| H22 | identidad | ¿Su estilo se ajusta al nivel del rival distinto que la liga? | Δ = (foco − liga)_fuertes − (foco − liga)_débiles en `posesion`, `field_tilt`, `directness`, `remates`, `xg`, `ppda`, `presion_aplicada`, `altura_bloque`, `saque_corto` |
+| H23 | jugadores | ¿Sus cambios cambian el juego distinto que los de la liga? | dif. en dif. emparejada de `xg_propio`, `obv_propio`, `xg_rival` (±10 min) |
+| H24 | balón parado | Prevención: ¿niega remates en centros a balón parado más que la liga? | `xd_prev` |
+| H25 | balón parado | Supresión: ¿empeora los remates que concede más que la liga? | `xd_remate` |
+| H26 | balón parado | ¿Se organiza distinto que la liga (marca, línea, trampa)? | `al_hombre`, `dist_marca`, `altura_linea_tl`, `fuera_juego_tl` |
+
+## Reglas
+
+1. **p de una hipótesis.** El mínimo de los p de sus métricas (bootstrap por partido, como la
+   capa de fútbol) por el número de métricas (Bonferroni dentro de la hipótesis). En H22, el
+   p de cada Δ sale de la aproximación normal con los IC de cada estrato.
+2. **Multiplicidad.** BH entre las hipótesis de cada sección (ofensiva: H18–H21; identidad: H22;
+   jugadores: H23; balón parado: H24–H26) y, como sensibilidad, en el BH global del blindaje
+   junto con H1–H17. 🟢 q < 0.05 · 🟡 p < 0.05 · ⚪ no detectado. Sin 🟢 con menos de 20 partidos
+   del foco (ADR-v2-28).
+3. **Lectura de H22.** 🟢 = "cambia con el rival de otra forma que la liga": se dice en qué métrica
+   y en qué sentido. ⚪ = "se ajusta como todos": su idea no depende del rival más de lo normal.
+   Los estratos son del Elo previo del rival con cortes de la liga (p25, p75), fijados antes.
+4. **Lectura del xDefense (H24, H25).** Además de la etiqueta, se reporta la contracción
+   empírico-bayesiana entre técnicos-club. Si τ² ≈ 0 (no hay variación real detectable entre
+   equipos), se dice así aunque el foco salga 🟢 contra la liga: la diferencia es de esta
+   muestra, no un rasgo que distinga técnicos. Es la lección del trabajo previo del equipo.
+5. **Control de cámara del bloque.** El "bloque estrecho" se sostiene solo si la anchura con la
+   cámara abierta (≥ 70 m de ancho visible) conserva el signo y excluye el 0. Si no, se retira
+   la frase y se explica por qué.
+6. **Receta Arsenal.** Descriptiva: se reporta la diferencia de xG por corner de la receta contra
+   el resto de la liga con su IC; no entra a la FDR ni lleva 🟢. Nunca se afirma que una rutina
+   "causa" goles: el equipo que la elige no es un equipo al azar.
+7. **Proyección.** Exploratoria. Se cita solo junto con su validación sobre todas las llegadas de
+   la liga (error por partido contra la inercia y cobertura del intervalo del 80 %). Si la
+   receta no le gana a la inercia, se dice.
+8. **Sustituciones: quién entra.** Descriptivo (pocos partidos por jugador); no se narra un
+   "suplente de impacto" sin la dif. en dif. del conjunto.

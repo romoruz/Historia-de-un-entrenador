@@ -34,28 +34,33 @@ flowchart TD
     P --> ELO[Elo previo al partido] --> F2
     F2 --> F3[fase 3<br/>por club H9–H12 · atlas]
     A --> DEC[fase 3b<br/>decisiones H13–H17 · xPts]
+    E --> EX[extra<br/>centros, técnica, asistencias]
     F --> VOR[voronoi<br/>presión 360 por evento]
-    F --> GEO[geometria<br/>bloque y marcaje 360]
-    A --> FUT[capa de fútbol<br/>métricas del reto · percentiles · fiabilidad]
-    VOR --> FUT
-    GEO --> FUT
-    V --> FUT
-    FUT --> ID[identidad y evolución]
-    FUT --> BP[balón parado]
-    FUT --> JUG[jugadores]
-    V --> SIM[simulador de partido]
-    F2 --> BL[blindaje<br/>OBV · bootstrap de score · BH global]
-    F3 --> BL
-    DEC --> BL
-    ID & BP & JUG & SIM & BL --> R[reports/historia/foco/<br/>md · json · png]
-    R --> PUB[publicar_figuras → docs/figuras]
+    F --> GEO[geometria<br/>bloque, ancho visible,<br/>frame del saque]
+    A --> TAB[tabla-liga<br/>todas las métricas equipo-partido<br/>+ xDefense en dos capas]
+    EX --> TAB
+    VOR --> TAB
+    GEO --> TAB
+    V --> TAB
+    TAB --> S1[1 identidad<br/>reconocimiento · rival por Elo · Kalman]
+    F2 --> S1
+    TAB --> S2[2 ofensiva<br/>salida · progresión · llegada · familias]
+    TAB --> S3[3 defensa<br/>presión · bloque · transiciones]
+    TAB --> S4[4 jugadores<br/>red · roles · sustituciones]
+    DEC --> S4
+    TAB --> S5[5 balón parado<br/>rutinas · xDefense · línea]
+    ELO --> S6[6 simulación<br/>xPts · partido · proyección]
+    V --> S6
+    F2 --> BL[7 blindaje<br/>OBV · bootstrap de score · BH global]
+    S1 & S2 & S3 & S4 & S5 & S6 & BL --> R[reports/historia/foco/sección/<br/>md · json · png]
+    R --> PUB[publicar_figuras → docs/figuras/sección]
 ```
 
 ## 3. Cómo se corre, de cero a la historia
 
 ```bash
 source .venv/bin/activate                 # Python 3.12, dtcoach instalado en modo editable
-pytest -q                                 # 129 pruebas; si algo falla, no seguir
+pytest -q                                 # pruebas rápidas; `pytest -m lento` corre la integral
 
 # 1. los datos de toda la liga (una vez)
 dtcoach aplanar && dtcoach partidos && dtcoach fase0
@@ -65,11 +70,11 @@ dtcoach elo
 # 2. el técnico (fases 2 y 3)
 bash scripts/correr_foco.sh "Guillermo Almada" 7
 
-# 3. el 360 y la capa de fútbol
+# 3. la historia, sección por sección
 .venv-sb/bin/python scripts/descargar/descargar_360.py      # si aún no están los frames
-dtcoach voronoi                           # presión por evento (≈ 5 min)
-bash scripts/historia.sh "Guillermo Almada"                  # geometría, estilo, balón parado, jugadores,
-                                                             # identidad, simulador, blindaje
+bash scripts/historia.sh "Guillermo Almada"   # una vez: extra, voronoi, geometria, tabla-liga;
+                                              # luego identidad, ofensiva, defensa, jugadores,
+                                              # balon-parado, simular, blindaje
 # 4. publicar las figuras que muestran los documentos
 bash scripts/publicar_figuras.sh "Guillermo Almada"
 ```
@@ -109,22 +114,27 @@ tabla equipo-partido, rasgos 360). Cambiar de técnico solo corre lo del técnic
 | `decisiones.py` | tiempo y tipo de los cambios, reacomodos, rotación (H13–H17) |
 | `simulador.py` | puntos esperados exactos (Poisson-binomial) y escenarios |
 
-### Capa de fútbol (fases A–F)
+### La historia, por sección (fases A–G)
 
-| archivo | qué hace |
-|---|---|
-| `eventos.py` | lectura única de eventos (coordenadas, reloj) y tabla de posesiones |
-| `comparar.py` | motor: foco contra liga, percentiles entre técnicos, fiabilidad entre mitades |
-| `futbol.py` | métricas del reto (ofensiva, defensiva, transiciones, 360), llegada y valor con la cadena |
-| `voronoi.py` | rasgos 360 por evento (celda de Voronoi local, rival más cercano) |
-| `geometria.py` | bloque (envolvente convexa) y marcaje (algoritmo húngaro) |
-| `balon_parado.py` | jugadas a balón parado, Poisson con exposición, zonas de remate |
-| `jugadores.py` | cadena sobre jugadores, roles espectrales, protagonistas, impacto de cambios |
-| `identidad.py` | huella, reconocimiento (logit L2, AUC, permutación), evolución (Kalman + RTS) |
-| `simulacion.py` | simulador de partido con validación dejando el partido fuera |
-| `blindaje.py` | eficiencia con OBV, BH global |
-| `graficas.py`, `graficas_historia.py` | figuras (paleta validada) |
-| `cli.py`, `cli_historia.py` | los comandos `dtcoach …` |
+| sección | archivo | qué hace |
+|---|---|---|
+| común | `eventos.py` | lectura única de eventos (coordenadas, reloj) y tabla de posesiones |
+| común | `extra.py` | `dtcoach extra`: centros, pases filtrados, pases atrás, técnica, asistencias (tabla lateral) |
+| común | `comparar.py` | motor: foco contra liga, percentiles entre técnicos, fiabilidad entre mitades |
+| común | `futbol.py` | métricas base (volumen, presión, transiciones, 360), llegada y valor con la cadena |
+| común | `voronoi.py`, `geometria.py` | 360: rival más cercano y Voronoi local; bloque, ancho visible y frame del saque |
+| 1 identidad | `identidad.py` | huella, reconocimiento (logit L2, AUC, permutación), evolución (Kalman + RTS) |
+| 1 identidad | `rival.py` | estratos por Elo del rival, foco contra liga en cada uno, ajuste distinto (H22) |
+| 2 ofensiva | `ofensiva.py` | salida, progresión, llegada, ocasión, motivos de pase, camino típico por familia |
+| 3 defensa | `defensa.py` | presión por tercio, curva de presión, bloque con control de cámara |
+| 4 jugadores | `jugadores.py` | cadena sobre jugadores, roles espectrales, protagonistas |
+| 4 jugadores | `sustituciones.py` | dif. en dif. emparejada de cada cambio, quién entra, reacomodo tras el cambio |
+| 5 balón parado | `balon_parado.py` | saques, tipos, zonas, primer contacto, rutinas, receta Arsenal, Poisson con exposición |
+| 5 balón parado | `xdefensa.py` | xDefense en dos capas, visibilidad del arco, contracción empírico-bayesiana |
+| 6 simulación | `simulacion.py`, `proyeccion.py` | simulador de partido; proyección en el club actual validada con todas las llegadas |
+| 7 blindaje | `blindaje.py` | eficiencia con OBV, BH global de todas las hipótesis |
+| salida | `graficas.py`, `graficas_historia.py`, `graficas_secciones.py` | figuras (paleta validada) |
+| salida | `cli.py`, `cli_historia.py` | los comandos `dtcoach …` (un comando por sección) |
 
 ### Experimentos (probados, no adoptados; aislados en `config/presion*.yaml` y `config/direccion.yaml`)
 
@@ -142,17 +152,22 @@ tabla equipo-partido, rasgos 360). Cambiar de técnico solo corre lo del técnic
 | `data/processed/transitions.parquet` | `fase0` | vocabulario, fase 2, capa de fútbol |
 | `data/processed/mezcla/mezcla_K3.npz` | `mezcla` | fase 2, simulador |
 | `data/processed/elo.parquet` | `elo` | fase 2, decisiones |
-| `data/interim/rasgos_360.parquet` | `voronoi` | capa de fútbol |
-| `data/interim/bloque_360.parquet`, `marcaje_360.parquet` | `geometria` | capa de fútbol |
-| `data/processed/futbol/equipo_partido.parquet` | `futbol` (una vez) | todas las fases B–F |
-| `reports/fase2/`, `reports/fase3/`, `reports/historia/<foco>/` | cada comando | humanos y el informe |
+| `data/interim/eventos_extra.parquet` | `extra` | tabla de la liga (ofensiva, balón parado) |
+| `data/interim/rasgos_360.parquet` | `voronoi` | tabla de la liga, defensa |
+| `data/interim/bloque_360.parquet`, `saques_360.parquet` | `geometria` | tabla de la liga, defensa, balón parado |
+| `data/processed/futbol/equipo_partido.parquet` (+ `.json` con su versión) | `tabla-liga` (una vez; se rehace sola si cambia lo que calcula o llegan insumos nuevos) | todas las secciones |
+| `data/processed/futbol/bp_jugadas.parquet`, `xd_capa1.parquet`, `xd_capa2.parquet`, `xdefensa.json` | `tabla-liga` | balón parado |
+| `reports/fase2/`, `reports/fase3/`, `reports/historia/<foco>/<sección>/` | cada comando | humanos y el informe |
 
 ## 6. Cómo se sabe que funciona
 
-* **129 pruebas** (`pytest -q`) contra verdades conocidas: cuentas exactas en partidos
+* **Pruebas rápidas** (`pytest -q`) contra verdades conocidas: cuentas exactas en partidos
   armados a mano, áreas contra fórmulas analíticas, y rasgos **sembrados** en ligas
-  sintéticas (`tests/sinteticos.py`) que cada método debe encontrar sin inventar nada donde
-  no se sembró.
+  sintéticas (`tests/sinteticos.py`, `tests/test_secciones.py`) que cada método debe encontrar
+  sin inventar nada donde no se sembró.
+* **Prueba integral** (`pytest -m lento`, minutos): `tests/liga_cruda.py` escribe una liga
+  sintética en el formato CRUDO de StatsBomb (eventos, partidos, 360) con sus eras, y el
+  pipeline completo corre de `aplanar` a las siete secciones.
 * **Contrastes cruzados en los datos reales:** $E[T]$ del modelo contra el observado, KS de
   la duración, llegada modelada contra observada, estacionaria contra visitas, actor del
   frame 360 contra la ubicación del evento (mediana 0 m).

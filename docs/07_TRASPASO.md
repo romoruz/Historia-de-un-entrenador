@@ -19,7 +19,7 @@ decisiones, y si esa mezcla viaja con él cuando cambia de club.
 5. `06_DECISIONES.md` — ADR-v2-01 a 35. No reabrir sin argumento nuevo.
 6. `01_ARQUITECTURA.md` — qué hace cada archivo y qué se rompe al tocarlo.
 6b. `04_MODELO_MATEMATICO.md` — cada paso del modelo, enunciado y demostrado.
-7. `proyecto_viejo/` — solo lectura. Sus cifras **no** son citables: se
+7. `archivo/proyecto_viejo/` — solo lectura. Sus cifras **no** son citables: se
    calcularon con otra unidad (posesión, no secuencia) y otra referencia.
 
 ## Reglas de trabajo (heredadas, siguen valiendo)
@@ -47,7 +47,7 @@ una copia en `/tmp`. La regla ahora:
    carpeta (verifica con `python -c "import dtcoach; print(dtcoach.__file__)"`).
 3. Los cambios al config (nombres, malla, K) se hacen con commit, nunca con un
    `sed` suelto en la terminal.
-4. Los paquetes de revisión (`scripts/empaquetar_revision.sh`) y cualquier
+4. Los paquetes de revisión (`scripts/utilidades/empaquetar_revision.sh`) y cualquier
    `.zip`/`.tar.gz` se comparten fuera del repo; el `.gitignore` los excluye.
 5. Los datos de StatsBomb y `reports/` no se versionan; si algo de `reports/`
    es citable, su cifra va a `10_RESULTADOS.md`.

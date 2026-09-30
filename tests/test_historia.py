@@ -25,7 +25,7 @@ def sint():
     ev, tp = liga(vueltas=4, seed=1)
     pos = posesiones(ev)
     tablas = (fb.ofensiva(ev, pos, FC) + fb.defensiva(ev, tp) + fb.transiciones(pos, FC)
-              + bp.metricas(bp.jugadas(ev, FC), None, tp))
+              + bp.metricas(bp.jugadas(ev, FC), tp))
     return ev, tp, pos, fb.unir(tablas, tp)
 
 

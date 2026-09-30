@@ -51,16 +51,21 @@ esas proporciones con el marcador, el minuto, la localía y el Elo del rival. Se
 logit multinomial fraccional, con errores agrupados por partido y bootstrap, y se controla la
 tasa de falsos positivos con Benjamini-Hochberg. Son las hipótesis H1–H17.
 
-**Capa 3 — La capa de fútbol.** Son las métricas que pide el reto, todas medidas como "Almada
-contra la liga", con su percentil entre los 45 técnicos y su fiabilidad entre mitades de la
-muestra: presión a ≤2 m del poseedor y PPDA, ancho y área del bloque defensivo, marcaje en
-balón parado, transiciones, red de pases y roles de los jugadores. Las medidas que dependen de
-la posición de los jugadores salen del tracking 360 (Voronoi local, envolvente convexa,
-algoritmo húngaro). Encima de eso van:
+**Capa 3 — La historia, sección por sección.** Las métricas que pide el reto, todas medidas
+como "Almada contra la liga", con su percentil entre los 45 técnicos y su fiabilidad entre
+mitades de la muestra, organizadas como el reto:
 
-- una prueba de **reconocimiento**: ¿un clasificador distingue sus partidos de los del resto?;
-- la **evolución** partido a partido con un filtro de Kalman: ¿salta algo al cambiar de club?;
-- un **simulador de partido** validado fuera de muestra.
+| sección | qué contesta | cómo |
+|---|---|---|
+| 1. **Identidad** | ¿se le reconoce?, ¿cambia con el marcador y el rival?, ¿viaja con él? | reconocimiento (AUC contra permutación), fase 2 (H1–H8), rivales fuertes/medios/débiles por Elo (H22), Kalman |
+| 2. **Ofensiva** | cómo sale, por dónde avanza, cómo llega y qué remata | verticalidad, carriles, tipo de entrada y de asistencia, motivos de pase, el camino típico de cada familia (H18–H21) |
+| 3. **Defensa** | presión, bloque y transiciones | curva de presión 360, presión por zona, bloque con control de cámara, recuperación tras pérdida |
+| 4. **Jugadores** | roles, decisiones e impacto de los cambios | red de pases y roles espectrales, H13–H17, dif. en dif. de cada cambio (H23) |
+| 5. **Balón parado** | corners, tiros libres y laterales largos, a favor y en contra | rutinas y "receta Arsenal", xDefense en dos capas con el 360 del cobro, marca al hombre, línea del fuera de lugar (H24–H26) |
+| 6. **Simulación** | ¿sus puntos se explican?, ¿cómo le iría en el América? | xPts exactos, simulador de partido, proyección con el plantel que encontró, validada con todas las llegadas de la liga |
+
+Las medidas que dependen de la posición de los jugadores salen del tracking 360 (Voronoi
+local, envolvente convexa, algoritmo húngaro, visibilidad del arco).
 
 **Regla de oro:** qué cuenta como "confirmado" se escribió antes de mirar los resultados
 (`docs/11_HIPOTESIS.md`). Las etiquetas son:
@@ -79,7 +84,7 @@ algoritmo húngaro). Encima de eso van:
 | **Bloque estrecho** | anchura del bloque en el percentil 1 y área en el percentil 3 | 🟢 |
 | **Ataque vertical** | saca largo (31.5 % en corto contra 47.1 %), conduce hacia adelante (percentil 99), remata 16.1 contra 13.3 por partido | 🟢 |
 | **Su rival sufre** | le rematan 11.9 veces por partido contra 13.3; el rival rinde menos en *Directa* y *Ataque elaborado* (H8) | 🟢 |
-| **Balón parado** | marca al hombre y más pegado; le rematan 26 % menos por córner en contra | 🟢 |
+| **Balón parado** | marca al hombre y más pegado; le rematan 26 % menos por córner en contra (el xDefense en dos capas se llena con la corrida de la fase G) | 🟢 |
 | **No se altera** | su mezcla reacciona menos que la de la liga al marcador y al rival (H3, H6) | 🟢 |
 | **Banca conservadora** | cambios del mismo puesto y pocos reacomodos de formación (H15, H16) | 🟢 |
 | **Viaja con él** | ningún rasgo suyo salta al cambiar de club | 🔎 descriptivo |
@@ -90,12 +95,12 @@ estrecho, sale largo y remata mucho). Es el segundo técnico más reconocible de
 su estilo no cambia ni con el marcador ni con el club.
 
 <p align="center">
-  <img src="docs/figuras/estilo_percentiles.png" width="85%" alt="Percentiles de Almada frente a los técnicos de la liga"><br>
+  <img src="docs/figuras/ofensiva/percentiles.png" width="85%" alt="Percentiles de Almada frente a los técnicos de la liga"><br>
   <em>Dónde queda Almada contra los 45 técnicos en cada rasgo.</em>
 </p>
 <p align="center">
-  <img src="docs/figuras/fase2_familias.png" width="49%" alt="Mezcla de familias de Almada contra la liga">
-  <img src="docs/figuras/identidad_evolucion.png" width="49%" alt="Evolución de sus rasgos a través de sus clubes">
+  <img src="docs/figuras/identidad/familias.png" width="49%" alt="Mezcla de familias de Almada contra la liga">
+  <img src="docs/figuras/identidad/evolucion.png" width="49%" alt="Evolución de sus rasgos a través de sus clubes">
 </p>
 
 **Lo que no se afirma:**
@@ -175,10 +180,12 @@ Cada paso escribe lo que el siguiente lee. Lo de la liga se calcula **una vez** 
 | 4 | `bash scripts/vocabulario.sh` | malla, número de familias, mezcla, reproducibilidad, bondad de ajuste y propiedades de la cadena | `data/processed/mezcla/`, `reports/mezcla/`, `reports/fase1/` |
 | 5 | `dtcoach elo` | Elo previo a cada partido | `data/processed/elo.parquet` |
 | 6 | `bash scripts/correr_foco.sh "Guillermo Almada" 7` | fase 2 (H1–H8), por club (H9–H12), atlas, decisiones (H13–H17), xPts | `reports/fase2/`, `reports/fase3/` |
-| 7 | `bash scripts/historia.sh "Guillermo Almada"` | 360 (Voronoi, bloque, marcaje), estilo, balón parado, jugadores, identidad, simulador, blindaje | `reports/historia/guillermo_almada/` |
+| 7 | `bash scripts/historia.sh "Guillermo Almada"` | una vez: campos extra del JSON (`dtcoach extra`), 360 (`voronoi`, `geometria`) y la tabla de la liga; luego las siete secciones | `reports/historia/guillermo_almada/<sección>/` |
 | 8 | `bash scripts/publicar_figuras.sh "Guillermo Almada"` | copia las figuras que usan los documentos | `docs/figuras/` |
 
-`historia.sh` corre las pruebas primero y guarda un log fechado junto a las salidas. Para
+`historia.sh` corre las pruebas primero, calcula solo lo que falte de lo que es de toda la
+liga y guarda un log fechado junto a las salidas. Cada sección también se corre sola
+(`dtcoach identidad | ofensiva | defensa | jugadores | balon-parado | simular | blindaje --foco "…"`). Para
 analizar a otro técnico basta repetir los pasos 6–8 con su nombre exacto, tal como aparece en
 las eras. Todos los parámetros (malla, K, encogimiento, semillas, umbrales) están en
 `config/default.yaml`; ninguno está escrito en el código.
@@ -191,10 +198,13 @@ las eras. Todos los parámetros (malla, K, encogimiento, semillas, umbrales) est
 | `reports/fase3/POR_CLUB_guillermo_almada.md` | H9–H12 y atlas: ¿es él o el plantel? |
 | `reports/fase3/DECISIONES_guillermo_almada.md` | H13–H17: cambios, reacomodos, rotación |
 | `reports/fase3/SIMULADOR_guillermo_almada.md` | puntos esperados y escenarios |
-| `reports/historia/guillermo_almada/FUTBOL.md` | métricas del reto contra la liga, con percentiles |
-| `…/BALON_PARADO.md`, `…/JUGADORES.md` | balón parado; red de pases, roles y protagonistas |
-| `…/IDENTIDAD.md` | reconocimiento (AUC) y evolución por club |
-| `…/SIMULACION.md`, `…/BLINDAJE.md` | simulador de partido; pruebas de robustez |
+| `reports/historia/guillermo_almada/identidad/IDENTIDAD.md` | reconocimiento, contexto (H1–H8), rival por Elo (H22), evolución |
+| `…/ofensiva/OFENSIVA.md` | salida, progresión, llegada, ocasión, motivos, familias dibujadas (H18–H21) |
+| `…/defensa/DEFENSA.md` | presión, bloque con control de cámara, transiciones, lo concedido |
+| `…/jugadores/JUGADORES.md` | red de pases, roles, decisiones (H13–H17), sustituciones (H23) |
+| `…/balon_parado/BALON_PARADO.md` | corners, tiros libres, laterales largos, xDefense (H24–H26), receta Arsenal |
+| `…/simulacion/SIMULACION.md` | xPts, simulador de partido y proyección en su club actual |
+| `…/blindaje/BLINDAJE.md` | xG contra OBV, pocos partidos, BH global de todas las hipótesis |
 
 Cada `.md` viene acompañado de sus `.json` (cifras exactas) y sus `.png`.
 
@@ -205,10 +215,13 @@ config/default.yaml        todos los parámetros; foco.coach = técnico que se a
 config/{presion,direccion}.yaml   experimentos no adoptados (heredan de default)
 data/MANIFIESTO_RAW.sha256 huellas de los datos crudos del hackathon
 data/referencia/           eras de técnicos verificadas (lo único de data/ que se versiona)
-scripts/                   corridas completas (.sh) y descargador del 360
+scripts/                   vocabulario.sh, correr_foco.sh, historia.sh, publicar_figuras.sh
+scripts/descargar/         descargador del 360
+scripts/eras/              herramientas para revisar y corregir eras
+scripts/experimentos/      corridas de los experimentos no adoptados (presión, dirección, malla)
 src/dtcoach/               el paquete; `dtcoach --help` lista todos los comandos
-tests/                     129 pruebas (incluye ligas sintéticas con rasgos sembrados)
-docs/                      documentación y figuras publicadas
+tests/                     pruebas (ligas sintéticas con rasgos sembrados y una prueba integral)
+docs/                      documentación; docs/figuras/<sección>/; docs/archivo/ (histórico)
 ```
 
 **El código, por capa** (el detalle y las dependencias entre módulos están en `docs/01_ARQUITECTURA.md`):
@@ -218,8 +231,14 @@ docs/                      documentación y figuras publicadas
 | Datos | `aplanar.py` (JSON → parquet), `partidos.py`, `eras.py` (quién es el técnico en cada partido), `eventos.py` |
 | Cadena y vocabulario | `grid.py` (malla), `possessions.py` (secuencias), `absorbing.py` (fórmulas cerradas de la cadena), `mezcla.py` (EM y reproducibilidad), `mallado.py`, `markov.py` |
 | El técnico | `elo.py`, `contexto.py`, `pesos.py` (logit fraccional y bootstrap), `hipotesis.py` (H1–H8 y BH), `fase3.py`, `decisiones.py`, `simulador.py` |
-| Capa de fútbol | `comparar.py` (motor foco contra liga), `futbol.py`, `voronoi.py`, `geometria.py`, `balon_parado.py`, `jugadores.py`, `identidad.py`, `simulacion.py`, `blindaje.py` |
-| Salida | `graficas.py`, `graficas_historia.py`, `cli.py`, `cli_historia.py` |
+| Común a las secciones | `comparar.py` (motor foco contra liga), `eventos.py`, `extra.py` (campos extra del JSON), `futbol.py` (tabla equipo-partido base), `voronoi.py` y `geometria.py` (360) |
+| 1. Identidad | `identidad.py` (reconocimiento, Kalman), `rival.py` (estratos por Elo) |
+| 2. Ofensiva | `ofensiva.py` (salida, progresión, llegada, ocasión, motivos, camino típico) |
+| 3. Defensa | `defensa.py` (curva de presión, presión por tercio, bloque con control de cámara) |
+| 4. Jugadores | `jugadores.py` (red, roles), `decisiones.py` (H13–H17), `sustituciones.py` (dif. en dif.) |
+| 5. Balón parado | `balon_parado.py` (jugadas, rutinas, tasas), `xdefensa.py` (dos capas, visibilidad del arco, empírico-bayes) |
+| 6. Simulación | `simulador.py` (xPts), `simulacion.py` (partido), `proyeccion.py` (club actual) |
+| Robustez y salida | `blindaje.py`, `graficas.py`, `graficas_historia.py`, `graficas_secciones.py`, `cli.py`, `cli_historia.py` |
 
 ## 7. Documentación
 
@@ -239,8 +258,9 @@ Para retomar el trabajo:
 - [`07_TRASPASO.md`](docs/07_TRASPASO.md): reglas de trabajo.
 - [`00_ROADMAP.md`](docs/00_ROADMAP.md): el plan.
 
-[`12_NARRATIVA.md`](docs/12_NARRATIVA.md) es el guion para la presentación. `docs/proyecto_viejo/`
-es la primera versión del proyecto y queda solo como referencia: sus cifras no son citables.
+[`12_NARRATIVA.md`](docs/12_NARRATIVA.md) es el guion para la presentación. `docs/archivo/`
+guarda la primera versión del proyecto y el informe de comparación: solo como referencia, sus
+cifras no son citables.
 
 ## 8. Cómo se sabe que funciona
 
@@ -248,7 +268,10 @@ es la primera versión del proyecto y queda solo como referencia: sus cifras no 
   - cuentas exactas en partidos armados a mano;
   - áreas comparadas con fórmulas analíticas;
   - ligas sintéticas (`tests/sinteticos.py`) con rasgos sembrados, que cada método debe
-    encontrar sin inventar nada donde no se sembró.
+    encontrar sin inventar nada donde no se sembró;
+  - una **prueba integral** (`pytest -m lento`): una liga sintética en el formato crudo de
+    StatsBomb (eventos, partidos, 360 y eras) recorre el pipeline entero, del JSON a las siete
+    secciones.
 - **Contrastes con los datos reales:**
   - duración esperada de la cadena contra la observada;
   - llegada al área modelada contra la observada;

@@ -160,5 +160,5 @@ def tabla(res: dict, fiab: dict | None, pct: dict | None, defs: dict) -> str:
         sb = (fiab or {}).get(m, {}).get("spearman_brown", float("nan"))
         L.append(f"| {defs.get(m, {}).get('nombre', m)} | {fmt.format(r['foco'])} | {fmt.format(r['liga'])} | "
                  f"{r['dif']:+.3f} [{r['lo']:+.3f}, {r['hi']:+.3f}] | {pc} | "
-                 f"{'—' if not np.isfinite(sb) else f'{sb:.2f}'} | {r.get('etiqueta', '')} |")
+                 f"{'—' if not np.isfinite(sb) else ('< 0' if sb < 0 else f'{sb:.2f}')} | {r.get('etiqueta', '')} |")
     return "\n".join(L)

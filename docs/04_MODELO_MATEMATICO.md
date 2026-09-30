@@ -645,3 +645,164 @@ El vocabulario oficial se queda en $5\times4$, $K=3$: es el más rico que los da
   ve no se imputa.
 * **xG y OBV son modelos del proveedor.** Por eso la eficiencia se contrasta con los dos y
   con la tasa de remate.
+
+---
+
+## 16. Balón parado: el xDefense en dos capas
+
+**Objeto.** Un centro a balón parado $C$ (corner, tiro libre al área, lateral largo; §6 del
+framework), $S\in\{0,1\}$ = hubo remate del que saca en la ventana, $G\in\{0,1\}$ = hubo gol.
+
+**Proposición 16.1 (descomposición).** $P(G=1\mid C)=P(S=1\mid C)\,P(G=1\mid S=1,C)$.
+
+*Demostración.* $G=1\Rightarrow S=1$ (no hay gol sin remate), así que
+$\{G=1\}=\{G=1\}\cap\{S=1\}$ y $P(G=1\mid C)=P(G=1,S=1\mid C)=P(S=1\mid C)P(G=1\mid S=1,C)$
+por la definición de probabilidad condicional. $\square$
+
+Cada factor es una capa: **prevención** (negar el remate) y **supresión** (empeorar el remate
+que se concede). El trabajo previo del equipo solo tenía la foto del remate: la capa 1 era
+invisible justo cuando la defensa gana (centro despejado, sin remate). Con el frame 360
+**del cobro**, la capa 1 se observa en todos los centros.
+
+**Capa 1.** $\hat p_i=\sigma(\hat\beta_0+x_i^\top\hat\beta)$ con $x_i$ = intención del cobro y
+del ataque (tipo, lado, técnica, altura, zona, largo, posición, minuto; del 360: atacantes en
+el área, en el área chica, encima del portero). Nada de la defensa ni del desenlace del pase
+entra en $x_i$ (fuga del objetivo). El valor defensivo de un equipo $k$ sobre sus $n_k$
+centros en contra:
+$$xD^{\text{prev}}_k=\frac1{n_k}\sum_{i\in k}(\hat p_i-S_i).$$
+
+**Proposición 16.2 (sin sesgo bajo la nula).** Si el modelo está bien calibrado,
+$E[S_i\mid x_i]=p(x_i)$, y la defensa de $k$ es la promedio, entonces
+$E[xD^{\text{prev}}_k\mid x]\to 0$ cuando $\hat p\to p$.
+
+*Demostración.* $E[\hat p_i-S_i\mid x_i]=\hat p_i-p(x_i)$; con $\hat p$ consistente (logit
+bien especificado, $n\to\infty$) el término tiende a 0 para cada $i$, y el promedio también. Si
+la defensa de $k$ reduce el remate por un factor, $E[S_i\mid x_i,k]<p(x_i)$ y el valor
+esperado es positivo. $\square$
+
+Las $\hat p_i$ son **fuera de muestra** (validación cruzada por partido): con $\hat p_i$
+ajustada incluyendo al propio $i$, el ajuste absorbería parte de $S_i$ y encogería el xD hacia 0.
+
+**Capa 2.** Sobre los remates con foto, dos logits en la **misma** muestra:
+$xG^{\text{base}}=E[G\mid a]$ (ataque: distancia, ángulo, cabeza, de primera, tipo de jugada) y
+$xG^{\text{full}}=E[G\mid a,d]$ (más la defensa $d$). $xD^{\text{remate}}_i=xG^{\text{base}}_i-xG^{\text{full}}_i$.
+Por la ley de la esperanza iterada, $E[xG^{\text{full}}\mid a]=xG^{\text{base}}$, así que
+$E[xD^{\text{remate}}\mid a]=0$: el xD de supresión está **centrado en la defensa promedio**,
+no en "un remate sin defensa".
+
+**Proposición 16.3 (visibilidad del arco).** Sea $I=[\varphi_1,\varphi_2]$ el ángulo que
+subtiende el arco desde el remate $s$ y $S_j=[\phi_j-\alpha_j,\phi_j+\alpha_j]\cap I$ la
+sombra del defensor $j$ (disco de radio $r$ a distancia $d_j$, $\alpha_j=\arcsin(r/d_j)$).
+Ordenar los $S_j$ por su inicio y fundir los que se tocan calcula $|\bigcup_j S_j|$ en
+$O(m\log m)$.
+
+*Demostración.* Tras ordenar, un barrido mantiene el intervalo abierto $[a,b]$; si el
+siguiente empieza en $a'\le b$ se funde ($b\leftarrow\max(b,b')$), si no, $[a,b]$ es una
+componente conexa de la unión (nada posterior empieza antes de $a'>b$) y su longitud se suma.
+Las componentes son disjuntas y cubren la unión, así que la suma es su medida. $\square$
+
+La tangente desde $s$ a un disco de radio $r$ con centro a distancia $d$ forma el ángulo
+$\arcsin(r/d)$ con la recta a su centro; de ahí $\alpha_j$.
+
+**Proposición 16.4 (contracción normal-normal; Efron & Morris 1975).** Si
+$\theta_j\sim N(\mu,\tau^2)$ y $x_j\mid\theta_j\sim N(\theta_j,v_j)$, entonces
+$E[\theta_j\mid x_j]=\mu+\frac{\tau^2}{\tau^2+v_j}(x_j-\mu)$.
+
+*Demostración.* $(\theta_j,x_j)$ es normal bivariada con $\mathrm{Cov}=\tau^2$,
+$\mathrm{Var}(x_j)=\tau^2+v_j$; la media condicional de una normal es
+$\mu+\frac{\mathrm{Cov}}{\mathrm{Var}(x_j)}(x_j-\mu)$. $\square$
+
+$\tau^2$ se estima por momentos (DerSimonian-Laird): con $w_j=1/v_j$ y
+$Q=\sum_jw_j(x_j-\bar x_w)^2$, $E[Q]=(k-1)+\tau^2\big(\sum w_j-\sum w_j^2/\sum w_j\big)$, de donde
+$\hat\tau^2=\max\{0,(Q-(k-1))/(\sum w_j-\sum w_j^2/\sum w_j)\}$. La varianza de cada $x_j$ (razón
+de sumas de una etapa) sale del método delta por conglomerados:
+$v_j=\frac{G}{G-1}\sum_m(n_m-\hat\theta_jd_m)^2/(\sum_md_m)^2$. Si $\hat\tau^2=0$, **no hay
+variación real detectable entre equipos** y todos se contraen a $\mu$: es la conclusión del
+trabajo previo con 51 goles, que aquí se vuelve a poner a prueba con toda la liga.
+
+*Código:* `xdefensa.py` (`goal_open`, `capa1`, `capa2`, `contraccion`, `por_etapa`).
+
+## 17. Balón parado: marca y línea
+
+**Marca al hombre.** En el área, la asignación óptima defensor–atacante (§13.3, algoritmo
+húngaro; la matriz de asignación es totalmente unimodular, así que el óptimo del problema
+lineal es entero) define, para cada defensor, su atacante. Un defensor marca al hombre si
+esa distancia es $\le2$ m; el resto es zonal (o sobra). Es la operacionalización de la
+distinción de Pulling, Robins & Rixon (2013).
+
+**Línea del fuera de lugar.** Por la regla 11, un atacante está en fuera de juego si está
+más cerca de la línea de meta que el balón y que el **penúltimo** rival. En el frame del tiro
+libre, con las $x$ de los defensores visibles (portero incluido) ordenadas,
+$\ell=x_{(n-1)}$ y $\text{altura}=120-\ell$. Se exige el portero visible: sin él, el
+"penúltimo visible" puede no ser el penúltimo real. Un defensor que cuida el poste deja la línea
+legal casi en el arco aunque el resto esté 15 m arriba; la **línea táctica** repite el cálculo
+sin los defensores con $x\ge118$, y es la que describe lo que arma el técnico.
+
+**Tasas.** Remates y goles por tipo de jugada, con exposición (§13.4). La receta Arsenal se
+compara con el resto por bootstrap de partidos de la diferencia de medias; es descriptiva
+(el equipo que la elige no es aleatorio).
+
+## 18. Fase ofensiva: verticalidad, motivos y el camino típico
+
+**Verticalidad.** $D=\sum_a(x^{\text{fin}}_a-x_a)/\sum_a\|\mathbf{p}^{\text{fin}}_a-\mathbf{p}_a\|\in[-1,1]$
+(cada sumando del numerador está acotado por el del denominador). Como razón de sumas, entra
+a la maquinaria del §13.1 sin cambios.
+
+**Motivos.** Una cadena de tres pases enlazados involucra $(p_0,p_1,p_2,p_3)$ con
+$p_{t}\neq p_{t+1}$. Reetiquetar por primera aparición es invariante a los nombres, y las
+clases posibles son exactamente cinco: $p_2\in\{p_0,\text{nuevo}\}$ y $p_3\in\{p_1,\text{nuevo}\}$
+si $p_2=p_0$ (ABAB, ABAC), o $p_3\in\{p_0,p_1,\text{nuevo}\}$ si $p_2$ es nuevo (ABCA, ABCB,
+ABCD). Se cuentan ventanas deslizantes.
+
+**Proposición 18.1 (camino típico).** En una cadena con transiciones $P$, el camino
+$z_0\to\dots\to z_T\to\text{remate}$ de máxima probabilidad
+$\prod_tP(z_t,z_{t+1})\cdot P(z_T,\text{remate})$ es el camino más corto con pesos
+$w=-\log P\ge0$, y Dijkstra lo encuentra.
+
+*Demostración.* $-\log$ es estrictamente decreciente, así que maximizar el producto equivale a
+minimizar $\sum_t-\log P(z_t,z_{t+1})-\log P(z_T,\text{remate})$. Como $P\le1$, los pesos son
+no negativos, la condición bajo la cual Dijkstra es exacto. Se resuelve desde $z_0$ hacia
+todos los estados y se elige el $z_T$ que minimiza la distancia más $-\log P(z_T,\text{remate})$. $\square$
+
+La cadena del foco en cada familia $k$ es $\hat P^{(k)}_{\text{foco}}=
+\text{encoger}(C^{(k)}_{\text{foco}},P^{(k)}_{\text{liga}},\lambda)$ con los conteos ponderados por
+la responsabilidad $r_{ik}$ de cada secuencia (§3–§4).
+
+## 19. Contexto por rival, sustituciones y proyección
+
+**Estratos (G2).** Dentro de cada estrato $e$ se estima $\delta_e=\text{foco}_e-\text{liga}_e$
+(§13.1). Los partidos del foco en estratos distintos son disjuntos, así que
+$\widehat{\mathrm{Var}}(\delta_f-\delta_d)=\widehat{\mathrm{Var}}(\delta_f)+\widehat{\mathrm{Var}}(\delta_d)$,
+con cada varianza tomada del ancho de su IC bootstrap; $z=(\hat\delta_f-\hat\delta_d)/\widehat{\mathrm{sd}}$.
+
+**Diferencias en diferencias emparejadas (G4).** Para el cambio $i$ en la celda $c(i)$,
+$\Delta_i=Y_i^{\text{post}}-Y_i^{\text{pre}}$ y el efecto es
+$\hat\tau=\frac1{n_f}\sum_{i\in f}\big(\Delta_i-\bar\Delta^{\text{liga}}_{c(i)}\big)$.
+*Supuesto de identificación:* dentro de una celda (tramo de 5 min, signo del marcador), sin el
+cambio del foco, su $\Delta$ esperado sería el de los cambios de la liga (tendencias paralelas
+condicionales). Es exactamente el estimador de emparejamiento exacto por celda; su IC es por
+bootstrap de partidos, remuestreando por separado los del foco y los de la liga.
+
+**Proyección (G6).** El modelo multiplicativo $E[xG_{ij}]=\mu A_iD_jh^{\pm1}$ (Maher 1982)
+tiene, por temporada, el punto fijo
+$A_i=\sum xG_i/\sum\mu D_{r}h^{\pm}$, $D_i=\sum xGc_i/\sum\mu A_rh^{\mp}$, identificado hasta
+una escala que se fija con media 1.
+
+**Proposición 19.1 (por qué dejar fuera al equipo evaluado).** Si el ataque de $i$ se
+multiplica por $k$ y sus $m$ partidos contra $j$ entran en la estimación de $D_j$, entonces
+$\hat D_j$ crece aproximadamente en el factor $1+(k-1)\frac{m}{n_j}$, y el índice de ataque de
+$i$, $xG_i/\sum\mu\hat D_j$, se subestima en ese mismo factor: la mejora se esconde a sí misma.
+
+*Demostración.* $\hat D_j=\sum_{\text{rivales}}xGc_j/\sum\mu A$; los $m$ partidos contra $i$
+aportan $k$ veces su valor esperado al numerador y el resto no cambia, así que el cociente
+crece en $1+(k-1)m/n_j$ (primer orden, ignorando el reajuste de $A_i$ en el denominador,
+que va en la misma dirección). $\square$
+
+Por eso las fuerzas de los rivales se estiman **sin** los partidos del equipo evaluado. El
+efecto de una llegada es $e=\log A_{\text{post}}-\log A_{\text{pre}}$; el del técnico se contrae
+hacia la media de las llegadas de la liga (Prop. 16.4), que incluye la regresión a la media
+posterior a un despido (van Ours & van Tuijl 2016). Los goles se simulan
+$\text{Poisson}(\mu A_iD_jh^{\pm})$ independientes, y la validación proyecta **cada** llegada de
+la liga con su propio efecto fuera del ajuste.
+
+*Código:* `rival.py`, `sustituciones.py`, `proyeccion.py`.
