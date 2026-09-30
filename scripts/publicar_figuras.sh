@@ -8,6 +8,11 @@
 #   git add docs/figuras && git commit -m "Figuras de resultados" && git push
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# el entorno virtual: se activa solo si no lo está
+if ! python -c "import dtcoach" 2>/dev/null; then
+  if [ -f .venv/bin/activate ]; then source .venv/bin/activate
+  else echo "falta el entorno: python3.12 -m venv .venv && source .venv/bin/activate && pip install -e '.[dev]'" >&2; exit 1; fi
+fi
 FOCO="${1:-$(python -c "from dtcoach.config import Config; print(Config.load()['foco']['coach'])")}"
 S=$(python -c "import sys; print(sys.argv[1].lower().replace(' ', '_'))" "$FOCO")
 D=docs/figuras
