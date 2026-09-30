@@ -33,6 +33,10 @@ RASGOS DEL SAQUE
                    que StatsBomb registra también para quien pierde), en ≤ `contacto_s` s:
                    "ataque" si es del que saca, "defensa" si es del rival
   remate_directo   ese primer contacto es un remate
+  intervienen      en las jugadas con remate: jugadores DISTINTOS del que saca que tocan el
+                   balón después del saque y hasta el primer remate (incluido el que remata).
+                   Lateral → remate = 1; lateral → peinada → remate = 2 (la "segunda jugada")
+  pases_cadena     pases del que saca entre el saque y el primer remate (sin contar el saque)
 
 TASAS COMO PROCESO DE POISSON CON EXPOSICIÓN
 --------------------------------------------
@@ -60,6 +64,7 @@ TIPOS = ("corner", "tl_directo", "tl_centrado", "tl_otro", "lateral_largo", "lat
 TIPOS_CENTRO = ("corner", "tl_centrado", "lateral_largo")          # balón al área: capa 1 del xDefense
 ZONAS = ("corto", "primer_palo", "area_chica", "penal", "segundo_palo")
 TECNICAS = ("Inswinging", "Outswinging", "Straight")
+TOQUES = ("Pass", "Ball Receipt*", "Carry", "Shot", "Dribble", "Miscontrol", "Ball Recovery")
 CONTACTO = ("Shot", "Clearance", "Interception", "Goal Keeper", "Block", "Pass", "Miscontrol",
             "Ball Recovery", "Carry", "Dribble", "Dispossessed")
 
@@ -101,6 +106,12 @@ DEFINICIONES = {
     "fuera_juego_tl": {"nombre": "tiros libres en contra que terminan en fuera de lugar", "formato": "{:.3f}"},
     "primer_contacto_def": {"nombre": "centros a balón parado en contra con el primer contacto propio",
                             "formato": "{:.3f}"},
+    "tl_peligro": {"nombre": "tiros libres a ≤ 30 m del arco por partido", "formato": "{:.2f}"},
+    "lat_cuarto": {"nombre": "laterales en el último cuarto por partido", "formato": "{:.2f}"},
+    "lat_cuarto_remate": {"nombre": "laterales del último cuarto con remate (≤ ventana)", "formato": "{:.3f}"},
+    "lat_cuarto_xg": {"nombre": "xG por lateral del último cuarto", "formato": "{:.3f}"},
+    "lat_cuarto_area": {"nombre": "laterales del último cuarto que caen en el área", "formato": "{:.3f}"},
+    "lat_segunda": {"nombre": "laterales del último cuarto con remate tras ≥ 2 que intervienen", "formato": "{:.3f}"},
 }
 
 OFENSIVAS_BP = ([f"n_{t}" for t in TIPOS] + [f"remate_{t}" for t in TIPOS if t != "tl_directo"]
@@ -109,6 +120,7 @@ OFENSIVAS_BP = ([f"n_{t}" for t in TIPOS] + [f"remate_{t}" for t in TIPOS if t !
 RUTINA_BP = (["corner_cerrado", "corner_abierto"] + [f"corner_{z}" for z in ZONAS]
              + ["corner_primer_contacto", "corner_remate_directo", "at_area_corner", "at_chica_corner",
                 "at_portero_corner"])
+LATERAL_BP = ["lat_cuarto", "lat_cuarto_area", "lat_cuarto_remate", "lat_cuarto_xg", "lat_segunda"]
 DEFENSIVAS_BP = ["de_area_corner", "de_chica_corner", "palo_cercano", "palo_lejano", "al_hombre", "dist_marca",
                  "sobra", "altura_linea_tl", "en_linea_tl", "fuera_juego_tl", "primer_contacto_def"]
 
@@ -182,7 +194,7 @@ def jugadas(ev: pl.DataFrame, cfg: dict) -> pl.DataFrame:
                        & (pl.col("_p") == pl.col("period")) & (pl.col("team_remate") == pl.col("team_saque"))
                        & (pl.col("reloj") - pl.col("reloj_saque") <= w))
     des = asig.group_by("id_saque").agg(
-        pl.len().alias("remates"), pl.col("xg_r").sum().alias("xg"), pl.col("gol_r").sum().alias("goles"),
+        pl.col("index").min().alias("_idx_rem1"), pl.len().alias("remates"), pl.col("xg_r").sum().alias("xg"), pl.col("gol_r").sum().alias("goles"),
         pl.col("xr").alias("x_remates"), pl.col("yr").alias("y_remates"), pl.col("id_remate").alias("ids_remate"))
     # primer contacto: primer evento con balón (sin recepciones ni duelos) tras el saque, en ≤ wc s
     con = _clave(ev.filter(pl.col("type").is_in(list(CONTACTO)))
@@ -200,6 +212,22 @@ def jugadas(ev: pl.DataFrame, cfg: dict) -> pl.DataFrame:
     j = (s.drop("reloj_c", "team_c", "tipo_c", "id_c", "_mc", "_pc", "_k", "_xg_directo")
          .join(des, on="id_saque", how="left")
          .with_columns(pl.col("remates").fill_null(0), pl.col("xg").fill_null(0.0), pl.col("goles").fill_null(0)))
+    # la cadena: quién toca el balón del que saca entre el saque y el primer remate
+    toq = _clave(ev.filter(pl.col("type").is_in(list(TOQUES)) & pl.col("player_id").is_not_null())
+                 .select("match_id", "period", "index", "team", "player_id", "type"))
+    toq = toq.join_asof(reanuda.select("_k", "id_saque", "team_saque", pl.col("match_id").alias("_m"),
+                                       pl.col("period").alias("_p"), pl.col("index").alias("_idx_s")),
+                        on="_k", strategy="backward")
+    toq = (toq.join(j.select("id_saque", "_idx_rem1"), on="id_saque", how="inner")
+           .filter((pl.col("_m") == pl.col("match_id")) & (pl.col("_p") == pl.col("period"))
+                   & (pl.col("team") == pl.col("team_saque")) & (pl.col("index") > pl.col("_idx_s"))
+                   & (pl.col("index") <= pl.col("_idx_rem1"))))
+    cad = toq.group_by("id_saque").agg(pl.col("player_id").n_unique().alias("intervienen"),
+                                       (pl.col("type") == "Pass").sum().alias("pases_cadena"))
+    j = (j.join(cad, on="id_saque", how="left")
+         .with_columns(pl.when(pl.col("remates") > 0).then(pl.col("intervienen").fill_null(0)).alias("intervienen"),
+                       pl.when(pl.col("remates") > 0).then(pl.col("pases_cadena").fill_null(0)).alias("pases_cadena"))
+         .drop("_idx_rem1"))
     # el tiro libre directo ES el remate (la ventana lo incluye: el saque es el remate)
     return j.with_columns((pl.col("remate_directo") | (pl.col("tipo") == "tl_directo")).alias("remate_directo"))
 
@@ -219,7 +247,13 @@ def _agg(df: pl.DataFrame, nombre: str, n: pl.Expr, d: pl.Expr) -> pl.DataFrame:
                                                d.cast(pl.Float64).alias(f"{nombre}__d"))
 
 
-def metricas(j: pl.DataFrame, tp: pl.DataFrame, cobertura_min: float = 0.8) -> list[pl.DataFrame]:
+def lateral_cuarto(j: pl.DataFrame, x_min: float = 90.0) -> pl.DataFrame:
+    """Laterales sacados en el último cuarto de la cancha rival (x ≥ `x_min`), vayan o no al área."""
+    return j.filter(pl.col("tipo").is_in(["lateral_largo", "lateral_zona"]) & (pl.col("x_saque") >= x_min))
+
+
+def metricas(j: pl.DataFrame, tp: pl.DataFrame, cobertura_min: float = 0.8,
+             lateral_min_x: float = 90.0) -> list[pl.DataFrame]:
     """`j`: `jugadas` (con `con_360` si hay 360). Ofensivas del que saca; defensivas del rival."""
     out = []
     rem = pl.col("remates") > 0
@@ -248,6 +282,19 @@ def metricas(j: pl.DataFrame, tp: pl.DataFrame, cobertura_min: float = 0.8) -> l
                     pl.col("primer_contacto").is_not_null().sum()))
     tl = jd.filter(pl.col("tipo").is_in(["tl_centrado", "tl_otro"]))
     out.append(_agg(tl, "fuera_juego_tl", pl.col("fuera_de_lugar").sum(), pl.len()))
+    # tiros libres peligrosos (≤ 30 m del centro del arco): del que saca
+    peligro = ((120.0 - pl.col("x_saque")) ** 2 + (40.0 - pl.col("y_saque")) ** 2).sqrt() <= 30.0
+    tlp = j.filter(pl.col("tipo").is_in(["tl_directo", "tl_centrado", "tl_otro"]))
+    out.append(tlp.group_by("match_id", "team").agg(peligro.sum().cast(pl.Float64).alias("tl_peligro__n"),
+                                                     pl.lit(1.0).alias("tl_peligro__d")))
+    # laterales en el último cuarto (x ≥ lateral_min_x): del que saca
+    la = lateral_cuarto(j, lateral_min_x)
+    out += [la.group_by("match_id", "team").agg(pl.len().cast(pl.Float64).alias("lat_cuarto__n"),
+                                                pl.lit(1.0).alias("lat_cuarto__d")),
+            _agg(la, "lat_cuarto_area", (pl.col("tipo") == "lateral_largo").sum(), pl.len()),
+            _agg(la, "lat_cuarto_remate", rem.sum(), pl.len()),
+            _agg(la, "lat_cuarto_xg", pl.col("xg").sum(), pl.len()),
+            _agg(la, "lat_segunda", (rem & (pl.col("intervienen") >= 2)).fill_null(False).sum(), pl.len())]
     if "at_area" in j.columns:
         vis = c.filter(pl.col("cobertura_area") >= cobertura_min)
         out += [_agg(vis, "at_area_corner", pl.col("at_area").sum(), pl.len()),
@@ -450,3 +497,118 @@ def perfil_defensivo(j: pl.DataFrame, tp: pl.DataFrame, foco: str, cobertura_min
             "at_portero"]
     return {n: {c: float(d[c].mean()) for c in cols} | {"corners": d.height} for n, d in (("foco", f), ("liga", lg))
             if d.height}
+
+
+# ----------------------------------------------------------------------
+# Resúmenes por grupo: el foco atacando, el foco defendiendo y la liga
+# ----------------------------------------------------------------------
+GRUPOS = ("foco_ataque", "foco_defensa", "liga")
+
+
+def grupos(d: pl.DataFrame, tp: pl.DataFrame, foco: str) -> dict[str, pl.DataFrame]:
+    """Las jugadas `d` (una fila por saque, `team` = el que saca) partidas en: las que saca el foco,
+    las que le sacan al foco y las de la liga (partidos sin el foco)."""
+    d = d.join(tp.select("match_id", "team", "coach", "coach_rival"), on=["match_id", "team"], how="left")
+    pf = _partidos_foco(d, foco)
+    return {"foco_ataque": d.filter(pl.col("coach") == foco), "foco_defensa": d.filter(pl.col("coach_rival") == foco),
+            "liga": d.filter(~pl.col("match_id").is_in(pf))}
+
+
+def razon_boot(d: pl.DataFrame, num: pl.Expr, den: pl.Expr, n_boot: int = 500, rng=None) -> dict:
+    """Σnum/Σden con IC 95 % por bootstrap de partidos."""
+    rng = rng if rng is not None else np.random.default_rng(0)
+    if d.height == 0:
+        return {"valor": float("nan"), "lo": float("nan"), "hi": float("nan"), "n": 0}
+    a = d.group_by("match_id").agg(num.cast(pl.Float64).alias("n"), den.cast(pl.Float64).alias("d"))
+    n, dd = a["n"].to_numpy(), a["d"].to_numpy()
+    v = n.sum() / dd.sum() if dd.sum() > 0 else float("nan")
+    b = []
+    for _ in range(n_boot):
+        i = rng.integers(0, len(n), len(n))
+        if dd[i].sum() > 0:
+            b.append(n[i].sum() / dd[i].sum())
+    lo, hi = (np.quantile(b, [0.025, 0.975]) if b else (np.nan, np.nan))
+    return {"valor": float(v), "lo": float(lo), "hi": float(hi), "n": int(dd.sum())}
+
+
+def _por_partido(d: pl.DataFrame, tp: pl.DataFrame, grupo: str, foco: str) -> float:
+    """Jugadas por partido del grupo (el denominador son los partidos del grupo)."""
+    if grupo == "liga":
+        m = tp.filter(~pl.col("match_id").is_in(
+            tp.filter((pl.col("coach") == foco) | (pl.col("coach_rival") == foco))["match_id"].unique().to_list()))
+        partidos = m.height                     # equipo-partido: cada equipo saca en su partido
+    else:
+        partidos = tp.filter(pl.col("coach") == foco).height
+    return d.height / max(partidos, 1)
+
+
+def resumen_laterales(j: pl.DataFrame, tp: pl.DataFrame, foco: str, x_min: float = 90.0, x_octavo: float = 105.0,
+                      n_boot: int = 500, seed: int = 0) -> dict:
+    """Laterales en el último cuarto (x ≥ x_min) y en el último octavo (x ≥ x_octavo): cuántos, a dónde
+    caen, cuántos acaban en remate y gol, y con cuántos que intervienen (la segunda jugada)."""
+    rng = np.random.default_rng(seed)
+    la = lateral_cuarto(j, x_min)
+    rem = pl.col("remates") > 0
+    out = {"x_min": x_min, "x_octavo": x_octavo}
+    for tramo, d0 in (("cuarto", la), ("octavo", la.filter(pl.col("x_saque") >= x_octavo))):
+        G = grupos(d0, tp, foco)
+        out[tramo] = {}
+        for g, d in G.items():
+            r = {"laterales": d.height, "por_partido": _por_partido(d, tp, g, foco),
+                 "al_area": razon_boot(d, (pl.col("tipo") == "lateral_largo").sum(), pl.len(), n_boot, rng),
+                 "area_chica": razon_boot(d, (pl.col("zona") == "area_chica").sum(), pl.len(), n_boot, rng),
+                 "primer_contacto": razon_boot(d, (pl.col("primer_contacto") == "ataque").sum(),
+                                               pl.col("primer_contacto").is_not_null().sum(), n_boot, rng),
+                 "remate": razon_boot(d, rem.sum(), pl.len(), n_boot, rng),
+                 "gol": razon_boot(d, (pl.col("goles") > 0).sum(), pl.len(), n_boot, rng),
+                 "xg": razon_boot(d, pl.col("xg").sum(), pl.len(), n_boot, rng),
+                 "segunda": razon_boot(d, (rem & (pl.col("intervienen") >= 2)).fill_null(False).sum(), pl.len(),
+                                       n_boot, rng)}
+            cr = d.filter(rem)
+            iv = cr["intervienen"].fill_null(0).to_numpy()
+            r["intervienen"] = {"1": int((iv <= 1).sum()), "2": int((iv == 2).sum()), "3+": int((iv >= 3).sum())}
+            # el caso que pide el reto: cae en el área chica y termina en remate con ≥ 2 que intervienen
+            ch = d.filter(pl.col("zona") == "area_chica")
+            r["chica_segunda"] = {"laterales": ch.height,
+                                  "remate": int(ch.filter(rem).height),
+                                  "remate_2mas": int(ch.filter(rem & (pl.col("intervienen") >= 2)).height),
+                                  "goles": int(ch["goles"].sum()) if ch.height else 0}
+            out[tramo][g] = r
+    return out
+
+
+def resumen_tiros_libres(j: pl.DataFrame, directos: pl.DataFrame | None, tp: pl.DataFrame, foco: str,
+                         n_boot: int = 500, seed: int = 0) -> dict:
+    """Tiros libres en campo rival: cuántos y dónde (≤ 30 m), cómo se juegan (directo, al área, corto) y,
+    en los directos, distancia, xG, gol, cuánto arco deja la barrera (goal_open) y cuántos la forman.
+    `directos`: remates de tiro libre directo con sus rasgos (de la capa 2: id, goal_open, barrera, ...)."""
+    rng = np.random.default_rng(seed)
+    tl = j.filter(pl.col("tipo").is_in(["tl_directo", "tl_centrado", "tl_otro"]))
+    dist = ((120.0 - pl.col("x_saque")) ** 2 + (40.0 - pl.col("y_saque")) ** 2).sqrt()
+    tl = tl.with_columns(dist.alias("dist_arco"))
+    if directos is not None and directos.height:
+        tl = tl.join(directos.rename({"id": "id_saque"}), on=["match_id", "id_saque"], how="left")
+    rem = pl.col("remates") > 0
+    out = {}
+    for g, d in grupos(tl, tp, foco).items():
+        pel = d.filter(pl.col("dist_arco") <= 30.0)
+        di = d.filter(pl.col("tipo") == "tl_directo")
+        r = {"tiros_libres": d.height, "por_partido": _por_partido(d, tp, g, foco),
+             "peligrosos_por_partido": _por_partido(pel, tp, g, foco),
+             "reparto_peligrosos": {t: (pel.filter(pl.col("tipo") == t).height / max(pel.height, 1))
+                                    for t in ("tl_directo", "tl_centrado", "tl_otro")},
+             "directo": {"n": di.height,
+                         "dist": razon_boot(di, pl.col("dist_arco").sum(), pl.len(), n_boot, rng),
+                         "xg": razon_boot(di, pl.col("xg").sum(), pl.len(), n_boot, rng),
+                         "gol": razon_boot(di, (pl.col("goles") > 0).sum(), pl.len(), n_boot, rng)},
+             "al_area": {t: {"remate": razon_boot(d.filter(pl.col("tipo") == t), rem.sum(), pl.len(), n_boot, rng),
+                             "xg": razon_boot(d.filter(pl.col("tipo") == t), pl.col("xg").sum(), pl.len(), n_boot,
+                                              rng)}
+                         for t in ("tl_centrado", "tl_otro")}}
+        if "goal_open" in d.columns:
+            dv = di.filter(pl.col("goal_open").is_not_null() & pl.col("goal_open").is_not_nan())
+            r["directo"] |= {"goal_open": razon_boot(dv, pl.col("goal_open").sum(), pl.len(), n_boot, rng),
+                             "barrera": razon_boot(dv, pl.col("barrera").sum(), pl.len(), n_boot, rng),
+                             "con_foto": dv.height}
+        out[g] = r
+    return out

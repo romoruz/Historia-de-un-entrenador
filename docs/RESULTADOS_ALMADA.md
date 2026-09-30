@@ -333,7 +333,22 @@ El balón parado es la parte del juego que más se puede **ensayar**. Lo miramos
 **corners**, **tiros libres** (directos y al área) y **saques de banda largos** que caen en el área,
 a favor y en contra.
 
-### Cómo se defiende un corner: dos preguntas
+La sección va en cuatro partes: primero **cómo funciona el xDefense** (5.1), y luego cada familia de
+jugada: **corners** (5.2), **tiros libres** (5.3) y **laterales en el último cuarto de la cancha** (5.4).
+En cada una miramos tres cosas: **Almada atacando** (a favor), **Almada defendiendo** (en contra) y
+**la liga en general**, que es la vara con la que se mide todo.
+
+> ⏳ Lo marcado así sale de la corrida nueva (`bash scripts/historia.sh "Guillermo Almada"`: la tabla
+> de la liga se rehace sola) y se llena al correrla. Lo que no tiene ⏳ ya salió de la corrida de la fase G.
+
+### 5.1 El xDefense: nuestra métrica y cómo se calcula
+
+> **El xDefense es una métrica nuestra.** La construimos en el equipo para medir la defensa de los
+> corners, y aquí la extendemos a toda la Liga MX, a los tres tipos de balón parado (corners, tiros
+> libres y laterales) y también al ataque (el xO, su contraparte). No es un número del proveedor de
+> datos: lo calculamos nosotros con los eventos y las fotos 360 de StatsBomb.
+
+#### Cómo se defiende un corner: dos preguntas
 
 Para que te metan un gol de corner pasan dos cosas: **que te rematen** y **que ese remate entre**.
 Así que la defensa se mide en dos partes:
@@ -347,6 +362,64 @@ Esta idea viene del trabajo previo del equipo (el xDefense de corners). Allí so
 goles no alcanzaba para distinguir equipos. Ahora usamos la **foto del momento del cobro** (360),
 que existe haya o no remate, y **toda la liga**.
 
+#### El árbol: de dónde sale un gol de corner
+
+![El árbol de probabilidad del xDefense, con los números de la liga y de Almada](figuras/balon_parado/arbol_corner.png)
+
+*Cómo leerlo: de izquierda a derecha, primero se cobra el corner; o hay remate o la defensa gana; y si
+hay remate, o entra o no. Cada rama lleva su número para la liga (naranja), para Almada defendiendo
+(azul oscuro) y para Almada atacando (azul). La probabilidad de gol es **el producto** de las ramas
+que se recorren.*
+
+#### La pequeña demostración (pura probabilidad condicional y total)
+
+Llamemos $C$ al saque, $S$ a "hubo remate" y $G$ a "hubo gol".
+
+1. **Probabilidad condicional.** No hay gol sin remate ($G \subseteq S$), así que
+   $$P(G\mid C)=P(G\cap S\mid C)=P(S\mid C)\cdot P(G\mid S,C).$$
+   El primer factor es la **capa 1** (¿te rematan?) y el segundo la **capa 2** (¿entra el remate?).
+2. **Probabilidad total.** Partiendo en "hubo remate" y "no hubo":
+   $$P(G\mid C)=P(G\mid S,C)\,P(S\mid C)+P(G\mid \bar S,C)\,P(\bar S\mid C),$$
+   y el segundo término vale cero. Es la misma cuenta vista desde el otro lado.
+3. **Recursión.** Si el primer remate no entra, el rebote puede dar un segundo remate, y así. Con
+   $q_k$ = la probabilidad de que entre el $k$-ésimo remate, aplicar los pasos 1 y 2 una y otra vez da
+   $$V_k=P(S_k\mid\ldots)\,\big[\,q_k+(1-q_k)\,V_{k+1}\big],\qquad P(G\mid C)=V_1 .$$
+   Es decir: "o entra este remate, o no entra y empieza el mismo problema con el siguiente".
+4. **Lo que evita la defensa, en cuatro pedazos exactos.** Sumando y restando lo mismo (nada se
+   aproxima), los goles que una defensa evita en un saque se parten en
+   $$\hat p\,\kappa-g=\underbrace{(\hat p-s)\,\kappa}_{\text{prevención}}+\underbrace{s\,(\kappa-B)}_{\text{alejamiento}}+\underbrace{s\,(B-F)}_{\text{supresión}}+\underbrace{s\,(F-g)}_{\text{portero}} ,$$
+   donde $\hat p$ es la probabilidad de remate esperada (capa 1), $s$ si hubo remate, $\kappa$ lo que
+   vale en la liga un saque que sí tuvo remate, $B$ y $F$ el xG de sus remates sin y con la foto de la
+   defensa (capa 2) y $g$ los goles. Cada pedazo contesta una pregunta: ¿**negó** el remate?, ¿lo
+   **empujó** a un lugar peor?, ¿**tapó** el arco?, ¿**atajó** el portero? Al atacar es lo mismo con
+   el signo al revés (xO: goles de más).
+
+La versión formal, con sus demostraciones, está en `04_MODELO_MATEMATICO.md` §16.5–16.6.
+
+#### La capa 2 en un dibujo
+
+![Cuánto arco le tapa la defensa al que remata](figuras/balon_parado/goal_open_esquema.png)
+
+* **Los modelos:** la capa 1 (¿habrá remate?) sale de 28,216 centros, con AUC 0.63 y bien calibrada.
+  La capa 2 sale de 46,641 remates. Añadir la foto de la defensa (cuánto arco queda abierto, dónde
+  está el portero) sube el AUC de 0.758 a 0.785 (+0.027 [+0.022, +0.031]): **la posición de la
+  defensa sí informa**.
+
+#### Los cuatro pedazos, en las tres familias
+
+![De dónde salen los goles que Almada evita y genera a balón parado](figuras/balon_parado/descomposicion.png)
+
+*Cada barra suma los cuatro pedazos: a la derecha del cero es bueno para Almada. Arriba de cada par,
+defendiendo (xD); abajo, atacando (xO).*
+
+⏳ **Qué dice:** en qué familia gana o pierde goles Almada y por cuál de los cuatro caminos.
+
+---
+
+### 5.2 Corners
+
+#### En contra: Almada defendiendo
+
 * Le rematan en **33 de cada 100 corners** en contra; en la liga, en 37. Contando todo lo que pasa
   en los 15 segundos después del saque, **le rematan 14 % menos** por corner (razón 0.86 [0.76,
   0.97]). *Antes decíamos 26 % menos: era con una definición más corta de la jugada, que contaba
@@ -356,6 +429,16 @@ que existe haya o no remate, y **toda la liga**.
   **Marca al hombre** en 53 de cada 100 duelos (la liga, 39; percentil 99), **más pegado** (2.2 m
   contra 2.7, percentil 1) y deja **menos defensores sobrando** (2.2 contra 3.0). Es un plan
   claro: cada defensor con su atacante, y pocos cuidando espacios.
+
+![Cómo se para en los corners en contra](figuras/balon_parado/corner_defensivo.png)
+
+*Cuántos defienden el área chica y el resto del área, si cubre los palos y cuántos marcan al hombre.*
+
+![¿Marcar al hombre evita remates? Todos los técnicos de la liga](figuras/balon_parado/marca_vs_remate.png)
+
+*Cada punto es un técnico en un club. Si la nube baja hacia la derecha, los que marcan más al hombre
+conceden menos remates. Es una asociación entre técnicos, no una causa.*
+
 * **Prevención** (H24 ⚪): ¿le rematan menos de lo que "debería" pasar con esos centros? Evita
   +0.014 remates por centro [−0.011, +0.040]. Es positivo pero **no se distingue de cero**. Después de
   descontar la suerte queda en el lugar **17 de 45**, a mitad de tabla.
@@ -367,36 +450,32 @@ que existe haya o no remate, y **toda la liga**.
   (τ² ≈ 3·10⁻⁶). Ningún técnico de la liga se separa de los demás. Lo que decide un corner en
   contra es **si te rematan**, no cómo defiendes el remate. Coincide con la literatura sobre
   corners: los goles son muy pocos y el ruido es enorme.
-* **Los modelos:** la capa 1 (¿habrá remate?) sale de 28,216 centros, con AUC 0.63 y bien calibrada.
-  La capa 2 sale de 46,641 remates. Añadir la foto de la defensa (cuánto arco queda abierto, dónde
-  está el portero) sube el AUC de 0.758 a 0.785 (+0.027 [+0.022, +0.031]): **la posición de la
-  defensa sí informa**.
 
 ![Prevención: remates evitados por centro en contra, todos los técnicos](figuras/balon_parado/xd_prev_etapas.png)
 
-![Cómo se para en los corners en contra](figuras/balon_parado/corner_defensivo.png)
+*Cómo leerla: cada fila es un técnico en un club, del mejor (arriba) al peor (abajo). El punto hueco es
+su valor crudo; el lleno, lo que queda al descontar la suerte de tener pocos corners. Cuanto más corta
+la raya entre los dos, más confiable es el dato. Almada va en azul y en negritas, con su puesto en el
+título.*
 
-*Cuántos defienden el área chica y el resto del área, si cubre los palos y cuántos marcan al hombre.*
+![Supresión: xG que su defensa le quita a cada remate, todos los técnicos](figuras/balon_parado/xd_remate_etapas.png)
 
-### Tiros libres en contra: la línea del fuera de lugar
+![Las dos capas juntas: prevención contra supresión en todos los técnicos](figuras/balon_parado/mapa_xdefensa.png)
 
-En un tiro libre lateral, el que defiende elige **qué tan adelante pone su línea**: más adelante
-deja más espacio atrás pero deja a los atacantes en fuera de lugar más seguido. Medimos, en la
-foto del cobro, a cuántos metros de su arco está el **penúltimo defensor** (la línea legal del
-fuera de lugar) y cuántos tiros libres en contra terminan en fuera de lugar (H26).
+*Arriba a la derecha, los que niegan el remate y además lo empeoran. Almada está a la derecha
+(niega un poco más que la media) pero abajo (los remates que da salen más limpios). Que los puntos
+casi no se separen hacia arriba o hacia abajo es la forma visual de "τ² ≈ 0".*
 
-![Qué tan adelantada pone la línea en los tiros libres en contra](figuras/balon_parado/linea_tiros_libres.png)
+*Nota: H24 y H25 se pre-registraron sobre **todos los centros al área** (corners, tiros libres al área
+y laterales largos; los corners son la gran mayoría). Solo corners, con los cuatro pedazos:* ⏳
 
-*Medimos la línea **táctica**: el último defensor de la línea sin contar al que se queda pegado al
-poste. Si no, un solo jugador en el palo "baja" la línea hasta el arco.*
+#### A favor: Almada atacando (y la "receta Arsenal")
 
-* Pone la línea a **14.9 m de su arco**; la liga, a 14.2. **No es distinta** (⚪).
-* Pone **menos gente en la línea** (4.7 defensores contra 5.3, 🟢). Es la misma idea que en los
-  corners: menos cuerpos, más marca.
-* Los tiros libres que terminan en fuera de lugar **no son más** que en la liga (⚪). **Su línea
-  no es especialmente adelantada**; es normal.
-
-### A favor: ¿qué corners funcionan en la Liga MX? (y la "receta Arsenal")
+* **Almada:** saca **más corners** que casi todos (6.2 por partido contra 4.9, percentil 90). Juega
+  **más en corto** (35 de cada 100 contra 21) y los manda más cerrados. Pero mete menos gente al área
+  (5.2 atacantes contra 5.5) y casi nadie encima del portero. Remata en 32 de cada 100 corners (la
+  liga, 37) y saca 0.029 de xG por corner contra 0.035 (🟡). **Hay margen: tiene muchos corners y
+  los aprovecha poco.**
 
 El Arsenal de Nicolas Jover se volvió famoso por sus corners: **cerrados al área chica o al primer
 palo, con jugadores encima del portero**. No tenemos datos de la Premier, pero sí podemos preguntar
@@ -417,15 +496,135 @@ palo, con jugadores encima del portero**. No tenemos datos de la Premier, pero s
   puede haber razones propias de la liga (cómo salen los porteros, cuánto contacto permite el árbitro
   en el área chica) que **no medimos**. Lo que sí se puede trasladar es **el método**: medir qué rutina produce más en esta liga y
   ensayarla. Aquí sería **cerrado al punto penal**.
-* **Almada:** saca **más corners** que casi todos (6.2 por partido contra 4.9, percentil 90). Juega
-  **más en corto** (35 de cada 100 contra 21) y los manda más cerrados. Pero mete menos gente al área
-  (5.2 atacantes contra 5.5) y casi nadie encima del portero. Remata en 32 de cada 100 corners (la
-  liga, 37) y saca 0.029 de xG por corner contra 0.035 (🟡). **Hay margen: tiene muchos corners y
-  los aprovecha poco.**
 
-Laterales largos al área y tiros libres, con sus zonas de remate:
+⏳ **Su xO en corners:** si sus corners generan más o menos goles que lo esperado, y por qué pedazo.
 
 ![Dónde remata en sus corners](figuras/balon_parado/zonas_corner_propio.png)
+
+![Dónde le rematan en los corners en contra](figuras/balon_parado/zonas_corner_rival.png)
+
+#### La liga en general
+
+⏳ De cada 100 corners en la Liga MX, cuántos terminan en remate y cuántos en gol; cuánto vale un corner
+que sí tuvo remate (κ); y cuánto se separan los técnicos entre sí en cada pedazo (τ²).
+
+**Qué dice la evidencia.** La marca al hombre contra la zonal es un debate viejo que la literatura
+ha medido en ligas europeas (Pulling, Robins & Rixon 2013; Casal et al. 2015), y los trabajos con datos
+de seguimiento han estudiado las rutinas de corner por el destino y el movimiento de los atacantes
+(Power et al. 2018; Shaw & Gopaladesikan 2020). Nosotros no importamos sus conclusiones: medimos lo
+mismo en la Liga MX. Lo que encontramos es que un corner vale poco y es muy ruidoso, que la prevención
+separa un poco a los equipos y que la supresión casi nada.
+
+---
+
+### 5.3 Tiros libres
+
+Un tiro libre en campo rival se juega de tres maneras: **directo** al arco, **al área** (un centro,
+como un corner) o **corto / a la banda**. Cada una tiene su defensa: contra el directo, **la barrera
+y el portero**; contra el centro, **la línea del fuera de lugar**.
+
+**Qué dicen las reglas y la evidencia.**
+
+* La barrera debe estar a **9.15 m** del balón y, desde 2019, si la forman 3 o más defensores, los
+  atacantes deben quedarse al menos a 1 m de ella (reglas del juego de la IFAB, regla 13). Por eso la
+  medimos: cuántos la forman y **cuánto arco deja libre** (el mismo cálculo de la capa 2).
+* En el directo, lo que más pesa en la probabilidad de gol es la **distancia y el ángulo**, y el balón
+  tiene que pasar por encima o alrededor de la barrera y bajar antes del arco (Bray & Kerwin 2003).
+  Por eso contamos **cuántos tiros libres concede a ≤ 30 m**: el mejor tiro libre en contra es el que
+  no se comete.
+* En el centro, la defensa elige **qué tan alta pone la línea**: más arriba deja espacio a la espalda
+  pero deja atacantes en fuera de lugar (regla 11).
+
+#### En contra: Almada defendiendo
+
+En un tiro libre lateral, el que defiende elige **qué tan adelante pone su línea**: más adelante
+deja más espacio atrás pero deja a los atacantes en fuera de lugar más seguido. Medimos, en la
+foto del cobro, a cuántos metros de su arco está el **penúltimo defensor** (la línea legal del
+fuera de lugar) y cuántos tiros libres en contra terminan en fuera de lugar (H26).
+
+![Qué tan adelantada pone la línea en los tiros libres en contra](figuras/balon_parado/linea_tiros_libres.png)
+
+*Medimos la línea **táctica**: el último defensor de la línea sin contar al que se queda pegado al
+poste. Si no, un solo jugador en el palo "baja" la línea hasta el arco.*
+
+* Pone la línea a **14.9 m de su arco**; la liga, a 14.2. **No es distinta** (⚪).
+* Pone **menos gente en la línea** (4.7 defensores contra 5.3, 🟢). Es la misma idea que en los
+  corners: menos cuerpos, más marca.
+* Los tiros libres que terminan en fuera de lugar **no son más** que en la liga (⚪). **Su línea
+  no es especialmente adelantada**; es normal.
+
+![Tiros libres a favor, en contra y en la liga: cuántos, qué rinden y qué barrera pone](figuras/balon_parado/tiros_libres.png)
+
+⏳ **La barrera y los tiros libres peligrosos:** cuántos concede a ≤ 30 m por partido, cuántos forman
+su barrera, cuánto arco deja libre y su xD de tiros libres (los cuatro pedazos).
+
+#### A favor: Almada atacando
+
+⏳ Cuántos tiros libres peligrosos le cometen, cómo los juega (directo, al área o corto) y su xO.
+
+![Dónde remata en sus tiros libres al área](figuras/balon_parado/zonas_tl_centrado_propio.png)
+
+#### La liga en general
+
+⏳ Cuántos tiros libres a ≤ 30 m hay por partido, qué parte se patea directo, cuántos goles salen de
+cada 100 directos y cuánto arco deja la barrera promedio.
+
+![El árbol del xDefense para tiros libres](figuras/balon_parado/arbol_tiro_libre.png)
+
+---
+
+### 5.4 Laterales en el último cuarto de la cancha
+
+Todo lateral sacado **desde el último cuarto** de la cancha rival (a 30 m o menos de la línea de fondo;
+x ≥ 90 m) y, por separado, **desde el último octavo** (a 15 m o menos; x ≥ 105 m), caiga o no en el área.
+
+**Por qué los laterales son distintos.** De un lateral **no se puede hacer gol directo** y **no hay
+fuera de lugar** si el balón viene directo del saque (reglas 15 y 11). Así que siempre hace falta al
+menos otro jugador, y los atacantes se pueden parar donde quieran. Por eso miramos la **segunda
+jugada**: **cuántos jugadores intervienen** entre el saque y el remate. Con 1, el que recibe remata;
+con 2, uno la peina y otro remata (el lateral largo "a lo Stoke"). El lateral es la reanudación más
+frecuente del partido y una de las menos estudiadas (Stone, Smith & Barry 2021).
+
+![Laterales desde el último cuarto: de cada 100, cuántos llegan a cada paso, y cuántos intervienen](figuras/balon_parado/laterales_cuarto.png)
+
+![Lo mismo desde el último octavo](figuras/balon_parado/laterales_octavo.png)
+
+#### A favor: Almada atacando
+
+⏳ Cuántos laterales saca por partido en el último cuarto, cuántos manda al área (y al área chica),
+cuántos terminan en remate, **cuántos con dos o más que intervienen**, cuántos en gol, y su xO.
+
+#### En contra: Almada defendiendo
+
+⏳ Lo mismo, de los laterales que le sacan, y su xD de laterales (los cuatro pedazos).
+
+#### La liga en general
+
+⏳ En la Liga MX: de cada 100 laterales del último cuarto, cuántos caen en el área, cuántos terminan en
+remate y cuántos en gol; y de los que caen **en el área chica y terminan en remate**, cuántos
+necesitaron **dos o más** jugadores.
+
+![Dónde remata en sus laterales largos](figuras/balon_parado/zonas_lateral_largo_propio.png)
+
+![El árbol del xDefense para laterales](figuras/balon_parado/arbol_lateral.png)
+
+---
+
+### Referencias del balón parado
+
+* Bray, K. & Kerwin, D. (2003). Modelling the flight of a soccer ball in a direct free kick.
+  *Journal of Sports Sciences*.
+* Casal, C. A. et al. (2015). Analysis of corner kick success in elite football. *International
+  Journal of Performance Analysis in Sport*.
+* Efron, B. & Morris, C. (1975). Data analysis using Stein's estimator and its generalizations. *JASA*.
+* IFAB. *Reglas del juego* (reglas 11, 13 y 15).
+* Power, P., Hobbs, J., Ruiz, H., Wei, X. & Lucey, P. (2018). Mythbusting set-pieces in soccer.
+  *MIT Sloan Sports Analytics Conference*.
+* Pulling, C., Robins, M. & Rixon, T. (2013). Defending corner kicks: analysis from the English
+  Premier League. *International Journal of Performance Analysis in Sport*.
+* Shaw, L. & Gopaladesikan, S. (2020). Routine inspection: a playbook for corner kicks.
+* Stone, J. A., Smith, A. & Barry, A. (2021). The undervalued set piece: analysis of soccer throw-ins
+  during the English Premier League 2018–2019 season.
 
 ---
 

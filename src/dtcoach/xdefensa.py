@@ -42,6 +42,23 @@ r, proyecta la sombra [φ_j − α_j, φ_j + α_j], α_j = arcsin(r / ‖s − D
     goal_open = 1 − | I ∩ ∪_j S_j | / |I|
 por unión de intervalos en una dimensión (O(m log m)).
 
+LA CADENA COMPLETA Y SU DESCOMPOSICIÓN EXACTA (04_MODELO_MATEMATICO §16.5–16.6)
+--------------------------------------------------------------------------------
+En la ventana puede haber varios remates (el rechace vuelve). Con S_k = "hay un k-ésimo
+remate" y q_k = P(gol en el k-ésimo | los anteriores fallaron), la probabilidad total
+aplicada en cadena da la recursión
+    V_k = P(S_k | ...) · [ q_k + (1 − q_k) · V_{k+1} ],     P(G | C) = V_1,
+y por linealidad E[goles | C] = P(S | C) · E[Σ_k G_k | S, C]. Con κ_t = el valor medio de
+un saque de tipo t que SÍ tuvo remate (Σ xG_base de sus remates, promedio de la liga), para
+cada saque i vale, sin aproximación (sumar y restar):
+    p̂_i κ_t − g_i = (p̂_i − s_i) κ_t        prevención   (remates negados, en goles)
+                  + s_i (κ_t − B_i)        alejamiento  (remates desde peores lugares)
+                  + s_i (B_i − F_i)        supresión    (la geometría defensiva al remate)
+                  + s_i (F_i − g_i)        portero y definición
+B_i, F_i = Σ xG_base, Σ xG_full de los remates del saque; g_i = goles. Para el que defiende
+cada término positivo es un gol evitado; para el que saca, el signo cambia (xO = −xD).
+El tiro libre directo no tiene capa 1 (el saque ES el remate): p̂ = s = 1.
+
 POR ENTRENADOR
 --------------
 Las dos capas se agregan por equipo-partido (razón de sumas) y entran a la misma
@@ -96,6 +113,21 @@ def goal_open(sx: float, sy: float, defensores: np.ndarray, r: float = R_CUERPO)
     return float(1 - cubierto / ancho)
 
 
+def barrera(sx: float, sy: float, defensores: np.ndarray, d_max: float = 12.0, r: float = R_CUERPO) -> int:
+    """Defensores de campo a ≤ `d_max` m del balón que tapan parte del arco (la barrera de un tiro libre:
+    la regla 13 la pone a 9.15 m)."""
+    a1, a2 = np.arctan2(POSTES[0] - sy, 120.0 - sx), np.arctan2(POSTES[1] - sy, 120.0 - sx)
+    lo, hi = min(a1, a2), max(a1, a2)
+    d = np.asarray(defensores, float).reshape(-1, 2)
+    d = d[np.isfinite(d).all(axis=1) & (d[:, 0] > sx)]
+    if len(d) == 0:
+        return 0
+    dist = np.hypot(d[:, 0] - sx, d[:, 1] - sy)
+    fi = np.arctan2(d[:, 1] - sy, d[:, 0] - sx)
+    al = np.arcsin(np.clip(r / np.maximum(dist, 1e-9), 0, 1))
+    return int(((dist <= d_max) & (fi + al > lo) & (fi - al < hi)).sum())
+
+
 def angulo_arco(sx: np.ndarray, sy: np.ndarray) -> np.ndarray:
     a1 = np.arctan2(POSTES[0] - sy, 120.0 - sx)
     a2 = np.arctan2(POSTES[1] - sy, 120.0 - sx)
@@ -105,7 +137,8 @@ def angulo_arco(sx: np.ndarray, sy: np.ndarray) -> np.ndarray:
 def rasgos_remate(sx: float, sy: float, ff_json: str | None) -> dict:
     """Rasgos defensivos del `shot_freeze_frame` (marco del que remata)."""
     nan = float("nan")
-    base = {"goal_open": nan, "d_def": nan, "def_cerca": nan, "gk_prof": nan, "gk_desvio": nan, "con_frame": 0}
+    base = {"goal_open": nan, "d_def": nan, "def_cerca": nan, "gk_prof": nan, "gk_desvio": nan, "barrera": nan,
+            "con_frame": 0}
     if not ff_json:
         return base
     try:
@@ -123,7 +156,7 @@ def rasgos_remate(sx: float, sy: float, ff_json: str | None) -> dict:
         else:
             de.append((float(loc[0]), float(loc[1])))
     de = np.array(de, float).reshape(-1, 2)
-    out = {"goal_open": goal_open(sx, sy, de), "con_frame": 1}
+    out = {"goal_open": goal_open(sx, sy, de), "barrera": float(barrera(sx, sy, de)), "con_frame": 1}
     if len(de):
         dist = np.hypot(de[:, 0] - sx, de[:, 1] - sy)
         out |= {"d_def": float(dist.min()), "def_cerca": float((dist <= 3.0).sum())}
@@ -162,9 +195,9 @@ def _numerica(x: np.ndarray, nombre: str) -> tuple[np.ndarray, list[str]]:
     return xx[:, None], [nombre]
 
 
-def diseno_capa1(j: pl.DataFrame) -> tuple[np.ndarray, list[str]]:
+def diseno_capa1(j: pl.DataFrame, tipos: tuple = ("corner", "tl_centrado", "lateral_largo")) -> tuple[np.ndarray, list[str]]:
     from .balon_parado import TECNICAS, ZONAS
-    bloques = [_onehot(j["tipo"].to_list(), ["corner", "tl_centrado", "lateral_largo"], "tipo"),
+    bloques = [_onehot(j["tipo"].to_list(), list(tipos), "tipo"),
                _onehot(j["lado"].to_list(), ["y0", "y80"], "lado"),
                _onehot(j["tecnica"].to_list(), ["sin dato", *TECNICAS, "Through Ball"], "tecnica"),
                _onehot(j["altura"].to_list(), ["sin dato", "Ground Pass", "Low Pass", "High Pass"], "altura"),
@@ -230,15 +263,25 @@ def coeficientes(X: np.ndarray, y: np.ndarray, nombres: list[str], lam: float = 
 # ----------------------------------------------------------------------
 # Las dos capas sobre la liga
 # ----------------------------------------------------------------------
-def capa1(j: pl.DataFrame, folds: int = 5, lam: float = 1.0, seed: int = 0) -> tuple[pl.DataFrame, dict]:
-    """Prevención: p̂(remate | intención del cobro y ataque), fuera de muestra, por centro."""
+def capa1(j: pl.DataFrame, folds: int = 5, lam: float = 1.0, seed: int = 0,
+          tipos: tuple | None = None) -> tuple[pl.DataFrame, dict]:
+    """Prevención: p̂(remate | intención del cobro y ataque), fuera de muestra, por saque.
+    Por omisión, los centros al área (el modelo pre-registrado de H24). Con `tipos` se ajusta un modelo
+    APARTE para otros saques (tiros libres y laterales que no van al área), sin tocar el de los centros."""
     from .balon_parado import TIPOS_CENTRO
-    c = j.filter(pl.col("tipo").is_in(list(TIPOS_CENTRO)))
-    X, nom = diseno_capa1(c)
+    tipos = tuple(TIPOS_CENTRO) if tipos is None else tuple(tipos)
+    c = j.filter(pl.col("tipo").is_in(list(tipos)))
+    X, nom = diseno_capa1(c, tipos)
     y = (c["remates"].to_numpy() > 0).astype(float)
     g = c["match_id"].to_numpy()
+    if c.height < 50 or y.min() == y.max() or len(np.unique(g)) < folds:
+        # muy pocos saques para un modelo: la tasa de la liga (xD = tasa − observado)
+        p = np.full(c.height, y.mean() if c.height else 0.0)
+        return c.select("match_id", "team", "id_saque", "tipo").with_columns(
+            pl.Series("p_remate", p), pl.Series("remato", y)), {"tipos": list(tipos), "centros": c.height,
+                                                                 "nota": "sin modelo: muy pocos saques"}
     p = fuera_de_muestra(X, y, g, folds, lam, seed)
-    res = {"centros": c.height, "tasa_remate": float(y.mean()), "auc_fuera_de_muestra": auc(p, y),
+    res = {"tipos": list(tipos), "centros": c.height, "tasa_remate": float(y.mean()), "auc_fuera_de_muestra": auc(p, y),
            "calibracion": float(p.mean() / max(y.mean(), 1e-12)), "coeficientes": coeficientes(X, y, nom, lam)[:12]}
     return c.select("match_id", "team", "id_saque", "tipo").with_columns(
         pl.Series("p_remate", p), pl.Series("remato", y)), res
@@ -301,13 +344,16 @@ def capa2(r: pl.DataFrame, folds: int = 5, lam: float = 1.0, seed: int = 0, n_bo
            "coeficientes_full": coeficientes(Xf, y, nf, lam),
            "remates_bp": int((r["tipo_bp"] != "abierto").sum()),
            "goles_bp": int(r.filter(pl.col("tipo_bp") != "abierto")["gol"].sum())}
-    return r.select("match_id", "id", "team", "tipo_bp", "gol", "xg_sb").with_columns(
+    extra = [c for c in ("x", "y", "goal_open", "barrera", "d_def", "gk_prof", "cabeza") if c in r.columns]
+    return r.select("match_id", "id", "team", "tipo_bp", "gol", "xg_sb", *extra).with_columns(
         pl.Series("xg_base", pb), pl.Series("xg_full", pf)), res
 
 
 def metricas_equipo(p1: pl.DataFrame, p2: pl.DataFrame, tp: pl.DataFrame) -> list[pl.DataFrame]:
     """xD por equipo-partido (razón de sumas): del que DEFIENDE (xd_*) y del que saca (xo_prev)."""
+    from .balon_parado import TIPOS_CENTRO
     rival = tp.select("match_id", "team", "rival")
+    p1 = p1.filter(pl.col("tipo").is_in(list(TIPOS_CENTRO)))          # H24: solo centros al área
     d1 = p1.join(rival, on=["match_id", "team"]).drop("team").rename({"rival": "team"})
     bp = p2.filter(pl.col("tipo_bp") != "abierto")
     d2 = bp.join(rival, on=["match_id", "team"]).drop("team").rename({"rival": "team"})
@@ -330,7 +376,132 @@ DEFINICIONES = {
     "xd_remate": {"nombre": "xD supresión: xG que su defensa le quita a cada remate (base − full)",
                   "formato": "{:+.4f}"},
     "xd_gol": {"nombre": "goles evitados por remate a balón parado (xG full − goles)", "formato": "{:+.4f}"},
+    "arco_libre_tl": {"nombre": "fracción del arco que deja libre en tiros libres directos en contra (360)",
+                      "formato": "{:.3f}"},
+    "barrera_tl": {"nombre": "jugadores en la barrera en tiros libres directos en contra", "formato": "{:.2f}"},
 }
+
+
+
+# ----------------------------------------------------------------------
+# La cadena completa: descomposición exacta por saque (04 §16.5–16.6)
+# ----------------------------------------------------------------------
+FAMILIAS = {"corner": ("corner",), "tiro_libre": ("tl_centrado", "tl_otro", "tl_directo"),
+            "lateral": ("lateral_largo", "lateral_zona")}
+FAMILIA_NOMBRE = {"corner": "corners", "tiro_libre": "tiros libres", "lateral": "laterales",
+                  "todas": "todo el balón parado"}
+COMPONENTES = ("prev", "lej", "sup", "port", "total")
+COMPONENTE_NOMBRE = {"prev": "prevención (remates negados)", "lej": "alejamiento (remates desde peores lugares)",
+                     "sup": "supresión (geometría al remate)", "port": "portero y definición",
+                     "total": "total"}
+
+
+DEFINICIONES_CADENA = {
+    f"{lado}_{c}_{fam}": {"nombre": f"{'xD' if lado == 'xd' else 'xO'} · {COMPONENTE_NOMBRE[c]} · "
+                                   f"{FAMILIA_NOMBRE[fam]} {'en contra' if lado == 'xd' else 'a favor'} "
+                                   f"(goles por 100 saques)", "formato": "{:+.2f}"}
+    for lado in ("xd", "xo") for c in COMPONENTES for fam in (*FAMILIAS, "todas")}
+
+
+def familia_de(tipo: str) -> str | None:
+    return next((f for f, ts in FAMILIAS.items() if tipo in ts), None)
+
+
+def descomposicion(j: pl.DataFrame, p1: pl.DataFrame, p2: pl.DataFrame) -> pl.DataFrame:
+    """Una fila por saque (de las tres familias) con p̂, s, B, F, g, κ y los cuatro términos de
+    p̂κ − g, en goles, desde el punto de vista del que DEFIENDE (positivo = gol evitado).
+    `p1`: capa 1 (todas las p̂ fuera de muestra); `p2`: capa 2 (xg_base, xg_full por remate con foto).
+    Un remate sin foto entra con su xG del proveedor en B y en F (neutro para la supresión)."""
+    tipos = [t for ts in FAMILIAS.values() for t in ts]
+    rem = (j.select("id_saque", "ids_remate").explode("ids_remate", empty_as_null=True).rename({"ids_remate": "id"})
+           .filter(pl.col("id").is_not_null())
+           .join(p2.select("id", "xg_base", "xg_full", "xg_sb"), on="id", how="left")
+           .group_by("id_saque").agg(pl.col("xg_base").sum().alias("_b"), pl.col("xg_full").sum().alias("_f"),
+                                     pl.col("xg_sb").sum().alias("_sb")))
+    d = (j.filter(pl.col("tipo").is_in(tipos))
+         .select("match_id", "team", "id_saque", "tipo", "x_saque", "y_saque", "zona", "remates", "goles", "xg")
+         .join(p1.select("id_saque", "p_remate"), on="id_saque", how="left")
+         .join(rem, on="id_saque", how="left"))
+    hay = pl.col("remates") > 0
+    fuera = pl.col("xg") - pl.col("_sb").fill_null(0.0)                   # xG de los remates sin foto
+    d = d.with_columns(
+        pl.when(pl.col("tipo") == "tl_directo").then(1.0).otherwise(pl.col("p_remate")).alias("p"),
+        hay.cast(pl.Float64).alias("s"),
+        pl.when(hay).then(pl.col("_b").fill_null(0.0) + fuera).otherwise(0.0).alias("B"),
+        pl.when(hay).then(pl.col("_f").fill_null(0.0) + fuera).otherwise(0.0).alias("F"),
+        pl.col("goles").cast(pl.Float64).alias("g"),
+        pl.col("tipo").replace_strict({t: f for f, ts in FAMILIAS.items() for t in ts}).alias("familia"),
+    ).filter(pl.col("p").is_not_null()).drop("_b", "_f", "_sb", "p_remate")
+    kappa = d.filter(pl.col("s") == 1).group_by("tipo").agg(pl.col("B").mean().alias("kappa"))
+    d = d.join(kappa, on="tipo", how="left").with_columns(pl.col("kappa").fill_null(0.0))
+    k, sv = pl.col("kappa"), pl.col("s")
+    return d.with_columns(((pl.col("p") - sv) * k).alias("prev"), (sv * (k - pl.col("B"))).alias("lej"),
+                          (sv * (pl.col("B") - pl.col("F"))).alias("sup"), (sv * (pl.col("F") - pl.col("g"))).alias("port"),
+                          (pl.col("p") * k - pl.col("g")).alias("total"))
+
+
+def metricas_descomposicion(d: pl.DataFrame, tp: pl.DataFrame) -> list[pl.DataFrame]:
+    """Por equipo-partido, en goles por cada 100 saques: xd_<término>_<familia> del que defiende y
+    xo_<término>_<familia> (= −xd) del que saca."""
+    rival = tp.select("match_id", "team", "rival")
+    dd = d.join(rival, on=["match_id", "team"]).drop("team").rename({"rival": "team"})
+    out = []
+    for fam, ts in {**FAMILIAS, "todas": None}.items():
+        for lado, df, sg in (("xd", dd, 100.0), ("xo", d, -100.0)):
+            x = df if ts is None else df.filter(pl.col("tipo").is_in(list(ts)))
+            out.append(x.group_by("match_id", "team").agg(
+                *[(sg * pl.col(c).sum()).alias(f"{lado}_{c}_{fam}__n") for c in COMPONENTES],
+                *[pl.len().cast(pl.Float64).alias(f"{lado}_{c}_{fam}__d") for c in COMPONENTES]))
+    return out
+
+
+def metricas_tl(p2: pl.DataFrame, j: pl.DataFrame, tp: pl.DataFrame) -> list[pl.DataFrame]:
+    """Tiros libres directos EN CONTRA (del que pone la barrera): cuánto arco deja y cuántos la forman."""
+    if "barrera" not in p2.columns:
+        return []
+    ids = j.filter(pl.col("tipo") == "tl_directo").select("match_id", pl.col("id_saque").alias("id"))
+    t = (p2.join(ids, on=["match_id", "id"]).filter(pl.col("goal_open").is_not_nan())
+         .join(tp.select("match_id", "team", "rival"), on=["match_id", "team"]).drop("team")
+         .rename({"rival": "team"}))
+    return [t.group_by("match_id", "team").agg(pl.col("goal_open").sum().alias("arco_libre_tl__n"),
+                                               pl.len().cast(pl.Float64).alias("arco_libre_tl__d"),
+                                               pl.col("barrera").sum().cast(pl.Float64).alias("barrera_tl__n"),
+                                               pl.len().cast(pl.Float64).alias("barrera_tl__d"))]
+
+
+def cadena(d: pl.DataFrame, tp: pl.DataFrame, foco: str, n_boot: int = 500, seed: int = 0) -> dict:
+    """La cadena C → S → G de cada familia (y de cada tipo) para el foco atacando, el foco defendiendo y
+    la liga: probabilidades observadas y esperadas, y los cuatro términos por 100 saques con IC 95 %
+    (bootstrap de partidos). Signo: xD (goles evitados) al defender; xO (goles de más) al atacar."""
+    from .balon_parado import grupos
+    rng = np.random.default_rng(seed)
+    G = grupos(d, tp, foco)
+    out = {}
+    claves = [(f, pl.col("familia") == f) for f in FAMILIAS] + [("todas", pl.lit(True))] + \
+        [(t, pl.col("tipo") == t) for ts in FAMILIAS.values() for t in ts]
+    for clave, filtro in claves:
+        out[clave] = {}
+        for g, x0 in G.items():
+            x = x0.filter(filtro)
+            if x.height == 0:
+                continue
+            sg = -1.0 if g == "foco_ataque" else 1.0          # el foco al atacar: xO = −xD
+            a = x.group_by("match_id").agg(pl.len().alias("n"), *[pl.col(c).sum() for c in
+                                                                   ("s", "p", "g", "B", "F", *COMPONENTES)],
+                                            (pl.col("s") * pl.col("kappa")).sum().alias("sk"),
+                                            (pl.col("p") * pl.col("kappa")).sum().alias("pk"))
+            A = {c: a[c].to_numpy().astype(float) for c in a.columns if c != "match_id"}
+            n, S = A["n"].sum(), max(A["s"].sum(), 1e-12)
+            r = {"saques": int(n), "p_obs": A["s"].sum() / n, "p_esp": A["p"].sum() / n,
+                 "v_obs": A["g"].sum() / S, "v_kappa": A["sk"].sum() / S, "v_base": A["B"].sum() / S,
+                 "v_full": A["F"].sum() / S, "g_obs": A["g"].sum() / n, "g_esp": A["pk"].sum() / n}
+            idx = [rng.integers(0, len(A["n"]), len(A["n"])) for _ in range(n_boot)]
+            for c in COMPONENTES:
+                v = sg * 100 * A[c].sum() / n
+                b = [sg * 100 * A[c][i].sum() / A["n"][i].sum() for i in idx]
+                r[c] = {"valor": float(v), "lo": float(np.quantile(b, 0.025)), "hi": float(np.quantile(b, 0.975))}
+            out[clave][g] = {k: (float(v) if isinstance(v, (float, np.floating)) else v) for k, v in r.items()}
+    return out
 
 
 # ----------------------------------------------------------------------

@@ -22,7 +22,7 @@ import polars as pl
 
 from . import ingest
 
-TABLA_VERSION = 5          # sube cuando cambia lo que calcula `tabla_liga`: fuerza a rehacerla
+TABLA_VERSION = 6          # sube cuando cambia lo que calcula `tabla_liga`: fuerza a rehacerla
 
 
 def _slug(foco: str) -> str:
@@ -131,7 +131,8 @@ def cmd_extra(a, cfg):
 def _rutas_bp(cfg) -> dict:
     base = _ruta(cfg, cfg["futbol"]["tabla"]).parent
     return {"jugadas": base / "bp_jugadas.parquet", "capa1": base / "xd_capa1.parquet",
-            "capa2": base / "xd_capa2.parquet", "xdefensa": base / "xdefensa.json"}
+            "capa2": base / "xd_capa2.parquet", "xdefensa": base / "xdefensa.json",
+            "cadena": base / "xd_cadena.parquet"}
 
 
 def _estado(cfg) -> dict:
@@ -179,17 +180,23 @@ def tabla_liga(cfg, ev: pl.DataFrame | None = None, rehacer: bool = False) -> pl
     # xDefense: las dos capas sobre toda la liga (fuera de muestra)
     print("xDefense: capa 1 (prevención) y capa 2 (supresión)...", flush=True)
     p1, r1 = xd.capa1(j, fc["xd_folds"], fc["xd_lam"], cfg["seed"])
+    # modelo APARTE para los saques que no van al área (el de los centros, pre-registrado, no cambia)
+    p1o, r1o = xd.capa1(j, fc["xd_folds"], fc["xd_lam"], cfg["seed"], tipos=("tl_otro", "lateral_zona"))
+    p1 = pl.concat([p1, p1o])
     ff = (ingest.scan_events(cfg.ruta("eventos_parquet")).filter(pl.col("type") == "Shot")
           .select("id", "shot_freeze_frame").collect())
     rem = xd.remates_liga(ev, j, ff)
     p2, r2 = xd.capa2(rem, fc["xd_folds"], fc["xd_lam"], cfg["seed"])
     p1.write_parquet(rb["capa1"])
     p2.write_parquet(rb["capa2"])
-    _json({"capa1": r1, "capa2": r2}, rb["xdefensa"])
+    D = xd.descomposicion(j, p1, p2)
+    D.write_parquet(rb["cadena"])
+    kappa = {t: float(v) for t, v in D.group_by("tipo").agg(pl.col("kappa").first()).iter_rows()}
+    _json({"capa1": r1, "capa1_otros": r1o, "capa2": r2, "kappa": kappa}, rb["xdefensa"])
     tablas = (fb.ofensiva(ev, pos, fc) + fb.defensiva(ev, tp) + fb.transiciones(pos, fc)
               + fb.del_360(ev, rasgos, bloque, tp, fc) + of.metricas(ev, pos, fc, con_extra)
-              + df_.metricas(ev, rasgos, bloque, tp, fc) + bp.metricas(j, tp, fc["cobertura_min"])
-              + xd.metricas_equipo(p1, p2, tp)
+              + df_.metricas(ev, rasgos, bloque, tp, fc) + bp.metricas(j, tp, fc["cobertura_min"], fc["lateral_min_x"])
+              + xd.metricas_equipo(p1, p2, tp) + xd.metricas_descomposicion(D, tp) + xd.metricas_tl(p2, j, tp)
               + [estabilidad_once(leer_eventos(ingest.scan_events(cfg.ruta("eventos_parquet")))["xi"], tp)])
     M = fb.unir(tablas, tp)
     p.parent.mkdir(parents=True, exist_ok=True)
@@ -700,21 +707,88 @@ def cmd_jugadores(a, cfg):
 # ----------------------------------------------------------------------
 # BALÓN PARADO
 # ----------------------------------------------------------------------
-BP_TITULOS = {"a_favor": "A favor: cuántos, cuánto remate y cuánto xG por tipo de jugada",
-              "rutina": "A favor: cómo cobra sus corners",
-              "en_contra": "En contra: lo que le generan", "organizacion": "En contra: cómo se organiza (360)",
-              "xdefensa": "xDefense: lo que su defensa evita (dos capas)"}
+BP_TITULOS = {"corner_favor": "A favor: cuántos, cuánto remate y cuánto xG", "corner_rutina": "A favor: cómo los cobra",
+              "corner_contra": "En contra: lo que le generan", "corner_org": "En contra: cómo se para (360)",
+              "tl_favor": "A favor", "tl_contra": "En contra", "tl_org": "En contra: la línea y la barrera (360)",
+              "lat_favor": "A favor", "lat_contra": "En contra"}
 H_BP = {"H24": ("prevención: niega remates en centros a balón parado más que la liga", ["xd_prev"]),
         "H25": ("supresión: empeora los remates que concede más que la liga", ["xd_remate"]),
         "H26": ("se organiza distinto que la liga (marca, línea, trampa)",
                 ["al_hombre", "dist_marca", "altura_linea_tl", "fuera_juego_tl"])}
+CORNER_FAVOR = ["n_corner", "remate_corner", "xg_corner"]
+CORNER_ORG = ["de_area_corner", "de_chica_corner", "palo_cercano", "palo_lejano", "al_hombre", "dist_marca", "sobra",
+              "primer_contacto_def"]
+TL_FAVOR = ["n_tl_directo", "n_tl_centrado", "n_tl_otro", "tl_peligro", "xg_tl_directo", "remate_tl_centrado",
+            "xg_tl_centrado", "remate_tl_otro", "xg_tl_otro"]
+TL_ORG = ["altura_linea_tl", "en_linea_tl", "fuera_juego_tl", "arco_libre_tl", "barrera_tl"]
+LAT_FAVOR = ["lat_cuarto", "lat_cuarto_area", "lat_cuarto_remate", "lat_cuarto_xg", "lat_segunda", "n_lateral_largo",
+             "remate_lateral_largo", "xg_lateral_largo"]
+
+
+def _sub(md: list[str]) -> list[str]:
+    """Baja un nivel los títulos de `_comparar_bloques` (## → ###) para las subsecciones 5.x."""
+    return [("#" + x) if x.startswith("## ") else x for x in md]
+
+
+def _ic(r: dict, f: str = "{:+.2f}", e: float = 1.0) -> str:
+    if not r or not np.isfinite(r.get("valor", np.nan)):
+        return "—"
+    return f"{f.format(e * r['valor'])} [{f.format(e * r['lo'])}, {f.format(e * r['hi'])}]"
+
+
+def _md_cadena(cad: dict, claves: dict[str, str], foco: str) -> list[str]:
+    """La cadena C → S → G y los cuatro términos por grupo (foco a favor, foco en contra, liga)."""
+    nom = {"foco_ataque": f"{foco} a favor (xO)", "foco_defensa": f"{foco} en contra (xD)", "liga": "liga"}
+    L = ["| jugada | quién | saques | P(remate) real · esperada | goles por saque con remate: real · κ | "
+         "goles por 100: real · esperados | prevención | alejamiento | supresión | portero | **total** |",
+         "|---|---|---|---|---|---|---|---|---|---|---|"]
+    for c, etq in claves.items():
+        for g in ("foco_ataque", "foco_defensa", "liga"):
+            r = cad.get(c, {}).get(g)
+            if not r:
+                continue
+            t = ["—"] * 5 if g == "liga" else [_ic(r[x]) for x in ("prev", "lej", "sup", "port", "total")]
+            L.append(f"| {etq} | {nom[g]} | {r['saques']:,} | {100 * r['p_obs']:.1f} % · {100 * r['p_esp']:.1f} % | "
+                     f"{r['v_obs']:.3f} · {r['v_kappa']:.3f} | {100 * r['g_obs']:.2f} · {100 * r['g_esp']:.2f} | "
+                     + " | ".join(t[:4]) + f" | **{t[4]}** |")
+    return L + ["", "*Términos en goles por cada 100 saques respecto de lo esperado con una defensa (o un ataque) "
+                "promedio de la liga; positivo = bueno para " + foco + ". La liga es la referencia: sus términos son "
+                "≈ 0 por construcción.*", ""]
+
+
+def _md_etapa(E, foco: str, tit: str, n_etq: str) -> list[str]:
+    if E is None or E.height == 0:
+        return []
+    fila = E.with_row_index("puesto", 1).filter(pl.col("coach") == foco).to_dicts()
+    L = [f"**{tit}** — contracción empírico-bayesiana entre {E.height} técnicos-club (τ² = {float(E['tau2'][0]):.2e}; "
+         "τ² ≈ 0 = no se detecta variación real entre equipos):", ""]
+    L += [f"- {f['team']}: crudo {f['theta']:+.4f} ± {1.96 * np.sqrt(f['var']):.4f}, contraído {f['contraido']:+.4f} "
+          f"{n_etq} (confiabilidad {f['confiabilidad']:.2f}; puesto {f['puesto']} de {E.height}, 1 = el mejor)"
+          for f in fila]
+    return L + [""]
+
+
+def _tasas(j, tp, foco, tipos, res) -> list[str]:
+    from . import balon_parado as bp
+    L = ["| tipo | qué | lado | foco | liga | razón [IC 95 %] | p | dispersión |", "|---|---|---|---|---|---|---|---|"]
+    for tipo in tipos:
+        for que in ("remates", "goles"):
+            for lado in ("propio", "rival"):
+                r = bp.razon_de_tasas(j, tp, foco, tipo, que, lado)
+                if "razon" not in r:
+                    continue
+                res.append(r)
+                L.append(f"| {bp.NOMBRE[tipo]} | {que} por jugada | {'a favor' if lado == 'propio' else 'en contra'} | "
+                         f"{r['tasa_foco']:.3f} | {r['tasa_liga']:.3f} | {r['razon']:.2f} [{r['lo']:.2f}, "
+                         f"{r['hi']:.2f}] | {r['p']:.4f} | {r['dispersion_pearson']:.2f} |")
+    return L + ["", "*Poisson con exposición (número de jugadas) y varianza sandwich por partido.*", ""]
 
 
 def cmd_balon_parado(a, cfg):
     from . import balon_parado as bp
+    from . import graficas_secciones as gs
     from . import xdefensa as xd
     from .graficas_historia import densidad_balon_parado
-    from .graficas_secciones import corner_defensivo, linea_tiros_libres, rutinas_corner, xdefensa_etapas
     fc = cfg["futbol"]
     foco = _foco(a, cfg)
     M = tabla_liga(cfg)
@@ -722,75 +796,114 @@ def cmd_balon_parado(a, cfg):
     out = _dir(cfg, foco, "balon_parado")
     rb = _rutas_bp(cfg)
     j = pl.read_parquet(rb["jugadas"])
-    defs = {**bp.DEFINICIONES, **xd.DEFINICIONES}
-    bloques = {"a_favor": ("propio", bp.OFENSIVAS_BP), "rutina": ("propio", bp.RUTINA_BP),
-               "en_contra": ("rival", bp.OFENSIVAS_BP), "organizacion": ("propio", bp.DEFENSIVAS_BP),
-               "xdefensa": ("propio", ["xd_prev", "xd_remate", "xd_gol"])}
-    md = [f"# 5. Balón parado — {foco}", "", "Corners, tiros libres y laterales largos, a favor y en contra "
-          "(reto 5.4). Definiciones: 03_FRAMEWORK §6; el xDefense, 04_MODELO_MATEMATICO §16.", ""]
-    res, md_b = _comparar_bloques(M, bloques, defs, foco, fc, cfg["seed"], BP_TITULOS)
-    md += md_b
-    plano = _plano(res)
-    of = _bloque(M, ["xo_prev"], foco, "propio", fc, cfg["seed"])
+    D = pl.read_parquet(rb["cadena"]) if rb["cadena"].exists() else None
+    p2 = pl.read_parquet(rb["capa2"]) if rb["capa2"].exists() else None
+    defs = {**bp.DEFINICIONES, **xd.DEFINICIONES, **xd.DEFINICIONES_CADENA}
+    nb, seed, mp = min(fc["n_boot"], 500), cfg["seed"], fc["min_partidos_era"]
+    res, plano, tasas = {}, {}, []
+    fam_nom = {"corner": "corners", "tiro_libre": "tiros libres", "lateral": "laterales"}
+
+    def comparar(bloques):
+        r, m = _comparar_bloques(M, bloques, defs, foco, fc, seed, BP_TITULOS)
+        res.update(r)
+        plano.update(_plano(r))
+        return _sub(m)
+
+    def etapa(m, tit, etq, lado="propio", fig=True):
+        if f"{m}__n" not in M.columns:
+            return None, []
+        E = xd.por_etapa(M, m, lado, mp)
+        if E.height == 0:
+            return None, []
+        E.write_csv(out / f"etapas_{m}.csv")
+        res[f"etapas_{m}"] = {"mu": float(E["mu"][0]), "tau2": float(E["tau2"][0]), "etapas": E.height,
+                              "foco": E.with_row_index("puesto", 1).filter(pl.col("coach") == foco).to_dicts()}
+        if fig:
+            gs.xdefensa_etapas(E, foco, out / f"{m}_etapas.png", tit, etq)
+        return E, _md_etapa(E, foco, tit, etq)
+
+    cad = xd.cadena(D, tp, foco, nb, seed) if D is not None and D.height else {}
+    res["cadena"] = cad
+    md = [f"# 5. Balón parado — {foco}", "",
+          "Corners, tiros libres y laterales, **a favor y en contra**, comparados con la liga (reto 5.4). "
+          "Definiciones: 03_FRAMEWORK §6; el xDefense, 04_MODELO_MATEMATICO §16.", ""]
+
+    # ------------------------------------------------------------------ 5.1 el xDefense
+    md += ["## 5.1 El xDefense: nuestra métrica, y cómo se calcula", "",
+           "**El xDefense es una métrica propia del equipo** (trabajo previo de xDefense de corners, extendido aquí a "
+           "toda la liga, a los tres tipos de balón parado y al ataque). Parte un gol en dos preguntas: ¿te rematan? "
+           "(capa 1, prevención) y, si te rematan, ¿el remate entra? (capa 2, supresión). Sumando y restando, lo "
+           "que evita una defensa se parte **exactamente** en cuatro términos: prevención, alejamiento, supresión y "
+           "portero (04 §16.5–16.6).", ""]
+    for fam, nom in (("corner", "corner"), ("tiro_libre", "tiro libre"), ("lateral", "lateral")):
+        gs.arbol_xdefensa(cad, foco, fam, nom, out / f"arbol_{fam}.png")
+    gs.goal_open_esquema(out / "goal_open_esquema.png")
+    if rb["xdefensa"].exists():
+        cap = json.loads(rb["xdefensa"].read_text())
+        res["modelos_xdefensa"] = cap
+        c1, c2, c1o = cap["capa1"], cap["capa2"], cap.get("capa1_otros", {})
+        md += ["### Los modelos (toda la liga, fuera de muestra)", "",
+               f"- **Capa 1, centros al área** (corners, tiros libres y laterales al área; el modelo de H24): "
+               f"{c1['centros']:,} saques, {100 * c1['tasa_remate']:.1f} % con remate; AUC {c1['auc_fuera_de_muestra']:.3f}; "
+               f"calibración {c1['calibracion']:.3f} (1 = perfecta)."]
+        if "auc_fuera_de_muestra" in c1o:
+            md.append(f"- **Capa 1, saques que no van al área** (tiros libres cortos y laterales del último cuarto; "
+                      f"modelo aparte, exploratorio): {c1o['centros']:,} saques, {100 * c1o['tasa_remate']:.1f} % con "
+                      f"remate; AUC {c1o['auc_fuera_de_muestra']:.3f}; calibración {c1o['calibracion']:.3f}.")
+        md += [f"- **Capa 2:** {c2['remates']:,} remates con foto ({c2['remates_bp']:,} a balón parado, "
+               f"{c2['goles_bp']} goles); AUC sin defensa {c2['auc_base']:.3f} → con defensa {c2['auc_full']:.3f} "
+               f"(ΔAUC {c2['delta_auc']:+.3f} [{c2['delta_auc_lo']:+.3f}, {c2['delta_auc_hi']:+.3f}]). Dirección de la "
+               "geometría defensiva (coeficientes en desviaciones estándar): " +
+               ", ".join(f"{x['rasgo']} {x['coef_de']:+.2f}" for x in c2["coeficientes_full"] if x["rasgo"] in xd.DEFENSA),
+               "- **κ (goles que vale un saque con remate, liga):** " +
+               ", ".join(f"{bp.NOMBRE.get(t, t)} {v:.3f}" for t, v in sorted(cap.get("kappa", {}).items())), ""]
+    if cad:
+        md += ["### La cadena de cada familia", ""] + _md_cadena(cad, {f: fam_nom[f] for f in xd.FAMILIAS} |
+                                                              {"todas": "todo"}, foco)
+        gs.descomposicion(cad, foco, out / "descomposicion.png", fam_nom)
+    md += ["### Las hipótesis pre-registradas del xDefense (centros al área, H24 y H25)", ""]
+    md += comparar({"xdefensa": ("propio", ["xd_prev", "xd_remate", "xd_gol"])})
+    Ep, L1 = etapa("xd_prev", "Capa 1 · prevención: remates evitados por centro en contra", "remates evitados por centro")
+    Es, L2 = etapa("xd_remate", "Capa 2 · supresión: xG que su defensa le quita a cada remate", "xG quitado por remate")
+    md += L1 + L2
+    gs.mapa_xdefensa(Ep, Es, foco, out / "mapa_xdefensa.png", "prevención (remates evitados por centro)",
+                     "supresión (xG quitado por remate)")
+    of = _bloque(M, ["xo_prev"], foco, "propio", fc, seed)
     res["xo_prev"] = of
     if "xo_prev" in of:
         v = of["xo_prev"]
         md += [f"**Ejecución ofensiva** (remates generados por encima de lo esperado por centro propio): "
                f"{v['foco']:+.4f} contra {v['liga']:+.4f} ({v['dif']:+.4f} [{v['lo']:+.4f}, {v['hi']:+.4f}]) "
                f"{v.get('etiqueta', '')}", ""]
-    # tasas Poisson con exposición
-    res["tasas"] = []
-    md += ["## Tasas por jugada (Poisson con exposición, sandwich por partido)", "",
-           "| tipo | qué | lado | foco | liga | razón [IC 95 %] | p | dispersión |", "|---|---|---|---|---|---|---|---|"]
-    for tipo in bp.TIPOS:
-        for que in ("remates", "goles"):
-            for lado in ("propio", "rival"):
-                r = bp.razon_de_tasas(j, tp, foco, tipo, que, lado)
-                if "razon" not in r:
-                    continue
-                res["tasas"].append(r)
-                md.append(f"| {bp.NOMBRE[tipo]} | {que} | {'a favor' if lado == 'propio' else 'en contra'} | "
-                          f"{r['tasa_foco']:.3f} | {r['tasa_liga']:.3f} | {r['razon']:.2f} [{r['lo']:.2f}, "
-                          f"{r['hi']:.2f}] | {r['p']:.4f} | {r['dispersion_pearson']:.2f} |")
-    # xDefense: modelos y contracción por etapa
-    if rb["xdefensa"].exists():
-        cap = json.loads(rb["xdefensa"].read_text())
-        res["modelos_xdefensa"] = cap
-        c1, c2 = cap["capa1"], cap["capa2"]
-        md += ["", "## Los modelos del xDefense (toda la liga, fuera de muestra)", "",
-               f"- **Capa 1 (prevención):** {c1['centros']:,} centros a balón parado; {100 * c1['tasa_remate']:.1f} % "
-               f"con remate; AUC fuera de muestra {c1['auc_fuera_de_muestra']:.3f}; calibración "
-               f"{c1['calibracion']:.3f} (1 = perfecta).",
-               f"- **Capa 2 (supresión):** {c2['remates']:,} remates con foto ({c2['remates_bp']:,} a balón parado, "
-               f"{c2['goles_bp']} goles); AUC base {c2['auc_base']:.3f} → con defensa {c2['auc_full']:.3f} "
-               f"(ΔAUC {c2['delta_auc']:+.3f} [{c2['delta_auc_lo']:+.3f}, {c2['delta_auc_hi']:+.3f}]).",
-               "", "Dirección de la geometría defensiva (coeficientes en desviaciones estándar): " +
-               ", ".join(f"{x['rasgo']} {x['coef_de']:+.2f}" for x in c2["coeficientes_full"]
-                         if x["rasgo"] in xd.DEFENSA), ""]
-    for m, tit, etq in (("xd_prev", "Capa 1 · prevención: remates evitados por centro en contra",
-                         "remates evitados por centro"),
-                        ("xd_remate", "Capa 2 · supresión: xG que su defensa le quita a cada remate",
-                         "xG quitado por remate")):
-        if f"{m}__n" not in M.columns:
-            continue
-        E = xd.por_etapa(M, m, "propio", fc["min_partidos_era"])
-        if E.height == 0:
-            continue
-        E.write_csv(out / f"etapas_{m}.csv")
-        fila = E.with_row_index("puesto", 1).filter(pl.col("coach") == foco).to_dicts()
-        res[f"etapas_{m}"] = {"mu": float(E["mu"][0]), "tau2": float(E["tau2"][0]), "etapas": E.height, "foco": fila}
-        xdefensa_etapas(E, foco, out / f"{m}_etapas.png", tit, etq)
-        md += [f"**{tit}** — contracción empírico-bayesiana entre {E.height} técnicos-club (τ² = "
-               f"{float(E['tau2'][0]):.2e}; τ² ≈ 0 = no se detecta variación real entre equipos):", ""]
-        md += [f"- {f['team']}: crudo {f['theta']:+.4f} ± {1.96 * np.sqrt(f['var']):.4f}, contraído "
-               f"{f['contraido']:+.4f} (confiabilidad {f['confiabilidad']:.2f}; puesto {f['puesto']} de {E.height}, 1 = la mejor defensa)"
-               for f in fila]
-        md.append("")
-    # rutinas y receta Arsenal
-    rut = bp.rutinas(j, tp, foco, min(fc["n_boot"], 500), cfg["seed"])
+
+    # ------------------------------------------------------------------ 5.2 corners
+    md += ["## 5.2 Corners", ""]
+    md += comparar({"corner_favor": ("propio", CORNER_FAVOR), "corner_rutina": ("propio", bp.RUTINA_BP),
+                    "corner_contra": ("rival", CORNER_FAVOR), "corner_org": ("propio", CORNER_ORG)})
+    md += ["### Remates y goles por corner", ""] + _tasas(j, tp, foco, ["corner"], tasas)
+    if cad:
+        md += ["### El xDefense de los corners (a favor y en contra)", ""] + _md_cadena(cad, {"corner": "corner"}, foco)
+    for m, tit, etq in (("xd_total_corner", "Corners en contra · goles evitados (xD total)", "goles evitados por 100 corners"),
+                        ("xo_total_corner", "Corners a favor · goles de más (xO total)", "goles de más por 100 corners"),
+                        ("xd_prev_corner", "Corners en contra · prevención", "goles evitados por 100 corners"),
+                        ("xd_sup_corner", "Corners en contra · supresión", "goles evitados por 100 corners")):
+        md += etapa(m, tit, etq)[1]
+    # marca al hombre contra remates concedidos, técnico por técnico
+    if "al_hombre__n" in M.columns and "remate_corner__n" in M.columns:
+        A = xd.por_etapa(M, "al_hombre", "propio", mp)
+        B = xd.por_etapa(M, "remate_corner", "rival", mp)
+        if A.height and B.height:
+            Dd = A.select("coach", "team", pl.col("theta").alias("x")).join(
+                B.select("coach", "team", pl.col("theta").alias("y")), on=["coach", "team"])
+            gs.dispersion_etapas(Dd.with_columns(pl.col("x") * 100, pl.col("y") * 100), foco,
+                                 out / "marca_vs_remate.png", "% de defensores del área marcando al hombre",
+                                 "% de corners en contra que terminan en remate",
+                                 "¿Marcar al hombre evita remates en los corners en contra?",
+                                 "Cada punto es un técnico en un club. Asociación entre técnicos, no causa.")
+    rut = bp.rutinas(j, tp, foco, nb, seed)
     res["rutinas"] = rut
-    rutinas_corner(rut, foco, out / "rutinas_corner.png", bp.ZONA_NOMBRE)
-    md += ["## ¿Qué corners funcionan en la Liga MX? (rutina = técnica × destino)", "",
+    gs.rutinas_corner(rut, foco, out / "rutinas_corner.png", bp.ZONA_NOMBRE)
+    md += ["### ¿Qué corners funcionan en la Liga MX? (rutina = técnica × destino)", "",
            "| rutina | corners en la liga | xG por corner [IC 95 %] | remate | uso liga | uso foco |",
            "|---|---|---|---|---|---|"]
     md += [f"| {r['tecnica']} → {bp.ZONA_NOMBRE.get(r['zona'], r['zona'])} | {r['corners_liga']:,} | "
@@ -802,24 +915,103 @@ def cmd_balon_parado(a, cfg):
                f"encima del portero): {ra['corners']:,} corners, {ra['xg_receta']:.3f} xG por corner contra "
                f"{ra['xg_resto']:.3f} del resto ({ra['dif']:+.3f} [{ra['lo']:+.3f}, {ra['hi']:+.3f}], "
                f"p = {ra['p']:.3f}). {foco} la usa en {100 * ra['uso_foco']:.0f} % de sus corners; la liga en "
-               f"{100 * ra['uso_liga']:.0f} %.", ""]
-    # organización defensiva y línea de tiros libres
+               f"{100 * ra['uso_liga']:.0f} %."]
+    md.append("")
     perfil = bp.perfil_defensivo(j, tp, foco, fc["cobertura_min"])
     res["perfil_defensivo"] = perfil
-    corner_defensivo(perfil, foco, out / "corner_defensivo.png")
+    gs.corner_defensivo(perfil, foco, out / "corner_defensivo.png")
+
+    # ------------------------------------------------------------------ 5.3 tiros libres
+    md += ["## 5.3 Tiros libres", ""]
+    md += comparar({"tl_favor": ("propio", TL_FAVOR), "tl_contra": ("rival", TL_FAVOR), "tl_org": ("propio", TL_ORG)})
+    directos = None
+    if p2 is not None and "barrera" in p2.columns:
+        directos = p2.select("match_id", "id", "goal_open", "barrera")
+    rtl = bp.resumen_tiros_libres(j, directos, tp, foco, nb, seed)
+    res["tiros_libres"] = rtl
+    gs.tiros_libres(rtl, foco, out / "tiros_libres.png")
+    nom = {"foco_ataque": f"{foco} a favor", "foco_defensa": f"{foco} en contra", "liga": "liga (cada equipo)"}
+    md += ["### Cuántos, dónde y cómo se juegan", "",
+           "| quién | por partido | a ≤ 30 m por partido | de esos: directo · al área · corto | xG por directo | "
+           "goles por 100 directos | arco libre en el directo | en la barrera |", "|---|---|---|---|---|---|---|---|"]
+    for g in ("foco_ataque", "foco_defensa", "liga"):
+        r = rtl.get(g)
+        if not r:
+            continue
+        rp, di = r["reparto_peligrosos"], r["directo"]
+        md.append(f"| {nom[g]} | {r['por_partido']:.2f} | {r['peligrosos_por_partido']:.2f} | "
+                  f"{100 * rp['tl_directo']:.0f} · {100 * rp['tl_centrado']:.0f} · {100 * rp['tl_otro']:.0f} % | "
+                  f"{_ic(di['xg'], '{:.3f}')} | {_ic(di['gol'], '{:.1f}', 100)} | "
+                  f"{_ic(di.get('goal_open'), '{:.0f}', 100)} % | {_ic(di.get('barrera'), '{:.1f}')} |")
+    md += ["", "*En contra, la barrera y el arco libre son de SU defensa. Arco libre = fracción del arco que ve el que "
+           "cobra, descontando la sombra de la barrera y de los defensores (capa 2).*", ""]
+    md += ["### Remates y goles por tiro libre", ""] + _tasas(j, tp, foco, ["tl_directo", "tl_centrado", "tl_otro"], tasas)
+    if cad:
+        md += ["### El xDefense de los tiros libres", ""] + _md_cadena(
+            cad, {"tiro_libre": "tiros libres (todos)", "tl_directo": "directo", "tl_centrado": "al área",
+                  "tl_otro": "corto / a la banda"}, foco)
+    for m, tit, etq in (("xd_total_tiro_libre", "Tiros libres en contra · goles evitados (xD total)",
+                         "goles evitados por 100 tiros libres"),
+                        ("xo_total_tiro_libre", "Tiros libres a favor · goles de más (xO total)",
+                         "goles de más por 100 tiros libres")):
+        md += etapa(m, tit, etq)[1]
     if "altura_linea_tactica" in j.columns:
         tl = (j.filter(pl.col("tipo").is_in(["tl_centrado", "tl_otro"]) & pl.col("altura_linea_tactica").is_not_nan())
               .join(tp.select("match_id", "team", "coach", "coach_rival"), on=["match_id", "team"]))
         pf = tl.filter((pl.col("coach") == foco) | (pl.col("coach_rival") == foco))["match_id"].unique().to_list()
-        linea_tiros_libres(tl.filter(pl.col("coach_rival") == foco)["altura_linea_tactica"].to_numpy(),
-                           tl.filter(~pl.col("match_id").is_in(pf))["altura_linea_tactica"].to_numpy(), foco,
-                           out / "linea_tiros_libres.png")
+        gs.linea_tiros_libres(tl.filter(pl.col("coach_rival") == foco)["altura_linea_tactica"].to_numpy(),
+                              tl.filter(~pl.col("match_id").is_in(pf))["altura_linea_tactica"].to_numpy(), foco,
+                              out / "linea_tiros_libres.png")
+
+    # ------------------------------------------------------------------ 5.4 laterales
+    x0, x8 = fc["lateral_min_x"], fc.get("lateral_octavo_x", 105.0)
+    md += [f"## 5.4 Laterales en el último cuarto (x ≥ {x0:.0f} m) y en el último octavo (x ≥ {x8:.0f} m)", ""]
+    md += comparar({"lat_favor": ("propio", LAT_FAVOR), "lat_contra": ("rival", LAT_FAVOR)})
+    rl = bp.resumen_laterales(j, tp, foco, x0, x8, nb, seed)
+    res["laterales"] = rl
+    for tramo in ("cuarto", "octavo"):
+        gs.laterales(rl, foco, out / f"laterales_{tramo}.png", tramo)
+        md += [f"### Desde el último {tramo} (x ≥ {x0 if tramo == 'cuarto' else x8:.0f} m)", "",
+               "| quién | por partido | al área | al área chica | primer toque propio | con remate | "
+               "remate con ≥ 2 que intervienen | gol | xG por lateral | intervienen hasta el remate (1 · 2 · 3+) |",
+               "|---|---|---|---|---|---|---|---|---|---|"]
+        for g in ("foco_ataque", "foco_defensa", "liga"):
+            r = rl[tramo].get(g)
+            if not r:
+                continue
+            iv = r["intervienen"]
+            md.append(f"| {nom[g]} | {r['por_partido']:.2f} | {_ic(r['al_area'], '{:.1f}', 100)} % | "
+                      f"{_ic(r['area_chica'], '{:.1f}', 100)} % | {_ic(r['primer_contacto'], '{:.1f}', 100)} % | "
+                      f"{_ic(r['remate'], '{:.1f}', 100)} % | {_ic(r['segunda'], '{:.1f}', 100)} % | "
+                      f"{_ic(r['gol'], '{:.2f}', 100)} % | {_ic(r['xg'], '{:.3f}')} | {iv['1']} · {iv['2']} · {iv['3+']} |")
+        md += ["", "**Caen en el área chica y terminan en remate con ≥ 2 que intervienen** (lo que pide el reto):", ""]
+        for g in ("foco_ataque", "foco_defensa", "liga"):
+            r = rl[tramo].get(g)
+            if r:
+                c = r["chica_segunda"]
+                md.append(f"- {nom[g]}: {c['laterales']:,} laterales al área chica → {c['remate']:,} con remate, "
+                          f"{c['remate_2mas']:,} de ellos con ≥ 2 que intervienen; {c['goles']} goles.")
+        md.append("")
+    md += ["### Remates y goles por lateral", ""] + _tasas(j, tp, foco, ["lateral_largo", "lateral_zona"], tasas)
+    if cad:
+        md += ["### El xDefense de los laterales", ""] + _md_cadena(
+            cad, {"lateral": "laterales (todos)", "lateral_largo": "al área", "lateral_zona": "no al área"}, foco)
+    for m, tit, etq in (("xd_total_lateral", "Laterales en contra · goles evitados (xD total)",
+                         "goles evitados por 100 laterales"),
+                        ("xo_total_lateral", "Laterales a favor · goles de más (xO total)", "goles de más por 100 laterales")):
+        md += etapa(m, tit, etq)[1]
+
+    # ------------------------------------------------------------------ zonas y cierre
     for tipo in ("corner", "tl_centrado", "lateral_largo"):
         for lado in ("propio", "rival"):
-            mp = bp.mapas(j, tp, foco, tipo, lado)
-            densidad_balon_parado(mp, foco, bp.NOMBRE[tipo], lado, out / f"zonas_{tipo}_{lado}.png")
+            mp_ = bp.mapas(j, tp, foco, tipo, lado)
+            densidad_balon_parado(mp_, foco, bp.NOMBRE[tipo], lado, out / f"zonas_{tipo}_{lado}.png")
+    res["tasas"] = tasas
     res["hipotesis"] = _hipotesis(H_BP, plano)
     md += _tabla_hipotesis(res["hipotesis"], defs)
+    md += ["*Todo lo que no es H24–H26 (la cadena por familia, los cuatro términos, tiros libres y laterales) es "
+           "**exploratorio**: se agregó después de ver los resultados de la fase G y no entra al control global de "
+           "falsos positivos.*", ""]
     _escribir(out, "balon_parado", md, res)
 
 

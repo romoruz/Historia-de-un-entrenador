@@ -487,3 +487,84 @@ def test_figuras_de_las_secciones(tmp_path):
     fams = [{"foco": {"visitas": list(np.full(20, 0.05)), "camino": [5, 9, 17], "prob_camino": 0.01},
              "liga": {"visitas": list(np.full(20, 0.05)), "camino": [5, 13, 17], "prob_camino": 0.02}}] * 3
     assert g.familias_cancha(fams, ["a", "b", "c"], 5, 4, "F", tmp_path / "h.png").exists()
+
+
+# ----------------------------------------------------------------------
+# Balón parado: la cadena completa (5.1–5.4)
+# ----------------------------------------------------------------------
+def test_cadena_de_un_lateral_con_peinada():
+    ev = pl.DataFrame([
+        _ev(1, x=100., y=0., fin_x=112., fin_y=36., pass_type="Throw-in", player_id=10, reloj=0.),
+        _ev(2, type="Ball Receipt*", x=112., y=36., player_id=11, reloj=1.),
+        _ev(3, x=112., y=36., fin_x=113., fin_y=42., player_id=11, reloj=1.5),      # la peinada
+        _ev(4, type="Clearance", team="B", x=8., y=38., player_id=20, reloj=2.),
+        _ev(5, type="Shot", x=113., y=42., player_id=12, shot_statsbomb_xg=0.3, shot_outcome="Goal", reloj=3.),
+        _ev(6, x=100., y=80., fin_x=95., fin_y=70., pass_type="Throw-in", player_id=10, reloj=60.),
+    ], infer_schema_length=None)
+    j = {r["id_saque"]: r for r in bp.jugadas(ev, {**FC, "lateral_min_x": 90.0}).iter_rows(named=True)}
+    assert j["e1"]["tipo"] == "lateral_largo" and j["e1"]["intervienen"] == 2 and j["e1"]["pases_cadena"] == 1
+    assert j["e6"]["tipo"] == "lateral_zona" and j["e6"]["intervienen"] is None      # sin remate: no hay cadena
+    J = bp.jugadas(ev, {**FC, "lateral_min_x": 90.0})
+    tp = pl.DataFrame([{"match_id": 1, "team": "A", "rival": "B", "coach": "F", "coach_rival": "L"},
+                       {"match_id": 1, "team": "B", "rival": "A", "coach": "L", "coach_rival": "F"}])
+    M = fb.unir(bp.metricas(J, tp, 0.8, 90.0), tp)
+    a = M.filter(pl.col("team") == "A").row(0, named=True)
+    assert a["lat_cuarto__n"] == 2 and a["lat_segunda__n"] == 1 and a["lat_cuarto_area__n"] == 1
+
+
+def _descomposicion_sembrada(seed=0, n=3000):
+    rng = np.random.default_rng(seed)
+    tipos = rng.choice(["corner", "tl_centrado", "tl_directo", "lateral_largo", "lateral_zona"], n)
+    rem = np.where(tipos == "tl_directo", 1, rng.integers(0, 3, n) * (rng.random(n) < 0.4))
+    ids = [[f"s{i}-{k}" for k in range(r)] if r else None for i, r in enumerate(rem)]
+    xs = [rng.uniform(0.02, 0.3, r) for r in rem]
+    goles = [int((rng.random(r) < x).sum()) for r, x in zip(rem, xs)]
+    j = pl.DataFrame({"match_id": rng.integers(0, 200, n), "team": rng.choice(["A", "B"], n),
+                      "id_saque": [f"s{i}" for i in range(n)], "tipo": tipos, "x_saque": 110.0, "y_saque": 5.0,
+                      "zona": "penal", "remates": rem, "goles": goles, "xg": [float(x.sum()) for x in xs],
+                      "ids_remate": ids}, schema_overrides={"ids_remate": pl.List(pl.Utf8)})
+    p1 = j.filter(pl.col("tipo") != "tl_directo").select("match_id", "team", "id_saque", "tipo").with_columns(
+        pl.Series("p_remate", rng.uniform(0.1, 0.6, int((tipos != "tl_directo").sum()))))
+    filas = [{"id": f"s{i}-{k}", "xg_sb": float(x[k]), "xg_base": float(x[k] * 1.1), "xg_full": float(x[k] * 0.9)}
+             for i, x in enumerate(xs) for k in range(len(x)) if k == 0]          # solo el 1.º remate tiene foto
+    return j, p1, pl.DataFrame(filas)
+
+
+def test_descomposicion_exacta_y_kappa():
+    j, p1, p2 = _descomposicion_sembrada()
+    D = xd.descomposicion(j, p1, p2)
+    assert D.height == j.height
+    suma = (D["prev"] + D["lej"] + D["sup"] + D["port"]).to_numpy()
+    assert np.allclose(suma, D["total"].to_numpy(), atol=1e-12)                    # la identidad es exacta
+    d = D.filter(pl.col("tipo") == "tl_directo")
+    assert (d["p"] == 1).all() and np.allclose(d["prev"].to_numpy(), 0)             # el directo no tiene capa 1
+    k = D.filter((pl.col("tipo") == "corner") & (pl.col("s") == 1))
+    assert k["kappa"][0] == pytest.approx(k["B"].mean())
+    # un remate sin foto entra con su xG en B y en F: la supresión solo mira los remates con foto
+    r = D.filter(pl.col("remates") == 2).row(0, named=True)
+    x1 = p2.filter(pl.col("id") == f"{r['id_saque']}-0")["xg_sb"][0]
+    assert r["B"] - r["F"] == pytest.approx(0.2 * x1)                              # 1.1·x1 − 0.9·x1
+    assert r["B"] == pytest.approx(r["xg"] + 0.1 * x1)
+
+
+def test_cadena_signos_y_grupos():
+    j, p1, p2 = _descomposicion_sembrada(n=2000)
+    tp = pl.DataFrame([{"match_id": m, "team": t, "rival": r, "coach": c, "coach_rival": cr}
+                       for m in range(200) for t, r, c, cr in (("A", "B", "F" if m < 60 else "L", "R"),
+                                                               ("B", "A", "R", "F" if m < 60 else "L"))])
+    D = xd.descomposicion(j, p1, p2)
+    c = xd.cadena(D, tp, "F", n_boot=50, seed=0)
+    fa, fd = c["todas"]["foco_ataque"], c["todas"]["foco_defensa"]
+    x = D.join(tp.select("match_id", "team", "coach"), on=["match_id", "team"])
+    esp = -100 * x.filter(pl.col("coach") == "F")["total"].mean()
+    assert fa["total"]["valor"] == pytest.approx(esp)                                # al atacar: xO = −xD
+    assert fd["total"]["lo"] <= fd["total"]["valor"] <= fd["total"]["hi"]
+    M = fb.unir(xd.metricas_descomposicion(D, tp), tp)
+    a = M.filter(pl.col("team") == "A")
+    assert a["xo_total_todas__n"].sum() == pytest.approx(-100 * D.filter(pl.col("team") == "A")["total"].sum())
+
+
+def test_barrera():
+    # tiro libre a 20 m, centrado: tres en la barrera a 9.15 m, uno lejos, uno fuera del ángulo
+    de = np.array([[109.15, 39.5], [109.15, 40.0], [109.15, 40.5], [118.0, 30.0], [105.0, 60.0]])
+    assert xd.barrera(100.0, 40.0, de) == 3

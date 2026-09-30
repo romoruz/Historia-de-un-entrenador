@@ -373,26 +373,352 @@ def linea_tiros_libres(f: np.ndarray, lg: np.ndarray, foco: str, path: Path) -> 
     return _guardar(fig, path)
 
 
+FOCO_DEF = "#0d366b"                       # el foco defendiendo (mismo tono que el foco, más oscuro)
+TERMINOS = {"prev": ("prevención", "#4a3aa7"), "lej": ("alejamiento", "#1baf7a"),
+            "sup": ("supresión", "#eda100"), "port": ("portero y definición", "#e87ba4")}
+GRUPO_COLOR = {"foco_ataque": FOCO, "foco_defensa": FOCO_DEF, "liga": LIGA}
+
+
+def _grupo_nombre(g: str, foco: str) -> str:
+    return {"foco_ataque": f"{foco} a favor", "foco_defensa": f"{foco} en contra", "liga": "liga"}[g]
+
+
+def _chip(ax, x, y, color, texto, size=8, transform=None):
+    """Cuadrito de color + texto en tinta (la identidad la lleva la marca, no el texto)."""
+    tr = transform or ax.transData
+    ax.text(x, y, "■", color=color, fontsize=size + 1, va="center", ha="left", transform=tr)
+    ax.text(x, y, "    " + texto, color=TINTA, fontsize=size, va="center", ha="left", transform=tr)
+
+
+def arbol_xdefensa(cad: dict, foco: str, familia: str, nombre: str, path: Path) -> Path:
+    """El árbol de probabilidad del xDefense: saque → remate → gol, con los números de la liga y del foco,
+    y a la derecha la demostración (probabilidad condicional y total, en cadena)."""
+    c = cad.get(familia, {})
+    if "liga" not in c:
+        return path
+    fig = plt.figure(figsize=(13, 5.6))
+    ax = fig.add_axes([0.0, 0.0, 0.55, 0.88])
+    tx = fig.add_axes([0.56, 0.0, 0.44, 0.88])
+    for a in (ax, tx):
+        a.set_axis_off()
+    ax.set_xlim(0, 10)
+    ax.set_ylim(0, 10)
+    nodos = {"C": (0.9, 5.0), "S": (5.6, 7.4), "noS": (5.6, 2.6), "G": (9.0, 9.2), "noG": (9.0, 5.8)}
+    etiq = {"C": f"saque\n({nombre})", "S": "hay remate", "noS": "sin remate\n(la defensa ganó)",
+            "G": "gol", "noG": "sin gol"}
+    for a, b in (("C", "S"), ("C", "noS"), ("S", "G"), ("S", "noG")):
+        ax.annotate("", xy=nodos[b], xytext=nodos[a],
+                    arrowprops=dict(arrowstyle="-|>", color=TINTA2, lw=1.2, shrinkA=28, shrinkB=28))
+    for k, (x, y) in nodos.items():
+        ax.text(x, y, etiq[k], ha="center", va="center", fontsize=9, color=TINTA,
+                bbox=dict(boxstyle="round,pad=0.45", fc=SUPERFICIE, ec=TINTA2, lw=0.8))
+    grupos = [g for g in ("liga", "foco_defensa", "foco_ataque") if g in c]
+
+    def bloque(x, y, clave, fmt):
+        for i, g in enumerate(grupos):
+            _chip(ax, x, y - 0.55 * i, GRUPO_COLOR[g], f"{_grupo_nombre(g, foco)}: {fmt(c[g][clave])}", size=7.5)
+    bloque(0.3, 8.9, "p_obs", lambda v: f"{100 * v:.1f} %")
+    ax.text(0.3, 9.55, "P(remate | saque)  → capa 1", fontsize=8.5, color=TINTA, weight="bold")
+    bloque(5.9, 4.9, "v_obs", lambda v: f"{v:.3f}")
+    ax.text(5.9, 5.55, "E[goles | remate]  → capa 2", fontsize=8.5, color=TINTA, weight="bold")
+    bloque(0.3, 1.1, "g_obs", lambda v: f"{100 * v:.2f} goles por 100")
+    ax.text(0.3, 1.75, "P(gol | saque) = producto de las dos", fontsize=8.5, color=TINTA, weight="bold")
+    ax.set_title(f"xDefense (métrica propia del equipo): cómo se descompone un gol de {nombre}",
+                 loc="left", fontsize=11, x=0.02)
+    lineas = [
+        (r"$\mathbf{1.\ Condicional}$  (no hay gol sin remate: $G\subseteq S$)", 9.6),
+        (r"$P(G\mid C)=P(G\cap S\mid C)=P(S\mid C)\;P(G\mid S,C)$", 8.95),
+        (r"$\mathbf{2.\ Total}$  (se parte en «hubo remate» / «no hubo»)", 8.1),
+        (r"$P(G\mid C)=P(G\mid S,C)\,P(S\mid C)+P(G\mid \bar S,C)\,P(\bar S\mid C)$,  con $P(G\mid \bar S,C)=0$", 7.45),
+        (r"$\mathbf{3.\ Recursión}$  (el rechace: 2.º, 3.er remate en la jugada)", 6.6),
+        (r"$V_k=P(S_k\mid \ldots)\,[\,q_k+(1-q_k)\,V_{k+1}\,]$,   $P(G\mid C)=V_1$", 5.95),
+        (r"$\mathbf{4.\ Lo\ que\ evita\ la\ defensa}$  (sumar y restar: exacto)", 5.1),
+        (r"$\hat p\,\kappa-g\;=\;(\hat p-s)\,\kappa\;+\;s\,(\kappa-B)\;+\;s\,(B-F)\;+\;s\,(F-g)$", 4.45),
+        (r"                  prevención      alejamiento    supresión     portero", 3.9),
+    ]
+    tx.set_xlim(0, 10)
+    tx.set_ylim(0, 10)
+    for t, y in lineas:
+        tx.text(0.1, y, t, fontsize=9.5 if "$" in t else 7.5, color=TINTA if "$" in t else TINTA2, va="center")
+    tx.text(0.1, 1.9, "p̂ = remate esperado (capa 1) · s = hubo remate · κ = lo que vale un saque con remate en\n"
+                      "la liga · B, F = xG de sus remates sin y con la defensa (capa 2) · g = goles.\n"
+                      "Positivo = gol que la defensa evitó; al atacar, el signo se invierte (xO).",
+            fontsize=7.5, color=TINTA2, va="center")
+    return _guardar(fig, path)
+
+
+def goal_open_esquema(path: Path) -> Path:
+    """Cómo se mide la capa 2: la parte del arco que ve el que remata, descontando la sombra de cada defensor."""
+    from .xdefensa import goal_open
+    sx, sy = 106.0, 33.0
+    de = np.array([[111.0, 36.5], [113.5, 40.5], [110.0, 30.0]])
+    gk = (118.8, 39.0)
+    fig, ax = plt.subplots(figsize=(7.5, 5.2))
+    ax.plot([120, 120], [36, 44], color=TINTA, lw=4, solid_capstyle="butt")
+    ax.plot([102, 120, 120, 102, 102], [18, 18, 62, 62, 18], color=TINTA2, lw=0.8)
+    ax.plot([114, 120, 120, 114, 114], [30, 30, 50, 50, 30], color=TINTA2, lw=0.8)
+    ax.add_patch(Polygon([(sx, sy), (120, 36), (120, 44)], closed=True, color=FOCO, alpha=0.12, lw=0))
+    for dx, dy in de:
+        d = np.hypot(dx - sx, dy - sy)
+        fi, al = np.arctan2(dy - sy, dx - sx), np.arcsin(0.5 / d)
+        pts = [(sx, sy)] + [(120.0, sy + (120.0 - sx) * np.tan(fi + a)) for a in (-al, al)]
+        ax.add_patch(Polygon(pts, closed=True, color=TINTA2, alpha=0.28, lw=0))
+        ax.add_patch(plt.Circle((dx, dy), 0.5, color=LIGA, zorder=4))
+    ax.add_patch(plt.Circle(gk, 0.5, color=TINTA, zorder=4))
+    ax.scatter([sx], [sy], s=80, color=FOCO, zorder=5)
+    go = goal_open(sx, sy, de)
+    ax.text(sx - 0.5, sy - 1.6, "remata", ha="right", fontsize=8, color=TINTA)
+    ax.text(gk[0] + 0.3, gk[1] - 1.1, "portero", ha="right", fontsize=8, color=TINTA)
+    ax.text(107.5, 27.2, "defensores (disco de 0.5 m)", fontsize=7.5, color=TINTA2)
+    ax.text(0.03, 0.04, f"arco que ve el que remata (goal_open): {100 * go:.0f} %\n"
+                        "= 1 − (sombras de los defensores, sin contar dos veces\n   la parte donde se enciman) / (ángulo del arco)",
+            fontsize=8, color=TINTA, transform=ax.transAxes,
+            bbox=dict(boxstyle="round,pad=0.4", fc=SUPERFICIE, ec=GRIS, lw=0.8))
+    ax.set_xlim(100, 122)
+    ax.set_ylim(52, 24)
+    ax.set_aspect("equal")
+    ax.set_axis_off()
+    _titulo(ax, "Capa 2 del xDefense: cuánto arco le tapa la defensa al que remata",
+            "Azul claro = el ángulo del arco desde el remate; gris = la sombra de cada defensor. "
+            "Cuanto menos arco libre, menos vale el remate (xG_full < xG_base).")
+    return _guardar(fig, path)
+
+
+def descomposicion(cad: dict, foco: str, path: Path, familias: dict[str, str]) -> Path:
+    """Goles por 100 saques que el foco evita (en contra) o genera de más (a favor), partidos en los cuatro
+    términos exactos. Barras apiladas divergentes; el rombo es el total con su IC 95 %."""
+    filas = [(f, g) for f in familias for g in ("foco_defensa", "foco_ataque") if g in cad.get(f, {})]
+    if not filas:
+        return path
+    fig, ax = plt.subplots(figsize=(9.5, 0.62 * len(filas) + 1.8))
+    ys = np.arange(len(filas))[::-1]
+    for y, (f, g) in zip(ys, filas):
+        r = cad[f][g]
+        pos = neg = 0.0
+        for t, (_, col) in TERMINOS.items():
+            v = r[t]["valor"]
+            izq = pos if v >= 0 else neg + v
+            ax.barh(y, abs(v), left=izq, height=0.56, color=col, edgecolor=SUPERFICIE, linewidth=2)
+            if v >= 0:
+                pos += v
+            else:
+                neg += v
+        tot = r["total"]
+        ax.plot([tot["lo"], tot["hi"]], [y, y], color=TINTA, lw=1.2, zorder=5)
+        ax.scatter([tot["valor"]], [y], marker="D", s=38, color=TINTA, zorder=6, edgecolor=SUPERFICIE)
+        ax.text(max(pos, tot["hi"]) + 0.08, y, f"total {tot['valor']:+.2f} [{tot['lo']:+.2f}, {tot['hi']:+.2f}]",
+                va="center", fontsize=7.5, color=TINTA)
+    ax.set_yticks(ys)
+    ax.set_yticklabels([f"{familias[f]} · {'en contra (xD)' if g == 'foco_defensa' else 'a favor (xO)'}"
+                        for f, g in filas], fontsize=8.5)
+    ax.axvline(0, color=TINTA2, lw=0.8)
+    ax.set_xlabel("goles por cada 100 saques respecto de lo esperado (+ = bueno para él)")
+    for t, (nom, col) in TERMINOS.items():
+        ax.barh([np.nan], [0], color=col, label=nom)
+    ax.legend(frameon=False, fontsize=8, ncol=4, loc="upper left", bbox_to_anchor=(0, -0.1 - 0.5 / len(filas)))
+    xl = ax.get_xlim()
+    ax.set_xlim(xl[0], xl[1] + 0.35 * (xl[1] - xl[0]))
+    _titulo(ax, f"¿De dónde salen los goles que {foco} evita y genera a balón parado?",
+            "Cada barra suma los cuatro términos de la identidad exacta (a la derecha de 0, a su favor). "
+            "Rombo y raya = el total con su IC 95 % por partidos.", ancho=80)
+    return _guardar(fig, path)
+
+
 def xdefensa_etapas(E, foco: str, path: Path, titulo: str, etiqueta: str) -> Path:
-    """Oruga: θ contraído de cada técnico-club con su confiabilidad, el foco resaltado."""
+    """Todos los técnicos-club en filas (el mejor arriba): punto hueco = su valor crudo, punto lleno = el
+    valor tras descontar el ruido (contraído), y la raya une los dos. El foco va en azul y en negritas."""
     if E is None or E.height == 0:
         return path
-    E = E.sort("contraido")
-    fig, ax = plt.subplots(figsize=(8, 4))
-    x = np.arange(E.height)
-    th, c = E["contraido"].to_numpy(), E["theta"].to_numpy()
-    se = np.sqrt(E["var"].to_numpy())
+    E = E.sort("contraido", descending=True)
+    n = E.height
+    fig, ax = plt.subplots(figsize=(8.5, 0.2 * n + 1.9))
+    y = np.arange(n)[::-1]
+    th, c = E["theta"].to_numpy(), E["contraido"].to_numpy()
     es = (E["coach"] == foco).to_numpy()
-    ax.errorbar(x[~es], c[~es], yerr=1.96 * se[~es], fmt="none", ecolor="#e6e5e0", lw=1)
-    ax.scatter(x[~es], th[~es], s=14, color=GRIS, zorder=3, label="otros técnicos (contraído)")
-    ax.errorbar(x[es], c[es], yerr=1.96 * se[es], fmt="none", ecolor=FOCO, lw=1.4)
-    ax.scatter(x[es], th[es], s=60, color=FOCO, zorder=4, label=f"{foco} (contraído; raya = crudo ± IC)")
-    ax.axhline(float(E["mu"][0]), color=TINTA2, lw=0.8, ls="--")
-    ax.set_xticks([])
-    ax.set_xlabel("técnicos-club de la liga, ordenados")
-    ax.set_ylabel(etiqueta)
+    mu, tau2 = float(E["mu"][0]), float(E["tau2"][0])
+    for k in range(n):
+        col = FOCO if es[k] else GRIS
+        ax.plot([th[k], c[k]], [y[k], y[k]], color=col, lw=1.6 if es[k] else 1.0, zorder=2)
+        ax.scatter([th[k]], [y[k]], s=26 if es[k] else 14, facecolor=SUPERFICIE, edgecolor=col, lw=1.2, zorder=3)
+        ax.scatter([c[k]], [y[k]], s=46 if es[k] else 18, color=col if es[k] else TINTA2, zorder=4)
+    ax.axvline(mu, color=TINTA2, lw=0.8, ls="--")
+    ax.set_yticks(y)
+    etq = [f"{a} · {b}" for a, b in zip(E["coach"].to_list(), E["team"].to_list())]
+    ax.set_yticklabels(etq, fontsize=6.5)
+    for t, e in zip(ax.get_yticklabels(), es):
+        if e:
+            t.set_color(FOCO)
+            t.set_fontweight("bold")
+            t.set_fontsize(8)
+    ax.set_ylim(-0.8, n - 0.2)
+    ax.set_xlabel(etiqueta)
+    puestos = [k + 1 for k in range(n) if es[k]]
+    que = f"{foco}: puesto {', '.join(map(str, puestos))} de {n} (1 = el mejor)" if puestos else ""
+    ruido = ("τ² ≈ 0: no hay diferencias reales entre equipos; todos se contraen a la media (línea)."
+             if tau2 < 1e-5 else f"Variación real entre equipos τ² = {tau2:.1e}.")
+    _titulo(ax, f"{titulo} · {que}",
+            f"Hueco = crudo; lleno = contraído (descontado el ruido de tener pocos saques, empírico-bayes). "
+            f"Más a la derecha = mejor defensa. {ruido}", ancho=85)
+    return _guardar(fig, path)
+
+
+def mapa_xdefensa(Ep, Es, foco: str, path: Path, xlab: str, ylab: str) -> Path:
+    """Cada técnico-club con sus dos capas (contraídas): arriba a la derecha niega el remate Y lo empeora."""
+    if Ep is None or Es is None or Ep.height == 0 or Es.height == 0:
+        return path
+    import polars as pl
+    D = Ep.select("coach", "team", pl.col("contraido").alias("x")).join(
+        Es.select("coach", "team", pl.col("contraido").alias("y")), on=["coach", "team"])
+    if D.height == 0:
+        return path
+    fig, ax = plt.subplots(figsize=(7.5, 5.6))
+    es = (D["coach"] == foco).to_numpy()
+    x, y = D["x"].to_numpy(), D["y"].to_numpy()
+    ax.scatter(x[~es], y[~es], s=22, color=GRIS, edgecolor=SUPERFICIE, lw=1, zorder=3)
+    ax.scatter(x[es], y[es], s=80, color=FOCO, edgecolor=SUPERFICIE, lw=2, zorder=4)
+    for xi, yi, t in zip(x[es], y[es], D.filter(pl.Series(es))["team"].to_list()):
+        ax.annotate(f"{foco} · {t}", (xi, yi), xytext=(8, 6), textcoords="offset points", fontsize=8,
+                    color=TINTA, weight="bold")
+    mx, my = float(Ep["mu"][0]), float(Es["mu"][0])
+    ax.axvline(mx, color=TINTA2, lw=0.8, ls="--")
+    ax.axhline(my, color=TINTA2, lw=0.8, ls="--")
+    for (hx, hy, ha, va, t) in ((0.98, 0.97, "right", "top", "niega el remate\ny lo empeora"),
+                                (0.02, 0.97, "left", "top", "concede remates,\npero los empeora"),
+                                (0.98, 0.03, "right", "bottom", "niega el remate,\npero los que da salen limpios"),
+                                (0.02, 0.03, "left", "bottom", "concede remates\ny salen limpios")):
+        ax.text(hx, hy, t, transform=ax.transAxes, ha=ha, va=va, fontsize=7.5, color=TINTA2)
+    ax.set_xlabel(xlab)
+    ax.set_ylabel(ylab)
+    _titulo(ax, "Las dos capas del xDefense en todos los técnicos de la liga",
+            "Cada punto es un técnico en un club (valores contraídos). Las líneas punteadas son la media de la liga. "
+            "Si los puntos se aplastan en una línea horizontal, esa capa no distingue equipos.")
+    return _guardar(fig, path)
+
+
+def dispersion_etapas(D, foco: str, path: Path, xlab: str, ylab: str, titulo: str, pie: str) -> Path:
+    """Técnicos-club: una medida contra otra, con la recta de mínimos cuadrados y r de Pearson."""
+    if D is None or D.height < 5:
+        return path
+    import polars as pl
+    D = D.filter(pl.col("x").is_finite() & pl.col("y").is_finite())
+    x, y = D["x"].to_numpy(), D["y"].to_numpy()
+    es = (D["coach"] == foco).to_numpy()
+    fig, ax = plt.subplots(figsize=(7.2, 5.0))
+    ax.scatter(x[~es], y[~es], s=22, color=GRIS, edgecolor=SUPERFICIE, lw=1, zorder=3, label="otros técnicos-club")
+    ax.scatter(x[es], y[es], s=80, color=FOCO, edgecolor=SUPERFICIE, lw=2, zorder=4, label=foco)
+    for xi, yi, t in zip(x[es], y[es], D.filter(pl.Series(es))["team"].to_list()):
+        ax.annotate(t, (xi, yi), xytext=(8, 6), textcoords="offset points", fontsize=8, color=TINTA, weight="bold")
+    if len(x) >= 5 and np.std(x) > 0:
+        b1, b0 = np.polyfit(x, y, 1)
+        xx = np.linspace(x.min(), x.max(), 20)
+        ax.plot(xx, b0 + b1 * xx, color=TINTA2, lw=1, ls="--")
+        r = np.corrcoef(x, y)[0, 1]
+        ax.text(0.02, 0.97, f"r = {r:+.2f} ({len(x)} técnicos-club)", transform=ax.transAxes, fontsize=8,
+                color=TINTA2, va="top")
+    ax.set_xlabel(xlab)
+    ax.set_ylabel(ylab)
     ax.legend(frameon=False, fontsize=8, loc="lower right")
-    _titulo(ax, titulo, "Contraído = descontado el ruido de tener pocos centros (empírico-bayes); arriba = mejor defensa.")
+    _titulo(ax, titulo, pie)
+    return _guardar(fig, path)
+
+
+def _barras_grupos(ax, vals: dict, foco: str, fmt="{:.2f}", escala=1.0):
+    """Barras con IC para los tres grupos (foco a favor, foco en contra, liga) con etiqueta directa."""
+    gs = [g for g in ("foco_ataque", "foco_defensa", "liga") if g in vals and vals[g] is not None]
+    for k, g in enumerate(gs):
+        v = vals[g]
+        val, lo, hi = (v["valor"], v["lo"], v["hi"]) if isinstance(v, dict) else (v, np.nan, np.nan)
+        ax.bar(k, escala * val, width=0.62, color=GRUPO_COLOR[g], edgecolor=SUPERFICIE, lw=2)
+        if np.isfinite(lo):
+            ax.plot([k, k], [escala * lo, escala * hi], color=TINTA, lw=1)
+        top = escala * (hi if np.isfinite(hi) else val)
+        ax.text(k, top, " " + fmt.format(escala * val), ha="center", va="bottom", fontsize=7.5, color=TINTA)
+    ax.set_xticks(range(len(gs)))
+    ax.set_xticklabels([_grupo_nombre(g, foco).replace(f"{foco} ", "Almada\n" if foco.endswith("Almada") else
+                                                          f"{foco}\n") for g in gs], fontsize=7.5)
+    ax.margins(y=0.18)
+
+
+def tiros_libres(res: dict, foco: str, path: Path) -> Path:
+    """Tiros libres: cuántos peligrosos, qué rinde el directo y qué barrera pone (a favor, en contra, liga)."""
+    if not res or "liga" not in res:
+        return path
+    paneles = [("peligrosos por partido\n(a ≤ 30 m del arco)", {g: r["peligrosos_por_partido"] for g, r in res.items()},
+                "{:.2f}", 1.0),
+               ("xG por tiro libre directo", {g: r["directo"]["xg"] for g, r in res.items()}, "{:.3f}", 1.0),
+               ("goles por cada 100\ntiros libres directos", {g: r["directo"]["gol"] for g, r in res.items()},
+                "{:.1f}", 100.0)]
+    if "goal_open" in res["liga"]["directo"]:
+        paneles += [("% del arco que deja libre\nla barrera + el portero",
+                     {g: r["directo"].get("goal_open") for g, r in res.items()}, "{:.0f}", 100.0),
+                    ("jugadores en la barrera", {g: r["directo"].get("barrera") for g, r in res.items()}, "{:.1f}",
+                     1.0)]
+    fig, axs = plt.subplots(1, len(paneles), figsize=(3.0 * len(paneles), 3.6))
+    for ax, (t, v, f, e) in zip(np.atleast_1d(axs), paneles):
+        _barras_grupos(ax, v, foco, f, e)
+        ax.set_title(t, fontsize=8.5, loc="left")
+        ax.set_yticks([])
+        ax.spines["left"].set_visible(False)
+    fig.suptitle(f"Tiros libres: {foco} a favor (azul), en contra (azul oscuro) y la liga (naranja) · raya = IC 95 %",
+                 x=0.01, y=1.1, ha="left", fontsize=10)
+    fig.text(0.01, -0.04, "En contra, la barrera y el arco libre son de SU defensa (los tiros libres que le cobran).",
+             fontsize=7.5, color=TINTA2)
+    return _guardar(fig, path)
+
+
+def laterales(res: dict, foco: str, path: Path, tramo: str = "cuarto") -> Path:
+    """Laterales en el último cuarto: el embudo (al área → primer toque → remate → segunda jugada → gol) y
+    cuántos intervienen hasta el remate."""
+    r = res.get(tramo, {})
+    if "liga" not in r:
+        return path
+    pasos = [("al_area", "caen en el área"), ("primer_contacto", "primer toque propio"),
+             ("remate", "terminan en remate"), ("segunda", "remate con ≥ 2 que intervienen"), ("gol", "gol")]
+    gs = [g for g in ("foco_ataque", "foco_defensa", "liga") if g in r]
+    fig, (a1, a2) = plt.subplots(1, 2, figsize=(12.5, 4.3), gridspec_kw={"width_ratios": [2.2, 1]})
+    h = 0.8 / len(gs)
+    for k, (clave, nom) in enumerate(pasos):
+        for i, g in enumerate(gs):
+            v = r[g][clave]
+            yy = k + (i - (len(gs) - 1) / 2) * h
+            a1.barh(yy, 100 * v["valor"], height=h, color=GRUPO_COLOR[g], edgecolor=SUPERFICIE, lw=1.5,
+                    label=_grupo_nombre(g, foco) if k == 0 else None)
+            if np.isfinite(v["lo"]):
+                a1.plot([100 * v["lo"], 100 * v["hi"]], [yy, yy], color=TINTA, lw=0.9)
+            a1.text(100 * max(v["valor"], v["hi"] if np.isfinite(v["hi"]) else 0) + 0.8, yy,
+                    f"{100 * v['valor']:.1f}", va="center", fontsize=7, color=TINTA)
+    a1.set_yticks(range(len(pasos)))
+    a1.set_yticklabels([p[1] for p in pasos], fontsize=8.5)
+    a1.invert_yaxis()
+    a1.set_xlabel("de cada 100 laterales")
+    a1.legend(frameon=False, fontsize=8, loc="lower right")
+    x0 = res.get("x_min", 90) if tramo == "cuarto" else res.get("x_octavo", 105)
+    _titulo(a1, f"Laterales desde el último {'cuarto' if tramo == 'cuarto' else 'octavo'} de la cancha "
+                f"(x ≥ {x0:.0f} m): de cada 100, cuántos llegan a cada paso",
+            "Raya = IC 95 % por partidos. \"Primer toque propio\" se cuenta sobre los que alguien toca en ≤ 5 s.", ancho=80)
+    cats, cols = ["1", "2", "3+"], ["#86b6ef", "#2a78d6", "#0d366b"]
+    for i, g in enumerate(gs):
+        d = r[g]["intervienen"]
+        tot = sum(d.values()) or 1
+        izq = 0.0
+        for c, col in zip(cats, cols):
+            v = 100 * d[c] / tot
+            a2.barh(i, v, left=izq, height=0.6, color=col, edgecolor=SUPERFICIE, lw=2)
+            if v >= 8:
+                a2.text(izq + v / 2, i, f"{v:.0f}", ha="center", va="center", fontsize=7.5,
+                        color="white" if col != "#86b6ef" else TINTA)
+            izq += v
+        a2.text(101, i, f"{tot} con remate", va="center", fontsize=7, color=TINTA2)
+    a2.set_yticks(range(len(gs)))
+    a2.set_yticklabels([_grupo_nombre(g, foco) for g in gs], fontsize=8)
+    a2.invert_yaxis()
+    a2.set_xlim(0, 125)
+    a2.set_xticks([0, 50, 100])
+    for c, col in zip(cats, cols):
+        a2.barh([np.nan], [0], color=col, label=f"{c} {'jugador' if c == '1' else 'jugadores'}")
+    a2.legend(frameon=False, fontsize=7.5, ncol=3, loc="lower left", bbox_to_anchor=(0, -0.32))
+    _titulo(a2, "¿Cuántos intervienen hasta el remate?",
+            "Sin contar al que saca. 2 = alguien la peina y otro remata.", ancho=45)
     return _guardar(fig, path)
 
 

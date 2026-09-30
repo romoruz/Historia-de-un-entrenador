@@ -460,3 +460,15 @@ las llegadas de la liga (que incluye la regresión a la media tras un despido). 
 los rivales se estima SIN los partidos del equipo evaluado (Prop. 19.1: si no, una mejora se
 esconde a sí misma). La receta se valida proyectando cada llegada de la liga; si no le gana a
 la inercia, se dice.
+
+## ADR-v2-49 — Balón parado por familias: la cadena completa del xDefense, a favor y en contra
+El xDefense (métrica propia) se extiende de "dos capas en los centros" a la **cadena completa**
+de cada saque: por probabilidad total en cadena (04 §16.5), los goles que evita una defensa se
+parten exactamente en prevención, alejamiento, supresión y portero (§16.6). Se reporta por
+familia (corners, tiros libres, laterales), para el foco defendiendo (xD) y atacando (xO = −xD) y
+para la liga. Tres decisiones: (1) la capa 1 de los saques que no van al área es un modelo
+**aparte**, así el pre-registrado de H24 no cambia; (2) los laterales de la sección 5.4 son los
+sacados desde el último cuarto (x ≥ 90; `lateral_min_x` pasa de 80 a 90) y se separa el último
+octavo (x ≥ 105); (3) la "segunda jugada" se mide contando cuántos jugadores intervienen entre
+el saque y el remate. Todo esto se agregó después de la corrida de la fase G: es exploratorio.
+

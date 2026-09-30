@@ -152,7 +152,7 @@ secuencias de cada tipo. La estacionaria de una cadena absorbente es degenerada
 | objeto | definición operativa |
 |---|---|
 | **Saque** | pase con `pass_type` Corner, Free Kick o Throw-in, o remate con `shot_type` Free Kick |
-| **Tipos** | `corner`; `tl_directo` (el saque es el remate); `tl_centrado` (x ≥ 60 y destino en el área); `tl_otro` (x ≥ 60, destino fuera del área); `lateral_largo` (destino en el área); `lateral_zona` (x ≥ 80, destino fuera del área) |
+| **Tipos** | `corner`; `tl_directo` (el saque es el remate); `tl_centrado` (x ≥ 60 y destino en el área); `tl_otro` (x ≥ 60, destino fuera del área); `lateral_largo` (destino en el área); `lateral_zona` (x ≥ 90, destino fuera del área) |
 | **Centro a balón parado** | corner, tiro libre al área o lateral largo: la unidad del xDefense |
 | **Desenlace** | remates, xG y goles del equipo que saca en los 15 s siguientes, cortados en la siguiente reanudación de cualquier tipo (incluye la segunda jugada) |
 | **Zona de destino** | con u = (y_fin − 40)·s, s = −1 si el saque viene de y < 40: *corto* (fuera del área), *primer palo* (u > 4), *segundo palo* (u < −4), *área chica* (\|u\| ≤ 4, x ≥ 114), *penal* (\|u\| ≤ 4, x < 114) |
@@ -165,6 +165,12 @@ secuencias de cada tipo. La estacionaria de una cadena absorbente es degenerada
 | **Receta Arsenal** | corner cerrado al área chica o al primer palo con ≥ 1 atacante a ≤ 2 m del portero |
 | **xD prevención** | Σ (p̂(remate) − remate) / centros en contra; p̂ de un logit L2 fuera de muestra con la INTENCIÓN del cobro y el ataque, sin rasgos de la defensa |
 | **xD supresión** | Σ (xG_base − xG_full) / remates a balón parado concedidos; los dos modelos difieren solo en la geometría defensiva de la foto del remate |
+| **Familias** | *corners*; *tiros libres* (`tl_directo`, `tl_centrado`, `tl_otro`); *laterales* (`lateral_largo`, `lateral_zona`) |
+| **Lateral del último cuarto / octavo** | lateral sacado desde x ≥ 90 / x ≥ 105, vaya o no al área (5.4) |
+| **Intervienen** | en una jugada con remate: jugadores distintos del que saca que tocan el balón entre el saque y el primer remate (remate incluido); 2 = peinada + remate |
+| **Tiro libre peligroso** | a ≤ 30 m del centro del arco |
+| **Barrera** | defensores de campo a ≤ 12 m del balón cuya sombra toca el arco, en el remate de un tiro libre directo |
+| **Cadena del xDefense** | por saque, p̂κ − g = prevención + alejamiento + supresión + portero (04 §16.6), en goles por 100 saques; xD al defender, xO = −xD al atacar |
 | **Visibilidad del arco** | fracción del ángulo del arco no tapada por defensores de campo entre el remate y el arco (discos de 0.5 m) |
 
 **Supuestos declarados.** (1) El destino de un pase interceptado es donde se cortó: la zona

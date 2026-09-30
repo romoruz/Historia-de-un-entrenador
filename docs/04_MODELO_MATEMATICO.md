@@ -720,7 +720,54 @@ $v_j=\frac{G}{G-1}\sum_m(n_m-\hat\theta_jd_m)^2/(\sum_md_m)^2$. Si $\hat\tau^2=0
 variación real detectable entre equipos** y todos se contraen a $\mu$: es la conclusión del
 trabajo previo con 51 goles, que aquí se vuelve a poner a prueba con toda la liga.
 
-*Código:* `xdefensa.py` (`goal_open`, `capa1`, `capa2`, `contraccion`, `por_etapa`).
+**Proposición 16.5 (la cadena: recursión de probabilidad condicional y total).** En la ventana de
+un saque puede haber varios remates (el rechace vuelve). Sean $S_k$ = "hay un $k$-ésimo remate",
+$G_k$ = "el $k$-ésimo entra" y $q_k=P(G_k\mid S_k,\bar G_1,\dots,\bar G_{k-1},C)$. Con
+$V_k=P(\text{gol en los remates }k,k+1,\dots\mid S_1,\dots,S_{k-1}\text{ sin gol},C)$,
+$$V_k=P(S_k\mid\cdot)\,\big[q_k+(1-q_k)\,V_{k+1}\big],\qquad P(G\mid C)=V_1 .$$
+
+*Demostración.* Por probabilidad total sobre $S_k$ y $\bar S_k$: sin $k$-ésimo remate no hay gol en
+adelante, así que solo queda el término $P(S_k\mid\cdot)\,P(\text{gol}\mid S_k,\cdot)$. Dado $S_k$,
+otra vez por probabilidad total sobre $G_k$ y $\bar G_k$: o entra ($q_k$) o no entra ($1-q_k$) y la
+jugada sigue, que es $V_{k+1}$ por definición. La recursión termina porque la ventana es finita
+($V_{K+1}=0$). Con un solo remate posible, $V_1=P(S\mid C)\,q_1$: la Proposición 16.1. $\square$
+
+Por linealidad, el número esperado de goles del saque es
+$E[\text{goles}\mid C]=P(S\mid C)\,E\big[\sum_kG_k\mid S,C\big]$, que es lo que miden las dos capas
+juntas: la capa 1 da $P(S\mid C)$ y la capa 2, la suma de $xG$ de los remates de la jugada.
+
+**Proposición 16.6 (descomposición exacta en cuatro términos).** Para un saque $i$ de tipo $t$, sean
+$\hat p_i$ su $P(S\mid C)$ de la capa 1 (fuera de muestra; $\hat p_i=1$ en el tiro libre directo, que
+ya es un remate), $s_i\in\{0,1\}$ si hubo remate, $B_i=\sum xG^{\text{base}}$ y
+$F_i=\sum xG^{\text{full}}$ de sus remates, $g_i$ sus goles y $\kappa_t$ = el promedio de $B$ en los
+saques de tipo $t$ **con** remate de toda la liga (lo que vale un saque con remate). Entonces
+$$\hat p_i\kappa_t-g_i=\underbrace{(\hat p_i-s_i)\kappa_t}_{\text{prevención}}
++\underbrace{s_i(\kappa_t-B_i)}_{\text{alejamiento}}
++\underbrace{s_i(B_i-F_i)}_{\text{supresión}}
++\underbrace{s_i(F_i-g_i)}_{\text{portero y definición}} .$$
+
+*Demostración.* La suma de la derecha es telescópica:
+$\hat p\kappa-s\kappa+s\kappa-sB+sB-sF+sF-sg=\hat p\kappa-sg$, y $sg=g$ porque sin remate no hay gol
+($s=0\Rightarrow g=0$). $\square$
+
+El lado izquierdo son los goles que la defensa evitó respecto de lo que se espera de ese saque con una
+defensa promedio. Cada término contesta una pregunta: ¿negó el remate?, ¿lo empujó a un lugar peor?,
+¿tapó el arco?, ¿atajó el portero? Para el que saca, los mismos términos con el signo cambiado
+($xO=-xD$) son los goles que generó de más. Se promedian por equipo (razón de sumas) y se contraen por
+etapa como en la Proposición 16.4. Un remate sin foto 360 entra con el xG del proveedor en $B$ y en
+$F$: no aporta a la supresión.
+
+Los términos no son independientes de cómo se escogen $\kappa_t$ y los modelos: el reparto entre
+prevención y alejamiento depende de $\kappa_t$ (un promedio de la liga), pero **la suma no**. La capa 1
+de los saques que no van al área (tiros libres cortos, laterales del último cuarto) es un modelo
+**aparte**: el de los centros al área, pre-registrado para H24, no cambia.
+
+**Barrera.** En el tiro libre directo, la regla 13 obliga a la barrera a 9.15 m. Se cuentan los
+defensores de campo a ≤ 12 m del balón cuya sombra (el disco de la Proposición 16.3) toca el ángulo
+del arco; la fracción de arco libre es el `goal_open` de ese remate.
+
+*Código:* `xdefensa.py` (`goal_open`, `barrera`, `capa1`, `capa2`, `descomposicion`, `cadena`,
+`contraccion`, `por_etapa`).
 
 ## 17. Balón parado: marca y línea
 

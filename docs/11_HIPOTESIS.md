@@ -376,3 +376,14 @@ Programadas y probadas solo con datos sintéticos (`tests/test_secciones.py`, ef
    receta no le gana a la inercia, se dice.
 8. **Sustituciones: quién entra.** Descriptivo (pocos partidos por jugador); no se narra un
    "suplente de impacto" sin la dif. en dif. del conjunto.
+
+## Enmienda: el balón parado por familias es exploratorio (2026-09-30, DESPUÉS de ver la fase G)
+
+La cadena del xDefense por familia (corners, tiros libres, laterales), sus cuatro términos, el
+análisis de tiros libres (peligrosos, barrera, arco libre) y el de laterales del último cuarto
+(incluida la segunda jugada) se agregaron **después** de ver los resultados de la fase G. Son
+**exploratorios**: se reportan con IC 95 % (y, métrica por métrica, con la misma etiqueta
+descriptiva de color que el resto de las tablas), pero no son hipótesis y no entran al BH global. H24–H26 siguen
+como se pre-registraron (la capa 1 de los centros no cambia; la de los demás saques es un modelo
+aparte). Cambiar `lateral_min_x` de 80 a 90 no toca ninguna métrica de H24–H26.
+

@@ -723,6 +723,16 @@ Hipótesis H18–H26 pre-registradas en `11_HIPOTESIS.md` antes de correr. Salid
   - **cobertura del intervalo del 80 %: 67 %**. Los intervalos son demasiado estrechos porque no incluyen la incertidumbre de la fuerza de los rivales ni del efecto del plantel;
   - se reporta como exploratoria.
 
+### Balón parado por familias (ADR-v2-49, exploratorio; ⏳ pendiente de corrida)
+Agregado después de esta corrida:
+- la cadena completa del xDefense por familia (corners, tiros libres, laterales), para el foco atacando (xO) y
+  defendiendo (xD) y para la liga, con los cuatro términos exactos de 04 §16.6;
+- tiros libres (peligrosos a ≤ 30 m, barrera, arco libre);
+- laterales del último cuarto y octavo, con cuántos intervienen hasta el remate.
+
+Se llena con `reports/historia/guillermo_almada/balon_parado/BALON_PARADO.md` (secciones 5.1–5.4). La
+capa 1 de H24 no cambia, así que H24–H26 deben salir iguales; si no, es un error.
+
 ### Blindaje
 - BH global sobre 61 hipótesis: el único cambio de veredicto es H19 (🟢 → 🟡).
 - Las de fases anteriores no cambian.

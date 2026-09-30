@@ -44,7 +44,10 @@ for f in $H/jugadores/red_*.png; do [ -f "$f" ] && copiar "$f" "jugadores/$(base
 echo "5. balón parado"
 for f in rutinas_corner corner_defensivo linea_tiros_libres xd_prev_etapas xd_remate_etapas zonas_corner_propio \
          zonas_corner_rival zonas_tl_centrado_propio zonas_tl_centrado_rival zonas_lateral_largo_propio \
-         zonas_lateral_largo_rival; do copiar $H/balon_parado/$f.png balon_parado/$f.png; done
+         zonas_lateral_largo_rival arbol_corner arbol_tiro_libre arbol_lateral goal_open_esquema \
+         descomposicion mapa_xdefensa marca_vs_remate tiros_libres laterales_cuarto laterales_octavo \
+         xd_total_corner_etapas xo_total_corner_etapas xd_total_tiro_libre_etapas xd_total_lateral_etapas; do
+  copiar $H/balon_parado/$f.png balon_parado/$f.png; done
 echo "6. simulación"
 copiar reports/fase3/xpts_$S.png                    simulacion/xpts.png
 copiar $H/simulacion/proyeccion.png                 simulacion/proyeccion.png

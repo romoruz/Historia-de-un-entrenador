@@ -58,9 +58,17 @@ def test_pipeline_completo(tmp_path):
     figs = {p.name for p in base.rglob("*.png")}
     for f in ("curva_presion.png", "bloque_tipico.png", "esquema_bloque.png", "familias_cancha.png", "reparto.png",
               "rutinas_corner.png", "corner_defensivo.png", "linea_tiros_libres.png", "proyeccion.png",
-              "efecto_cambios.png", "rival.png", "xd_prev_etapas.png"):
+              "efecto_cambios.png", "rival.png", "xd_prev_etapas.png", "arbol_corner.png", "goal_open_esquema.png",
+              "descomposicion.png", "mapa_xdefensa.png", "tiros_libres.png", "laterales_cuarto.png",
+              "laterales_octavo.png"):
         assert f in figs, f
     bp = json.loads((base / "balon_parado" / "balon_parado.json").read_text())
     assert bp["modelos_xdefensa"]["capa1"]["centros"] > 100
+    for fam in ("corner", "tiro_libre", "lateral"):
+        assert "liga" in bp["cadena"][fam], fam
+    assert bp["laterales"]["cuarto"]["liga"]["laterales"] > 0
+    md = (base / "balon_parado" / "BALON_PARADO.md").read_text()
+    for t in ("## 5.1", "## 5.2", "## 5.3", "## 5.4"):
+        assert t in md, t
     pr = json.loads((base / "simulacion" / "simulacion.json").read_text())["proyeccion"]
     assert pr["club"] == "Águilas"

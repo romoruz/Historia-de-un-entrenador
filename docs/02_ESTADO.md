@@ -19,7 +19,13 @@
   Probada con pruebas sembradas y con una prueba integral (liga sintética en formato crudo).
 - **Fase G corrida con datos reales** (2026-09-30): 7 secciones, 46 figuras publicadas y BH global
   sobre 61 hipótesis. Resultados en `RESULTADOS_ALMADA.md` y `10_RESULTADOS` §20.
-- **Siguiente acción:** el informe HTML final. Para regenerar la figura de familias y el ranking del xDefense
+- **Balón parado reorganizado (2026-09-30, ADR-v2-49):**
+  - secciones 5.1 (el xDefense, métrica propia: árbol, demostración y cuatro términos exactos), 5.2 corners,
+    5.3 tiros libres y 5.4 laterales del último cuarto;
+  - cada una con el foco a favor, en contra y la liga;
+  - exploratorio. Falta correrlo con datos reales: la tabla de la liga se rehace sola (versión 6).
+- **Siguiente acción:** correr `bash scripts/historia.sh "Guillermo Almada"` y `bash scripts/publicar_figuras.sh`,
+  llenar los ⏳ de la sección 5, y después el informe HTML final. Para regenerar la figura de familias y el ranking del xDefense
   (ahora puesto 1 = mejor), volver a correr `dtcoach ofensiva` y `dtcoach balon-parado`, y publicar las figuras.
 
 - Fase 1 v3 **cerrada**: 5×4, K = 3, paso inicial, familias nombradas (`10_RESULTADOS.md` §16).
