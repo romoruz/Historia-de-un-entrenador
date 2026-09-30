@@ -601,3 +601,31 @@ def test_varianza_comun_no_sesga_la_media_con_goles():
     com = xd.por_etapa(M, "x", "propio", 30, "comun")
     assert abs(com["mu"][0]) < abs(prop["mu"][0])          # la propia arrastra μ hacia los que no reciben goles
     assert abs(com["mu"][0]) < 0.5
+
+
+def test_demostracion_un_solo_bh(tmp_path):
+    import json
+
+    from dtcoach.demostracion import demostrar, reporte
+    a = {"bloque": {"comparacion": {
+            "remates": {"foco": 16.0, "liga": 13.0, "dif": 3.0, "lo": 2.0, "hi": 4.0, "p": 0.0005,
+                        "partidos_foco": 166, "lado": "propio"},
+            "xg": {"foco": 1.3, "liga": 1.29, "dif": 0.01, "lo": -0.1, "hi": 0.12, "p": 0.8, "partidos_foco": 166}}},
+         "club_America": {"comparacion": {
+            "remates": {"foco": 20.0, "liga": 13.0, "dif": 7.0, "lo": 4.0, "hi": 10.0, "p": 0.001, "partidos_foco": 7}}},
+         "hipotesis": {"H17": {"nombre": "rotación", "p": 0.3, "etiqueta": "🔎", "nota": "calendario"},
+                       "H22": {"nombre": "ajuste", "p": 0.9, "etiqueta": "⚪", "partidos_foco": 166}},
+         "pruebas": [{"id": "arsenal/equivalencia", "afirmacion": "igual ± 0.01", "p": 0.3, "tipo": "equivalencia"}],
+         "contexto": {"dif": [0.05, 0.0], "lo": [0.03, -0.02], "hi": [0.07, 0.02]}}
+    (tmp_path / "x.json").write_text(json.dumps(a))
+    D = demostrar({"sec": tmp_path / "x.json"})
+    v = {r["id"]: r["veredicto"] for r in D.iter_rows(named=True)}
+    assert v["bloque/comparacion/remates"] == "demostrado"
+    assert v["bloque/comparacion/xg"] == "no demostrado"
+    assert v["club_America/comparacion/remates"] == "pocos partidos"      # 7 partidos: nunca demostrado
+    assert v["H17"] == "no demostrable" and v["H22"] == "no demostrado"
+    assert v["contexto[0]"] == "demostrado" and v["contexto[1]"] == "no demostrado"
+    assert v["arsenal/equivalencia"] == "no demostrado"
+    q = D.filter(pl.col("id") == "bloque/comparacion/remates")["q"][0]
+    assert q == pytest.approx(0.0005 * 7 / 2)             # 7 pruebas con p; «remates» es la 2.ª menor (BH: p·m/rango)
+    assert any("demostradas" in x for x in reporte(D, "F"))

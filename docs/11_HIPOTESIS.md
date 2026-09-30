@@ -388,3 +388,38 @@ como se pre-registraron (la capa 1 de los centros no cambia; la de los demás sa
 aparte). El último cuarto de 5.4 es un umbral aparte (`lateral_cuarto_x` = 90); `lateral_min_x` sigue en 80
 porque define los tipos de saque de H24–H26.
 
+## Enmienda: regla de demostración (2026-09-30; reemplaza a la de "balón parado exploratorio")
+
+Nada se narra sin prueba. `dtcoach demostracion` junta **todas** las afirmaciones del foco en una sola
+familia y les aplica un Benjamini-Hochberg (α = 0.05):
+
+1. las hipótesis H1–H26;
+2. cada comparación foco contra liga de cada métrica de cada sección (p por bootstrap de partidos);
+3. cada efecto con IC que se narra (contexto y perfiles de la fase 2, tipos de cambio): p por la
+   aproximación normal de su IC;
+4. las pruebas formales de cada sección:
+   - balón parado: cada término de la cadena del xDefense por familia y tipo, la heterogeneidad entre
+     técnicos (Q de Cochran, antes de dar un puesto), la correlación marca–remate, cada rutina de corner
+     contra el resto, la receta Arsenal (diferencia y equivalencia TOST con margen ± 0.01 xG por corner),
+     laterales al área chica con ≥ 2 que intervienen (Fisher exacta) y las razones de tasas;
+   - simulación: puntos contra xPts, receta contra inercia (Diebold-Mariano) y correlación de la
+     validación.
+
+**Veredictos:**
+
+- **Demostrado:** q < 0.05 y, si es del foco, ≥ 20 partidos suyos. Solo esto va a la historia.
+- **No demostrado:** se retira, sin excepción. Tampoco se narra como "pista".
+- **No demostrable:** se retira y se dice por qué. Son H17 y la estabilidad del once, confundidas con el
+  calendario.
+- **Equivalencia:** en una prueba TOST, "demostrado" quiere decir que la diferencia cabe en el margen.
+- **Heterogeneidad:** "demostrado" quiere decir que los técnicos sí difieren (τ² > 0). Sin eso no se da un
+  puesto.
+
+Lo que antes se llamaba exploratorio (el balón parado por familias, las pruebas de la proyección) entra al
+mismo control que todo lo demás. Se declara que esas preguntas se formularon después de ver la fase G: BH
+controla la multiplicidad, no esa selección. Por eso, con los partidos nuevos de la temporada, esas
+afirmaciones se confirman en datos que no se habían visto.
+
+La proyección solo se reporta con **intervalos conformes** del 80 %, que cubren lo que prometen por
+construcción. El intervalo del simulador cubría 67 %.
+

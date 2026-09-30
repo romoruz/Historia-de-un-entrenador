@@ -861,3 +861,42 @@ $\text{Poisson}(\mu A_iD_jh^{\pm})$ independientes, y la validación proyecta **
 la liga con su propio efecto fuera del ajuste.
 
 *Código:* `rival.py`, `sustituciones.py`, `proyeccion.py`.
+
+## 20. La regla de demostración
+
+**Una sola familia.** Sean $p_1,\dots,p_m$ las p de todas las afirmaciones (hipótesis, métricas,
+efectos, pruebas), ordenadas $p_{(1)}\le\dots\le p_{(m)}$. BH rechaza las $k^*$ menores con
+$k^*=\max\{k:p_{(k)}\le k\alpha/m\}$ y controla $E[V/\max(R,1)]\le\alpha$. La garantía vale con
+independencia y con dependencia positiva de regresión (Benjamini & Yekutieli 2001), que es el caso de
+métricas del mismo partido. $q_{(k)}=\min_{j\ge k}p_{(j)}m/j$.
+
+**p de un efecto con IC.** Si el IC 95 % es $[\ell,u]$ y el estimador es aproximadamente normal,
+$\widehat{ee}=(u-\ell)/(2\cdot1.96)$ y $p=2\Phi(-|\hat\delta|/\widehat{ee})$.
+
+**Heterogeneidad (Cochran).** Con $w_j=1/v_j$, $Q=\sum_jw_j(x_j-\bar x_w)^2\sim\chi^2_{k-1}$ bajo
+$\tau^2=0$. Si no se rechaza, el puesto de un técnico entre los demás no significa nada.
+
+**Equivalencia (TOST).** Con margen $\delta$: $H_0:|\Delta|\ge\delta$ contra $H_1:|\Delta|<\delta$. Se
+rechaza si las dos pruebas unilaterales al 5 % rechazan, es decir, si el IC del 90 % cabe en
+$(-\delta,\delta)$; $p_{\text{TOST}}=\max\{P^*(\Delta^*\ge\delta),P^*(\Delta^*\le-\delta)\}$ por
+bootstrap.
+
+**Receta contra inercia (Diebold-Mariano).** Con pérdidas absolutas $d_i=|e^{\text{receta}}_i|-|e^{\text{inercia}}_i|$
+en $n$ llegadas independientes, $t=\bar d/(s_d/\sqrt n)\sim t_{n-1}$ bajo $E[d]=0$. Como respaldo sin
+normalidad, Wilcoxon de rangos con signo.
+
+**Proposición 20.1 (intervalo conforme).** Sean $r_1,\dots,r_n$ los errores absolutos por partido de
+$n$ llegadas intercambiables con una nueva, y $\hat q$ el $\lceil(n+1)(1-\alpha)\rceil$-ésimo menor.
+Entonces $P(r_{n+1}\le\hat q)\ge1-\alpha$.
+
+*Demostración.* Por intercambiabilidad, el rango de $r_{n+1}$ entre los $n+1$ errores es uniforme en
+$\{1,\dots,n+1\}$ (con empates, a lo más uniforme). $r_{n+1}\le\hat q$ ocurre si su rango es
+$\le\lceil(n+1)(1-\alpha)\rceil$, lo que pasa con probabilidad $\lceil(n+1)(1-\alpha)\rceil/(n+1)\ge1-\alpha$.
+$\square$ (Vovk, Gammerman & Shafer 2005; Lei et al. 2018.)
+
+La proyección $\pm\hat q$ puntos por partido cubre entonces al menos 80 %, que es lo que el intervalo del
+simulador prometía y no cumplía.
+
+*Código:* `demostracion.py`, `xdefensa.contraccion` (Q), `balon_parado.rutinas` (TOST),
+`proyeccion.validar` (DM, binomial, conforme).
+

@@ -494,14 +494,18 @@ def cadena(d: pl.DataFrame, tp: pl.DataFrame, foco: str, n_boot: int = 500, seed
                                             (pl.col("p") * pl.col("kappa")).sum().alias("pk"))
             A = {c: a[c].to_numpy().astype(float) for c in a.columns if c != "match_id"}
             n, S = A["n"].sum(), max(A["s"].sum(), 1e-12)
-            r = {"saques": int(n), "p_obs": A["s"].sum() / n, "p_esp": A["p"].sum() / n,
+            r = {"saques": int(n), "partidos": int(x["match_id"].n_unique()), "p_obs": A["s"].sum() / n, "p_esp": A["p"].sum() / n,
                  "v_obs": A["g"].sum() / S, "v_kappa": A["sk"].sum() / S, "v_base": A["B"].sum() / S,
                  "v_full": A["F"].sum() / S, "g_obs": A["g"].sum() / n, "g_esp": A["pk"].sum() / n}
             idx = [rng.integers(0, len(A["n"]), len(A["n"])) for _ in range(n_boot)]
             for c in COMPONENTES:
                 v = sg * 100 * A[c].sum() / n
-                b = [sg * 100 * A[c][i].sum() / A["n"][i].sum() for i in idx]
-                r[c] = {"valor": float(v), "lo": float(np.quantile(b, 0.025)), "hi": float(np.quantile(b, 0.975))}
+                b = np.array([sg * 100 * A[c][i].sum() / A["n"][i].sum() for i in idx])
+                # H0: el término vale 0 (lo esperado con una defensa o un ataque promedio); p bilateral por
+                # bootstrap de partidos, como el resto de la capa de fútbol
+                pv = float(max(1 / n_boot, min(1.0, 2 * min((b <= 0).mean(), (b >= 0).mean()))))
+                r[c] = {"valor": float(v), "lo": float(np.quantile(b, 0.025)), "hi": float(np.quantile(b, 0.975)),
+                        "p": pv if g != "liga" else float("nan")}
             out[clave][g] = {k: (float(v) if isinstance(v, (float, np.floating)) else v) for k, v in r.items()}
     return out
 
@@ -534,12 +538,15 @@ def contraccion(theta: np.ndarray, var: np.ndarray) -> dict:
     tau2 = max(0.0, (Qs - (len(x) - 1)) / c) if c > 0 else 0.0
     ws = 1 / (v + tau2)
     mu = (ws * x).sum() / ws.sum()
+    from scipy import stats as _st
+    p_q = float(_st.chi2.sf(Qs, len(x) - 1)) if len(x) > 1 else float("nan")   # H0: τ² = 0 (Cochran)
     rel = tau2 / (tau2 + v) if tau2 > 0 else np.zeros_like(v)
     out = np.full(len(theta), np.nan)
     out[ok] = mu + rel * (x - mu)
     confi = np.full(len(theta), np.nan)
     confi[ok] = rel
-    return {"mu": float(mu), "tau2": float(tau2), "contraido": out, "confiabilidad": confi, "etapas": int(ok.sum())}
+    return {"mu": float(mu), "tau2": float(tau2), "contraido": out, "confiabilidad": confi, "etapas": int(ok.sum()),
+            "Q": float(Qs), "p_Q": p_q}
 
 
 def por_etapa(M: pl.DataFrame, m: str, lado: str = "propio", min_partidos: int = 30,
@@ -571,4 +578,5 @@ def por_etapa(M: pl.DataFrame, m: str, lado: str = "propio", min_partidos: int =
     E = E.drop("_r2", "_d2", "_D")
     cc = contraccion(E["theta"].to_numpy(), E["var"].to_numpy())
     return E.with_columns(pl.Series("contraido", cc["contraido"]), pl.Series("confiabilidad", cc["confiabilidad"]),
-                          pl.lit(cc["mu"]).alias("mu"), pl.lit(cc["tau2"]).alias("tau2")).sort("contraido", descending=True)
+                          pl.lit(cc["mu"]).alias("mu"), pl.lit(cc["tau2"]).alias("tau2"),
+                          pl.lit(cc["p_Q"]).alias("p_Q")).sort("contraido", descending=True)

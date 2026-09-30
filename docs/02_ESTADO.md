@@ -24,8 +24,12 @@
     5.3 tiros libres y 5.4 laterales del último cuarto;
   - cada una con el foco a favor, en contra y la liga;
   - exploratorio. Falta correrlo con datos reales: la tabla de la liga se rehace sola (versión 6).
-- **Siguiente acción:** correr `bash scripts/historia.sh "Guillermo Almada"` y `bash scripts/publicar_figuras.sh`,
-  llenar los ⏳ de la sección 5, y después el informe HTML final. Para regenerar la figura de familias y el ranking del xDefense
+- **Regla de demostración (2026-09-30, ADR-v2-50):** un solo BH sobre todo lo que se afirma
+  (`dtcoach demostracion`); solo lo demostrado se narra. Nada queda como exploratorio.
+- **Partidos nuevos (ADR-v2-51):** `scripts/actualizar_datos.sh` baja la temporada en curso, alarga las eras y
+  rehace todo sin reajustar el vocabulario.
+- **Siguiente acción:** con credenciales, `bash scripts/actualizar_datos.sh "Guillermo Almada"`; con su
+  `DEMOSTRACION.md`, reescribir `RESULTADOS_ALMADA.md` solo con lo demostrado; después, el informe HTML. Para regenerar la figura de familias y el ranking del xDefense
   (ahora puesto 1 = mejor), volver a correr `dtcoach ofensiva` y `dtcoach balon-parado`, y publicar las figuras.
 
 - Fase 1 v3 **cerrada**: 5×4, K = 3, paso inicial, familias nombradas (`10_RESULTADOS.md` §16).

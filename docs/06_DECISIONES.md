@@ -477,3 +477,38 @@ los que no tuvieron ese saque (antes el promedio solo tomaba los partidos con �
 directos por partido" salía casi al doble); (5) la contracción por etapa de las métricas en goles
 usa una varianza común por saque, porque la propia de cada etapa está acoplada a la media (04 §16.4).
 
+## ADR-v2-50 — Regla de demostración: un solo BH sobre todo lo que se afirma
+Cada sección etiquetaba sus métricas con un BH por bloque, y lo exploratorio quedaba fuera del
+control global. Ahora `dtcoach demostracion` junta en una sola familia:
+
+- hipótesis;
+- comparaciones de métricas;
+- efectos con IC;
+- pruebas declaradas.
+
+Solo lo que sobrevive (q < 0.05, ≥ 20 partidos del foco) se narra. Pruebas nuevas para que todo lo que
+se dice tenga una:
+
+- Q de Cochran de heterogeneidad antes de dar un puesto entre técnicos;
+- p por bootstrap para cada término de la cadena;
+- rutinas contra el resto;
+- TOST para "la receta Arsenal no rinde más";
+- Fisher para los laterales al área chica;
+- Diebold-Mariano para "la receta proyecta mejor que la inercia";
+- binomial para la cobertura del intervalo.
+
+Los intervalos de la proyección pasan a ser conformes (cuantil de los errores de las llegadas de la
+liga), porque los del simulador cubrían 67 % en vez de 80 %.
+
+## ADR-v2-51 — Partidos nuevos de la temporada: se descargan y se suman sin reajustar el vocabulario
+La temporada en curso se trae del API de StatsBomb (`actualizar_temporada.py`). Toda la liga, no solo el
+América: las comparaciones, el Elo y la proyección necesitan a todos. Detalles:
+
+- **Eras:** las vigentes se alargan solo si el `managers` del API es la misma persona
+  (`extender_eras.py`). Un cambio de técnico se agrega a mano, como el resto de las eras verificadas.
+- **Vocabulario:** la mezcla de tres familias NO se reajusta. La guardada se aplica a las secuencias
+  nuevas, así una familia significa lo mismo antes y después, y los resultados son comparables.
+- **Uso de lo nuevo:** los partidos nuevos (sobre todo los del América de Almada) son datos que no se
+  vieron al formular las preguntas de la fase G. Sirven para confirmar lo que se demostró con la muestra
+  anterior.
+

@@ -13,7 +13,8 @@ from liga_cruda import FOCO, generar
 from dtcoach import cli
 from dtcoach.config import DEFAULT
 
-SECCIONES = ("identidad", "ofensiva", "defensa", "jugadores", "balon_parado", "simulacion", "blindaje")
+SECCIONES = ("identidad", "ofensiva", "defensa", "jugadores", "balon_parado", "simulacion", "blindaje",
+             "demostracion")
 
 
 def configurar(tmp: Path) -> Path:
@@ -47,7 +48,7 @@ def test_pipeline_completo(tmp_path):
     pasos = [["aplanar", "--hilos", "2"], ["partidos"], ["fase0"], ["mezcla", "--K", "3"], ["elo"],
              ["fase2"], ["fase3", "--min-partidos", "5"], ["decisiones"], ["simulador"],
              ["voronoi", "--hilos", "1"], ["geometria", "--hilos", "1"], ["extra", "--hilos", "2"], ["tabla-liga"],
-             ["identidad"], ["ofensiva"], ["defensa"], ["jugadores"], ["balon-parado"], ["simular"], ["blindaje"]]
+             ["identidad"], ["ofensiva"], ["defensa"], ["jugadores"], ["balon-parado"], ["simular"], ["blindaje"], ["demostracion"]]
     for p in pasos:
         print("==", p, flush=True)
         cli.main(["--config", c, *p])

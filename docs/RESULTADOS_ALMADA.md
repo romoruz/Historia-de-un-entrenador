@@ -8,6 +8,12 @@
 > Las figuras están en `docs/figuras/<sección>/` (se generan con `bash scripts/publicar_figuras.sh`).
 > Todas las cifras salen de la corrida completa de la fase G (61 hipótesis corregidas juntas en el
 > blindaje global).
+>
+> ⚠️ **En revisión (2026-09-30):** a partir de ahora rige la **regla de demostración**: solo se narra lo
+> que sobrevive a un único control de falsos positivos sobre TODAS las afirmaciones
+> (`reports/historia/guillermo_almada/demostracion/DEMOSTRACION.md`). Este documento se reescribe con esa
+> lista y con los partidos nuevos de la temporada. Hasta entonces, lo que diga aquí y no esté en esa lista
+> no está demostrado.
 
 **Índice:** [0. El idioma de la liga](#0-el-idioma-de-la-liga) ·
 [1. Identidad](#1-identidad-tiene-una-receta-propia) · [2. Ataque](#2-cómo-ataca) ·

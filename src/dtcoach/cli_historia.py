@@ -787,6 +787,34 @@ def _tasas(j, tp, foco, tipos, res) -> list[str]:
     return L + ["", "*Poisson con exposición (número de jugadas) y varianza sandwich por partido.*", ""]
 
 
+def _prueba(pruebas: list, id_: str, afirmacion: str, p: float, efecto: float | None = None, lo=None, hi=None,
+            partidos: int | None = None, tipo: str = "diferencia") -> None:
+    """Una afirmación con su prueba formal; `dtcoach demostracion` la corrige junto con todo lo demás."""
+    if p is None or not np.isfinite(p):
+        return
+    pruebas.append({"id": id_, "afirmacion": afirmacion, "p": float(p), "tipo": tipo,
+                    "efecto": None if efecto is None else float(efecto), "lo": None if lo is None else float(lo),
+                    "hi": None if hi is None else float(hi), "partidos_foco": partidos})
+
+
+def _pruebas_cadena(cad: dict, foco: str, pruebas: list) -> None:
+    nom = {"prev": "prevención", "lej": "alejamiento", "sup": "supresión", "port": "portero y definición",
+           "total": "total"}
+    for clave, gs in cad.items():
+        for g in ("foco_ataque", "foco_defensa"):
+            r = gs.get(g)
+            if not r:
+                continue
+            for c, n in nom.items():
+                t = r.get(c, {})
+                if clave == "tl_directo" and c == "prev":
+                    continue                                    # el directo no tiene capa 1: vale 0 por definición
+                _prueba(pruebas, f"cadena/{clave}/{g}/{c}",
+                        f"{'xO' if g == 'foco_ataque' else 'xD'} {n} en {clave} "
+                        f"({'a favor' if g == 'foco_ataque' else 'en contra'}) distinto de 0 (goles por 100 saques)",
+                        t.get("p"), t.get("valor"), t.get("lo"), t.get("hi"), r.get("partidos"))
+
+
 def cmd_balon_parado(a, cfg):
     from . import balon_parado as bp
     from . import graficas_secciones as gs
@@ -803,7 +831,7 @@ def cmd_balon_parado(a, cfg):
     p2 = pl.read_parquet(rb["capa2"]) if rb["capa2"].exists() else None
     defs = {**bp.DEFINICIONES, **xd.DEFINICIONES, **xd.DEFINICIONES_CADENA}
     nb, seed, mp = min(fc["n_boot"], 500), cfg["seed"], fc["min_partidos_era"]
-    res, plano, tasas = {}, {}, []
+    res, plano, tasas, pruebas = {}, {}, [], []
     fam_nom = {"corner": "corners", "tiro_libre": "tiros libres", "lateral": "laterales"}
 
     def comparar(bloques):
@@ -819,14 +847,19 @@ def cmd_balon_parado(a, cfg):
         if E.height == 0:
             return None, []
         E.write_csv(out / f"etapas_{m}.csv")
-        res[f"etapas_{m}"] = {"mu": float(E["mu"][0]), "tau2": float(E["tau2"][0]), "etapas": E.height,
+        res[f"etapas_{m}"] = {"mu": float(E["mu"][0]), "tau2": float(E["tau2"][0]), "p_Q": float(E["p_Q"][0]),
+                              "etapas": E.height,
                               "foco": E.with_row_index("puesto", 1).filter(pl.col("coach") == foco).to_dicts()}
+        _prueba(pruebas, f"heterogeneidad/{m}", f"los {E.height} técnicos-club difieren de verdad en «{tit}» "
+                f"(τ² > 0; si no, el puesto no significa nada)", float(E["p_Q"][0]), float(E["tau2"][0]),
+                tipo="heterogeneidad")
         if fig:
             gs.xdefensa_etapas(E, foco, out / f"{m}_etapas.png", tit, etq)
         return E, _md_etapa(E, foco, tit, etq)
 
     cad = xd.cadena(D, tp, foco, nb, seed) if D is not None and D.height else {}
     res["cadena"] = cad
+    _pruebas_cadena(cad, foco, pruebas)
     md = [f"# 5. Balón parado — {foco}", "",
           "Corners, tiros libres y laterales, **a favor y en contra**, comparados con la liga (reto 5.4). "
           "Definiciones: 03_FRAMEWORK §6; el xDefense, 04_MODELO_MATEMATICO §16.", ""]
@@ -851,7 +884,7 @@ def cmd_balon_parado(a, cfg):
                f"calibración {c1['calibracion']:.3f} (1 = perfecta)."]
         if "auc_fuera_de_muestra" in c1o:
             md.append(f"- **Capa 1, saques que no van al área** (tiros libres cortos y laterales del último cuarto; "
-                      f"modelo aparte, exploratorio): {c1o['centros']:,} saques, {100 * c1o['tasa_remate']:.1f} % con "
+                      f"modelo aparte, para no tocar el de H24): {c1o['centros']:,} saques, {100 * c1o['tasa_remate']:.1f} % con "
                       f"remate; AUC {c1o['auc_fuera_de_muestra']:.3f}; calibración {c1o['calibracion']:.3f}.")
         md += [f"- **Capa 2:** {c2['remates']:,} remates con foto ({c2['remates_bp']:,} a balón parado, "
                f"{c2['goles_bp']} goles); AUC sin defensa {c2['auc_base']:.3f} → con defensa {c2['auc_full']:.3f} "
@@ -901,6 +934,12 @@ def cmd_balon_parado(a, cfg):
         if A.height and B.height:
             Dd = A.select("coach", "team", pl.col("theta").alias("x")).join(
                 B.select("coach", "team", pl.col("theta").alias("y")), on=["coach", "team"])
+            from scipy import stats as st
+            if Dd.height >= 5:
+                rr, pp = st.pearsonr(Dd["x"].to_numpy(), Dd["y"].to_numpy())
+                res["marca_vs_remate"] = {"r": float(rr), "p": float(pp), "etapas": Dd.height}
+                _prueba(pruebas, "correlacion/marca_vs_remate", "entre técnicos, marcar más al hombre se asocia con "
+                        "conceder menos remates por corner", float(pp), float(rr), tipo="correlacion")
             gs.dispersion_etapas(Dd.with_columns(pl.col("x") * 100, pl.col("y") * 100), foco,
                                  out / "marca_vs_remate.png", "% de defensores del área marcando al hombre",
                                  "% de corners en contra que terminan en remate",
@@ -908,6 +947,17 @@ def cmd_balon_parado(a, cfg):
                                  "Cada punto es un técnico en un club. Asociación entre técnicos, no causa.")
     rut = bp.rutinas(j, tp, foco, nb, seed)
     res["rutinas"] = rut
+    for r in rut["rutinas"]:
+        _prueba(pruebas, f"rutina/{r['tecnica']}/{r['zona']}", f"en la liga, el corner {r['tecnica']} → "
+                f"{bp.ZONA_NOMBRE.get(r['zona'], r['zona'])} rinde distinto que el resto (xG por corner)",
+                r["p"], r["xg_por_corner"] - r["xg_resto"], r["lo"] - r["xg_resto"], r["hi"] - r["xg_resto"])
+    if "receta_arsenal" in rut:
+        ra = rut["receta_arsenal"]
+        _prueba(pruebas, "arsenal/ventaja", "la receta Arsenal rinde distinto que el resto de los corners de la liga",
+                ra["p"], ra["dif"], ra["lo"], ra["hi"])
+        _prueba(pruebas, "arsenal/equivalencia", f"la receta Arsenal rinde igual que el resto (± {ra['margen']:.3f} xG "
+                "por corner; prueba de equivalencia TOST)", ra["p_tost"], ra["dif"], ra["lo90"], ra["hi90"],
+                tipo="equivalencia")
     gs.rutinas_corner(rut, foco, out / "rutinas_corner.png", bp.ZONA_NOMBRE)
     md += ["### ¿Qué corners funcionan en la Liga MX? (rutina = técnica × destino)", "",
            "| rutina | corners en la liga | xG por corner [IC 95 %] | remate | uso liga | uso foco |",
@@ -977,6 +1027,13 @@ def cmd_balon_parado(a, cfg):
     rl = bp.resumen_laterales(j, tp, foco, x0, x8, nb, seed)
     res["laterales"] = rl
     for tramo in ("cuarto", "octavo"):
+        for g in ("foco_ataque", "foco_defensa"):
+            c = rl[tramo].get(g, {}).get("chica_segunda", {})
+            _prueba(pruebas, f"laterales/{tramo}/{g}/chica_2mas", f"laterales del último {tramo} "
+                    f"{'a favor' if g == 'foco_ataque' else 'en contra'} que caen en el área chica y acaban en remate con "
+                    "≥ 2 que intervienen: distinto de la liga (Fisher exacta)", c.get("p_fisher"),
+                    c.get("remate_2mas", 0) / max(c.get("de_todos", 1), 1), partidos=None)
+    for tramo in ("cuarto", "octavo"):
         gs.laterales(rl, foco, out / f"laterales_{tramo}.png", tramo)
         md += [f"### Desde el último {tramo} (x ≥ {x0 if tramo == 'cuarto' else x8:.0f} m)", "",
                "| quién | por partido | al área | al área chica | primer toque propio | con remate | "
@@ -1014,11 +1071,17 @@ def cmd_balon_parado(a, cfg):
             mp_ = bp.mapas(j, tp, foco, tipo, lado)
             densidad_balon_parado(mp_, foco, bp.NOMBRE[tipo], lado, out / f"zonas_{tipo}_{lado}.png")
     res["tasas"] = tasas
+    for r in tasas:
+        _prueba(pruebas, f"tasa/{r['tipo']}/{r['que']}/{r['lado']}", f"{r['que']} por {bp.NOMBRE[r['tipo']]} "
+                f"{'a favor' if r['lado'] == 'propio' else 'en contra'}: razón foco / liga distinta de 1", r["p"],
+                r["razon"], r["lo"], r["hi"], r.get("partidos_foco"))
+    res["pruebas"] = pruebas
     res["hipotesis"] = _hipotesis(H_BP, plano)
     md += _tabla_hipotesis(res["hipotesis"], defs)
-    md += ["*Todo lo que no es H24–H26 (la cadena por familia, los cuatro términos, tiros libres y laterales) es "
-           "**exploratorio**: se agregó después de ver los resultados de la fase G y no entra al control global de "
-           "falsos positivos.*", ""]
+    md += [f"*Además de H24–H26, esta sección hace {len(pruebas)} pruebas formales (cadena, heterogeneidad, rutinas, "
+           "receta Arsenal, laterales, tasas) y todas sus comparaciones de métricas. Ninguna se da por buena aquí: "
+           "`dtcoach demostracion` las corrige TODAS juntas con las del resto de la historia (un solo Benjamini-"
+           "Hochberg) y solo lo que sobrevive se narra (11_HIPOTESIS, regla de demostración).*", ""]
     _escribir(out, "balon_parado", md, res)
 
 
@@ -1118,11 +1181,31 @@ def cmd_simular(a, cfg):
            f"{c['proy_pts_media']:.1f} puntos (80 %: {c['proy_pts_p10']:.0f}–{c['proy_pts_p90']:.0f}), xG "
            f"{c['proy_xg_favor']:.1f}–{c['proy_xg_contra']:.1f}; real {c['pts_reales']:.0f} puntos, xG "
            f"{c['xg_favor_real']:.1f}–{c['xg_contra_real']:.1f}.", ""]
+    pruebas = []
+    _prueba(pruebas, "xpts/foco", f"{foco} sacó más puntos de los que valían sus ocasiones (xPts)", f_["p"], f_["dif"],
+            partidos=f_["partidos"])
     if v.get("llegadas"):
         md += [f"**¿Sirve la receta?** Aplicada a {v['llegadas']} llegadas de técnicos de la liga (cada una fuera de "
-               f"su propio ajuste): error medio {v['error_abs_por_partido']:.2f} puntos por partido (solo plantel: "
-               f"{v['error_abs_inercia']:.2f}); correlación {v['correlacion']:.2f}; el intervalo del 80 % contiene lo "
-               f"real en {100 * v['cobertura_80']:.0f} % de los casos.", ""]
+               f"su propio ajuste):", "",
+               f"- error medio {v['error_abs_por_partido']:.2f} puntos por partido contra {v['error_abs_inercia']:.2f} de "
+               f"la inercia (diferencia {v['dif_error']:+.3f}; Diebold-Mariano p = {v['p_dm']:.3f}, Wilcoxon p = "
+               f"{v['p_wilcoxon']:.3f});",
+               f"- correlación entre lo proyectado y lo real {v['correlacion']:.2f} (p = {v['p_correlacion']:.2g});",
+               f"- el intervalo del 80 % del simulador contiene lo real en {100 * v['cobertura_80']:.0f} % de los casos "
+               f"(binomial contra 80 %: p = {v['p_cobertura']:.3f}). Por eso se reporta el **intervalo conforme**: ± "
+               f"{v['conforme_80_pp']:.2f} puntos por partido, que cubre el 80 % por construcción.", ""]
+        md += ["| escenario | puntos proyectados | intervalo conforme del 80 % |", "|---|---|---|"]
+        for n, lab in (("con_el", f"con {foco}"), ("inercia", "solo el plantel")):
+            if "pts_conforme" in e[n]:
+                md.append(f"| {lab} | {e[n]['pts_media']:.1f} | {e[n]['pts_conforme'][0]:.0f}–{e[n]['pts_conforme'][1]:.0f} |")
+        if "proy_conforme" in c:
+            md += ["", f"Sus {c['partidos']} partidos reales: proyectado {c['proy_pts_media']:.1f} (conforme 80 %: "
+                   f"{c['proy_conforme'][0]:.0f}–{c['proy_conforme'][1]:.0f}); real {c['pts_reales']:.0f}.", ""]
+        _prueba(pruebas, "proyeccion/receta_vs_inercia", "la receta (plantel × efecto de llegada) proyecta mejor que la "
+                "inercia (Diebold-Mariano)", v["p_dm"], v["dif_error"])
+        _prueba(pruebas, "proyeccion/correlacion", "lo proyectado se asocia con lo real en las llegadas de la liga",
+                v["p_correlacion"], v["correlacion"], tipo="correlacion")
+    res["pruebas"] = pruebas
     _escribir(out, "simulacion", md, res)
 
 
@@ -1201,6 +1284,31 @@ def cmd_blindaje(a, cfg):
     _escribir(out, "blindaje", md, res)
 
 
+# ----------------------------------------------------------------------
+# DEMOSTRACIÓN: un solo BH sobre todo lo que se afirma
+# ----------------------------------------------------------------------
+def cmd_demostracion(a, cfg):
+    from .demostracion import demostrar, reporte
+    foco = _foco(a, cfg)
+    slug = _slug(foco)
+    rep = cfg.ruta("reportes")
+    h = rep / "historia" / slug
+    archivos = {"fase 2 (familias y contexto)": rep / "fase2" / f"hipotesis_{slug}.json",
+                "fase 3 (por club)": rep / "fase3" / f"por_club_{slug}.json",
+                "decisiones desde la banca": rep / "fase3" / f"decisiones_{slug}.json",
+                **{s: h / s / f"{s}.json" for s in ("identidad", "ofensiva", "defensa", "jugadores", "balon_parado",
+                                                    "simulacion")}}
+    D = demostrar(archivos)
+    out = _dir(cfg, foco, "demostracion")
+    if D.height == 0:
+        sys.exit("sin resultados: corre antes las secciones (scripts/historia.sh)")
+    D.write_csv(out / "demostracion.csv")
+    md = reporte(D, foco)
+    res = {"afirmaciones": D.height, "por_veredicto": dict(D.group_by("veredicto").len().iter_rows()),
+           "demostradas": D.filter(pl.col("veredicto") == "demostrado").drop("pocos").to_dicts()}
+    _escribir(out, "demostracion", md, res)
+
+
 def registrar(sp) -> None:
     s = sp.add_parser("extra", help="G0: campos extra del JSON (centros, técnica, asistencias…)")
     s.add_argument("--hilos", type=int, default=None)
@@ -1217,7 +1325,8 @@ def registrar(sp) -> None:
                              ("jugadores", cmd_jugadores, "4: roles, decisiones y sustituciones"),
                              ("balon-parado", cmd_balon_parado, "5: corners, tiros libres, laterales, xDefense"),
                              ("simular", cmd_simular, "6: simulador, puntos esperados y proyección"),
-                             ("blindaje", cmd_blindaje, "7: xG contra OBV, pocos partidos, BH global")):
+                             ("blindaje", cmd_blindaje, "7: xG contra OBV, pocos partidos, BH global"),
+                             ("demostracion", cmd_demostracion, "8: un solo BH sobre TODO; solo se narra lo demostrado")):
         s = sp.add_parser(nombre, help=ayuda)
         s.add_argument("--foco", default=None)
         if nombre == "ofensiva":

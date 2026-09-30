@@ -183,12 +183,21 @@ Cada paso escribe lo que el siguiente lee. Lo de la liga se calcula **una vez** 
 | 4 | `bash scripts/vocabulario.sh` | malla, número de familias, mezcla, reproducibilidad, bondad de ajuste y propiedades de la cadena | `data/processed/mezcla/`, `reports/mezcla/`, `reports/fase1/` |
 | 5 | `dtcoach elo` | Elo previo a cada partido | `data/processed/elo.parquet` |
 | 6 | `bash scripts/correr_foco.sh "Guillermo Almada" 7` | fase 2 (H1–H8), por club (H9–H12), atlas, decisiones (H13–H17), xPts | `reports/fase2/`, `reports/fase3/` |
-| 7 | `bash scripts/historia.sh "Guillermo Almada"` | una vez: campos extra del JSON (`dtcoach extra`), 360 (`voronoi`, `geometria`) y la tabla de la liga; luego las siete secciones | `reports/historia/guillermo_almada/<sección>/` |
+| 7 | `bash scripts/historia.sh "Guillermo Almada"` | una vez: campos extra del JSON (`dtcoach extra`), 360 (`voronoi`, `geometria`) y la tabla de la liga; luego las siete secciones y la **demostración** (un solo BH sobre todo lo que se afirma) | `reports/historia/guillermo_almada/<sección>/` |
 | 8 | `bash scripts/publicar_figuras.sh "Guillermo Almada"` | copia las figuras que usan los documentos | `docs/figuras/` |
+
+**Partidos nuevos de la temporada.** Con credenciales de StatsBomb (`read -rs SB_USERNAME; export
+SB_USERNAME`, lo mismo con `SB_PASSWORD`), `bash scripts/actualizar_datos.sh "Guillermo Almada"` hace todo:
+baja la lista de partidos, los eventos, las alineaciones y el 360 nuevos de la liga
+(`scripts/descargar/actualizar_temporada.py`, prueba primero con `--dry-run`), alarga las eras vigentes
+si el técnico del API es el mismo (`scripts/descargar/extender_eras.py`; un cambio de técnico se agrega
+a mano), rehace lo de la liga **sin reajustar el vocabulario** (las familias significan lo mismo) y
+vuelve a correr la historia completa y la demostración. Los archivos nuevos no están en
+`data/MANIFIESTO_RAW.sha256` (ese manifiesto es el de la entrega del hackathon).
 
 `historia.sh` corre las pruebas primero, calcula solo lo que falte de lo que es de toda la
 liga y guarda un log fechado junto a las salidas. Cada sección también se corre sola
-(`dtcoach identidad | ofensiva | defensa | jugadores | balon-parado | simular | blindaje --foco "…"`). Para
+(`dtcoach identidad | ofensiva | defensa | jugadores | balon-parado | simular | blindaje | demostracion --foco "…"`). Para
 analizar a otro técnico basta repetir los pasos 6–8 con su nombre exacto, tal como aparece en
 las eras. Todos los parámetros (malla, K, encogimiento, semillas, umbrales) están en
 `config/default.yaml`; ninguno está escrito en el código.
@@ -208,6 +217,7 @@ las eras. Todos los parámetros (malla, K, encogimiento, semillas, umbrales) est
 | `…/balon_parado/BALON_PARADO.md` | corners, tiros libres, laterales largos, xDefense (H24–H26), receta Arsenal |
 | `…/simulacion/SIMULACION.md` | xPts, simulador de partido y proyección en su club actual |
 | `…/blindaje/BLINDAJE.md` | xG contra OBV, pocos partidos, BH global de todas las hipótesis |
+| `…/demostracion/DEMOSTRACION.md` | **la regla de demostración:** todas las afirmaciones (hipótesis, métricas, efectos, pruebas) en un solo Benjamini-Hochberg; solo lo demostrado se narra |
 
 Cada `.md` viene acompañado de sus `.json` (cifras exactas) y sus `.png`.
 

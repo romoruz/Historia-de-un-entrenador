@@ -407,8 +407,16 @@ def _boot_tasa(mid: np.ndarray, y: np.ndarray, n_boot: int, rng) -> tuple[float,
     return float(np.quantile(b, 0.025)), float(np.quantile(b, 0.975))
 
 
+def _boot_medias(mid: np.ndarray, y: np.ndarray, n_boot: int, rng) -> np.ndarray:
+    """Distribución bootstrap (por partidos) de la media de `y`."""
+    u, g = np.unique(mid, return_inverse=True)
+    sy, sn = np.bincount(g, weights=y, minlength=len(u)), np.bincount(g, minlength=len(u)).astype(float)
+    return np.array([sy[i].sum() / max(sn[i].sum(), 1) for i in (rng.integers(0, len(u), len(u))
+                                                                  for _ in range(n_boot))])
+
+
 def rutinas(j: pl.DataFrame, tp: pl.DataFrame, foco: str, n_boot: int = 500, seed: int = 0,
-            min_corners: int = 150) -> dict:
+            min_corners: int = 150, margen: float = 0.01) -> dict:
     """xG por corner y remate por rutina (técnica × zona) en toda la liga, y el uso del foco."""
     c = j.filter(pl.col("tipo") == "corner").join(tp.select("match_id", "team", "coach", "coach_rival"),
                                                    on=["match_id", "team"], how="left")
@@ -421,10 +429,14 @@ def rutinas(j: pl.DataFrame, tp: pl.DataFrame, foco: str, n_boot: int = 500, see
         if d.height < min_corners:
             continue
         mid = d["match_id"].to_numpy()
-        lo, hi = _boot_tasa(mid, d["xg"].to_numpy(), n_boot, rng)
+        b = _boot_medias(mid, d["xg"].to_numpy(), n_boot, rng)
+        lo, hi = float(np.quantile(b, 0.025)), float(np.quantile(b, 0.975))
+        resto = liga.filter(~((pl.col("tec") == tec) & (pl.col("zona") == zona)))["xg"].mean()
+        # H0: esta rutina rinde lo mismo que el resto de los corners de la liga
+        p_r = float(max(1 / n_boot, min(1.0, 2 * min((b <= resto).mean(), (b >= resto).mean()))))
         f = mios.filter((pl.col("tec") == tec) & (pl.col("zona") == zona))
         filas.append({"tecnica": tec, "zona": zona, "corners_liga": d.height,
-                      "xg_por_corner": float(d["xg"].mean()), "lo": lo, "hi": hi,
+                      "xg_por_corner": float(d["xg"].mean()), "lo": lo, "hi": hi, "xg_resto": float(resto), "p": p_r,
                       "remate": float((d["remates"] > 0).mean()),
                       "uso_liga": d.height / liga.height, "uso_foco": f.height / max(mios.height, 1),
                       "corners_foco": f.height, "xg_foco": float(f["xg"].mean()) if f.height else float("nan")})
@@ -452,6 +464,9 @@ def rutinas(j: pl.DataFrame, tp: pl.DataFrame, foco: str, n_boot: int = 500, see
                 "dif": float(xa.mean() - xb.mean()), "lo": float(np.quantile(dif, 0.025)),
                 "hi": float(np.quantile(dif, 0.975)),
                 "p": float(max(1 / n_boot, min(1, 2 * min((dif <= 0).mean(), (dif >= 0).mean())))),
+                # equivalencia (TOST): ¿la diferencia cabe en ±margen? Se demuestra si p_tost < 0.05
+                "margen": margen, "lo90": float(np.quantile(dif, 0.05)), "hi90": float(np.quantile(dif, 0.95)),
+                "p_tost": float(max(1 / n_boot, max((dif >= margen).mean(), (dif <= -margen).mean()))),
                 "uso_liga": a.height / liga.height,
                 "uso_foco": float(mios.filter(receta).height / max(mios.height, 1))}
     return out
@@ -577,11 +592,20 @@ def resumen_laterales(j: pl.DataFrame, tp: pl.DataFrame, foco: str, x_min: float
             r["intervienen"] = {"1": int((iv <= 1).sum()), "2": int((iv == 2).sum()), "3+": int((iv >= 3).sum())}
             # el caso que pide el reto: cae en el área chica y termina en remate con ≥ 2 que intervienen
             ch = d.filter(pl.col("chica6"))
-            r["chica_segunda"] = {"laterales": ch.height,
+            r["chica_segunda"] = {"laterales": ch.height, "de_todos": d.height,
                                   "remate": int(ch.filter(rem).height),
                                   "remate_2mas": int(ch.filter(rem & (pl.col("intervienen") >= 2)).height),
                                   "goles": int(ch["goles"].sum()) if ch.height else 0}
             out[tramo][g] = r
+        # prueba exacta de Fisher: de todos los laterales del tramo, ¿cae en el área chica y acaba en remate con
+        # ≥ 2 que intervienen más seguido que en la liga?
+        L = out[tramo].get("liga", {}).get("chica_segunda")
+        for g in ("foco_ataque", "foco_defensa"):
+            F = out[tramo].get(g, {}).get("chica_segunda")
+            if F and L and F["de_todos"] and L["de_todos"]:
+                tabla = [[F["remate_2mas"], F["de_todos"] - F["remate_2mas"]],
+                         [L["remate_2mas"], L["de_todos"] - L["remate_2mas"]]]
+                F["p_fisher"] = float(stats.fisher_exact(tabla)[1])
     return out
 
 

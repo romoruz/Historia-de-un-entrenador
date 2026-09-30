@@ -262,9 +262,28 @@ def validar(ll: pl.DataFrame, b: pl.DataFrame, fz: dict, mu: float, h: float, n_
         cub.append(p["pts_p10"] <= y <= p["pts_p90"])
     if not pred:
         return {"llegadas": 0}
-    return {"llegadas": len(pred), "error_abs_por_partido": float(np.mean(err_m)),
-            "error_abs_inercia": float(np.mean(err_0)), "correlacion": float(np.corrcoef(pred, real)[0, 1]),
-            "cobertura_80": float(np.mean(cub)), "pred": pred, "real": real}
+    from scipy import stats
+    em, e0 = np.array(err_m), np.array(err_0)
+    d = em - e0
+    # ¿la receta le gana a la inercia? prueba pareada de los errores (Diebold-Mariano con pérdida absoluta,
+    # llegadas independientes) y, como respaldo sin supuesto de normalidad, Wilcoxon de rangos con signo
+    dm_t = float(d.mean() / (d.std(ddof=1) / np.sqrt(len(d)))) if len(d) > 1 and d.std(ddof=1) > 0 else float("nan")
+    p_dm = float(2 * stats.t.sf(abs(dm_t), len(d) - 1)) if np.isfinite(dm_t) else float("nan")
+    p_w = float(stats.wilcoxon(d).pvalue) if len(d) > 5 and np.any(d != 0) else float("nan")
+    # ¿el intervalo del 80 % cubre el 80 %? binomial bilateral
+    k = int(np.sum(cub))
+    p_cob = float(stats.binomtest(k, len(cub), 0.8).pvalue)
+    # intervalo CONFORME: el cuantil ⌈(n+1)·0.8⌉/n de los errores de todas las llegadas (puntos por partido).
+    # Con llegadas intercambiables cubre ≥ 80 % por construcción (Vovk et al. 2005; Lei et al. 2018)
+    res_pp = np.abs(np.array(pred) - np.array(real)) / np.array([r["partidos_post"] for r in ll.iter_rows(named=True)])
+    kq = min(len(res_pp), int(np.ceil((len(res_pp) + 1) * 0.8)))
+    q80 = float(np.sort(res_pp)[kq - 1])
+    return {"llegadas": len(pred), "error_abs_por_partido": float(em.mean()),
+            "error_abs_inercia": float(e0.mean()), "correlacion": float(np.corrcoef(pred, real)[0, 1]),
+            "p_correlacion": float(stats.pearsonr(pred, real)[1]),
+            "dif_error": float(d.mean()), "p_dm": p_dm, "p_wilcoxon": p_w,
+            "cobertura_80": float(np.mean(cub)), "p_cobertura": p_cob, "conforme_80_pp": q80,
+            "pred": pred, "real": real}
 
 
 def proyectar(b: pl.DataFrame, coach: str, n_pre: int = 17, n_post: int = 17, n_sim: int = 10000,
@@ -312,5 +331,13 @@ def proyectar(b: pl.DataFrame, coach: str, n_pre: int = 17, n_post: int = 17, n_
                               "xg_favor_real": float(en_club["xgf"].sum()), "xg_contra_real": float(en_club["xga"].sum()),
                               **{f"proy_{k_}": v for k_, v in reales.items()}}}
     if validar_liga:
-        out["validacion"] = validar(ll.filter(pl.col("coach") != coach), b, fz, mu, h, min(n_sim, 2000), seed)
+        out["validacion"] = v = validar(ll.filter(pl.col("coach") != coach), b, fz, mu, h, min(n_sim, 2000), seed)
+        q = v.get("conforme_80_pp")
+        if q is not None:
+            # intervalos conformes del 80 %: la proyección ± q puntos por partido
+            n_t = out["equipos"] - 1
+            for e in out["escenarios"].values():
+                e["pts_conforme"] = [max(0.0, e["pts_media"] - q * n_t), e["pts_media"] + q * n_t]
+            c = out["contraste_real"]
+            c["proy_conforme"] = [max(0.0, c["proy_pts_media"] - q * c["partidos"]), c["proy_pts_media"] + q * c["partidos"]]
     return out
