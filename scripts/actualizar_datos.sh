@@ -35,7 +35,7 @@ mkdir -p reports
   python scripts/descargar/extender_eras.py --aplicar
   git --no-pager diff --stat -- data/referencia || true
   echo "== 3. la liga: aplanar, partidos, secuencias, Elo (el vocabulario NO se reajusta)"
-  dtcoach aplanar
+  dtcoach aplanar --forzar
   dtcoach partidos
   dtcoach fase0
   dtcoach elo
