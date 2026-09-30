@@ -20,6 +20,8 @@ RASGOS DEL SAQUE
 ----------------
   lado             banda desde la que se saca (y < 40: la de y = 0)
   tecnica          Inswinging (cerrado), Outswinging (abierto), Straight (recto); de `dtcoach extra`
+  chica6           el destino cae en el área chica de verdad (6 yardas: x ≥ 114, 30 ≤ y ≤ 50);
+                   la zona "area_chica" de abajo es solo su franja central, frente al arco
   zona             destino del balón en el marco del que saca, con u = (y − 40)·s, s = −1 si
                    el saque viene de y < 40 (u > 0 = del lado del saque):
                      corto        destino fuera del área
@@ -160,6 +162,8 @@ def _saques(ev: pl.DataFrame, cfg: dict) -> pl.DataFrame:
         else pl.lit(None, dtype=pl.Utf8).alias("altura"),
         (((pl.col("fin_x") - pl.col("x")) ** 2 + (pl.col("fin_y") - pl.col("y")) ** 2).sqrt()).alias("largo"),
         (pl.col("pass_outcome") == "Pass Offside").fill_null(False).alias("fuera_de_lugar"),
+        ((pl.col("fin_x") >= 114) & (pl.col("fin_y") >= 30) & (pl.col("fin_y") <= 50)).fill_null(False)
+        .alias("chica6"),
         pl.when(pl.col("type") == "Shot").then(pl.col("shot_statsbomb_xg")).otherwise(None).alias("_xg_directo"))
 
 
@@ -252,20 +256,26 @@ def lateral_cuarto(j: pl.DataFrame, x_min: float = 90.0) -> pl.DataFrame:
     return j.filter(pl.col("tipo").is_in(["lateral_largo", "lateral_zona"]) & (pl.col("x_saque") >= x_min))
 
 
+def _conteo(df: pl.DataFrame, tp: pl.DataFrame, nombre: str, n: pl.Expr) -> pl.DataFrame:
+    """Conteo POR PARTIDO: el denominador es cada equipo-partido, también los que no tuvieron ninguna
+    jugada de ese tipo (si no, `unir` los deja con d = 0 y el promedio solo cuenta los partidos con ≥ 1)."""
+    a = df.group_by("match_id", "team").agg(n.cast(pl.Float64).alias(f"{nombre}__n"))
+    return (tp.select("match_id", "team").unique().join(a, on=["match_id", "team"], how="left")
+            .with_columns(pl.col(f"{nombre}__n").fill_null(0.0), pl.lit(1.0).alias(f"{nombre}__d")))
+
+
 def metricas(j: pl.DataFrame, tp: pl.DataFrame, cobertura_min: float = 0.8,
-             lateral_min_x: float = 90.0) -> list[pl.DataFrame]:
+             lateral_cuarto_x: float = 90.0) -> list[pl.DataFrame]:
     """`j`: `jugadas` (con `con_360` si hay 360). Ofensivas del que saca; defensivas del rival."""
     out = []
     rem = pl.col("remates") > 0
     for t in TIPOS:
         d = j.filter(pl.col("tipo") == t)
+        out.append(_conteo(d, tp, f"n_{t}", pl.len()))
         out.append(d.group_by("match_id", "team").agg(
-            pl.len().cast(pl.Float64).alias(f"n_{t}__n"), pl.lit(1.0).alias(f"n_{t}__d"),
             rem.sum().cast(pl.Float64).alias(f"remate_{t}__n"), pl.len().cast(pl.Float64).alias(f"remate_{t}__d"),
             pl.col("xg").sum().alias(f"xg_{t}__n"), pl.len().cast(pl.Float64).alias(f"xg_{t}__d")))
-    out.append(j.group_by("match_id", "team").agg(
-        pl.col("goles").sum().cast(pl.Float64).alias("goles_bp__n"), pl.lit(1.0).alias("goles_bp__d"),
-        pl.col("xg").sum().alias("xg_bp__n"), pl.lit(1.0).alias("xg_bp__d")))
+    out += [_conteo(j, tp, "goles_bp", pl.col("goles").sum()), _conteo(j, tp, "xg_bp", pl.col("xg").sum())]
     c = j.filter(pl.col("tipo") == "corner")
     con_tec = pl.col("tecnica").is_in(list(TECNICAS))
     out += [_agg(c, "corner_cerrado", (pl.col("tecnica") == "Inswinging").sum(), con_tec.sum()),
@@ -285,12 +295,10 @@ def metricas(j: pl.DataFrame, tp: pl.DataFrame, cobertura_min: float = 0.8,
     # tiros libres peligrosos (≤ 30 m del centro del arco): del que saca
     peligro = ((120.0 - pl.col("x_saque")) ** 2 + (40.0 - pl.col("y_saque")) ** 2).sqrt() <= 30.0
     tlp = j.filter(pl.col("tipo").is_in(["tl_directo", "tl_centrado", "tl_otro"]))
-    out.append(tlp.group_by("match_id", "team").agg(peligro.sum().cast(pl.Float64).alias("tl_peligro__n"),
-                                                     pl.lit(1.0).alias("tl_peligro__d")))
-    # laterales en el último cuarto (x ≥ lateral_min_x): del que saca
-    la = lateral_cuarto(j, lateral_min_x)
-    out += [la.group_by("match_id", "team").agg(pl.len().cast(pl.Float64).alias("lat_cuarto__n"),
-                                                pl.lit(1.0).alias("lat_cuarto__d")),
+    out.append(_conteo(tlp, tp, "tl_peligro", peligro.sum()))
+    # laterales en el último cuarto (x ≥ lateral_cuarto_x): del que saca
+    la = lateral_cuarto(j, lateral_cuarto_x)
+    out += [_conteo(la, tp, "lat_cuarto", pl.len()),
             _agg(la, "lat_cuarto_area", (pl.col("tipo") == "lateral_largo").sum(), pl.len()),
             _agg(la, "lat_cuarto_remate", rem.sum(), pl.len()),
             _agg(la, "lat_cuarto_xg", pl.col("xg").sum(), pl.len()),
@@ -556,7 +564,7 @@ def resumen_laterales(j: pl.DataFrame, tp: pl.DataFrame, foco: str, x_min: float
         for g, d in G.items():
             r = {"laterales": d.height, "por_partido": _por_partido(d, tp, g, foco),
                  "al_area": razon_boot(d, (pl.col("tipo") == "lateral_largo").sum(), pl.len(), n_boot, rng),
-                 "area_chica": razon_boot(d, (pl.col("zona") == "area_chica").sum(), pl.len(), n_boot, rng),
+                 "area_chica": razon_boot(d, pl.col("chica6").sum(), pl.len(), n_boot, rng),
                  "primer_contacto": razon_boot(d, (pl.col("primer_contacto") == "ataque").sum(),
                                                pl.col("primer_contacto").is_not_null().sum(), n_boot, rng),
                  "remate": razon_boot(d, rem.sum(), pl.len(), n_boot, rng),
@@ -568,7 +576,7 @@ def resumen_laterales(j: pl.DataFrame, tp: pl.DataFrame, foco: str, x_min: float
             iv = cr["intervienen"].fill_null(0).to_numpy()
             r["intervienen"] = {"1": int((iv <= 1).sum()), "2": int((iv == 2).sum()), "3+": int((iv >= 3).sum())}
             # el caso que pide el reto: cae en el área chica y termina en remate con ≥ 2 que intervienen
-            ch = d.filter(pl.col("zona") == "area_chica")
+            ch = d.filter(pl.col("chica6"))
             r["chica_segunda"] = {"laterales": ch.height,
                                   "remate": int(ch.filter(rem).height),
                                   "remate_2mas": int(ch.filter(rem & (pl.col("intervienen") >= 2)).height),

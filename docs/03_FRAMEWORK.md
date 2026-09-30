@@ -152,7 +152,7 @@ secuencias de cada tipo. La estacionaria de una cadena absorbente es degenerada
 | objeto | definición operativa |
 |---|---|
 | **Saque** | pase con `pass_type` Corner, Free Kick o Throw-in, o remate con `shot_type` Free Kick |
-| **Tipos** | `corner`; `tl_directo` (el saque es el remate); `tl_centrado` (x ≥ 60 y destino en el área); `tl_otro` (x ≥ 60, destino fuera del área); `lateral_largo` (destino en el área); `lateral_zona` (x ≥ 90, destino fuera del área) |
+| **Tipos** | `corner`; `tl_directo` (el saque es el remate); `tl_centrado` (x ≥ 60 y destino en el área); `tl_otro` (x ≥ 60, destino fuera del área); `lateral_largo` (destino en el área); `lateral_zona` (x ≥ 80, destino fuera del área; en 5.4 solo los de x ≥ 90) |
 | **Centro a balón parado** | corner, tiro libre al área o lateral largo: la unidad del xDefense |
 | **Desenlace** | remates, xG y goles del equipo que saca en los 15 s siguientes, cortados en la siguiente reanudación de cualquier tipo (incluye la segunda jugada) |
 | **Zona de destino** | con u = (y_fin − 40)·s, s = −1 si el saque viene de y < 40: *corto* (fuera del área), *primer palo* (u > 4), *segundo palo* (u < −4), *área chica* (\|u\| ≤ 4, x ≥ 114), *penal* (\|u\| ≤ 4, x < 114) |
@@ -166,7 +166,8 @@ secuencias de cada tipo. La estacionaria de una cadena absorbente es degenerada
 | **xD prevención** | Σ (p̂(remate) − remate) / centros en contra; p̂ de un logit L2 fuera de muestra con la INTENCIÓN del cobro y el ataque, sin rasgos de la defensa |
 | **xD supresión** | Σ (xG_base − xG_full) / remates a balón parado concedidos; los dos modelos difieren solo en la geometría defensiva de la foto del remate |
 | **Familias** | *corners*; *tiros libres* (`tl_directo`, `tl_centrado`, `tl_otro`); *laterales* (`lateral_largo`, `lateral_zona`) |
-| **Lateral del último cuarto / octavo** | lateral sacado desde x ≥ 90 / x ≥ 105, vaya o no al área (5.4) |
+| **Lateral del último cuarto / octavo** | lateral sacado desde x ≥ 90 / x ≥ 105, vaya o no al área (5.4; `lateral_cuarto_x`, `lateral_octavo_x`) |
+| **Área chica (laterales)** | el destino cae en el área chica de 6 yardas (x ≥ 114, 30 ≤ y ≤ 50); la zona "área chica" de los corners es solo su franja frente al arco |
 | **Intervienen** | en una jugada con remate: jugadores distintos del que saca que tocan el balón entre el saque y el primer remate (remate incluido); 2 = peinada + remate |
 | **Tiro libre peligroso** | a ≤ 30 m del centro del arco |
 | **Barrera** | defensores de campo a ≤ 12 m del balón cuya sombra toca el arco, en el remate de un tiro libre directo |

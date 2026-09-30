@@ -468,7 +468,12 @@ parten exactamente en prevención, alejamiento, supresión y portero (§16.6). S
 familia (corners, tiros libres, laterales), para el foco defendiendo (xD) y atacando (xO = −xD) y
 para la liga. Tres decisiones: (1) la capa 1 de los saques que no van al área es un modelo
 **aparte**, así el pre-registrado de H24 no cambia; (2) los laterales de la sección 5.4 son los
-sacados desde el último cuarto (x ≥ 90; `lateral_min_x` pasa de 80 a 90) y se separa el último
-octavo (x ≥ 105); (3) la "segunda jugada" se mide contando cuántos jugadores intervienen entre
+sacados desde el último cuarto (x ≥ 90, `lateral_cuarto_x`) y se separa el último octavo (x ≥ 105);
+`lateral_min_x` se queda en 80 porque define los tipos de saque de H24–H26 (una primera versión lo
+subió a 90 y movió H25 en la cuarta cifra: se revirtió); (3) la "segunda jugada" se mide contando cuántos jugadores intervienen entre
 el saque y el remate. Todo esto se agregó después de la corrida de la fase G: es exploratorio.
+Además: (4) los conteos por partido del balón parado cuentan todos los partidos del equipo, también
+los que no tuvieron ese saque (antes el promedio solo tomaba los partidos con ≥ 1: "tiros libres
+directos por partido" salía casi al doble); (5) la contracción por etapa de las métricas en goles
+usa una varianza común por saque, porque la propia de cada etapa está acoplada a la media (04 §16.4).
 

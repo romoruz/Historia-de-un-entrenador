@@ -720,6 +720,14 @@ $v_j=\frac{G}{G-1}\sum_m(n_m-\hat\theta_jd_m)^2/(\sum_md_m)^2$. Si $\hat\tau^2=0
 variación real detectable entre equipos** y todos se contraen a $\mu$: es la conclusión del
 trabajo previo con 51 goles, que aquí se vuelve a poner a prueba con toda la liga.
 
+**Varianza común para métricas en goles.** Con goles, la $v_j$ del método delta está acoplada a
+$x_j$: una etapa a la que casi no le hacen goles tiene $x_j$ alto (evitó goles) **y** $v_j$ chica, así
+que pesa de más en $\hat\mu$ y en $\hat\tau^2$ y los sesga. Para los términos de la cadena (§16.6) se usa
+la misma varianza por saque en todas las etapas, la de la liga:
+$\hat\sigma^2=\sum_j\sum_m(n_m-\hat\theta_jd_m)^2/\sum_j\sum_md_m^2$ y $v_j=\hat\sigma^2\sum_md_m^2/(\sum_md_m)^2$,
+que depende del volumen de la etapa pero no de su resultado. H24 y H25 se reportan con la varianza
+propia, como se corrieron.
+
 **Proposición 16.5 (la cadena: recursión de probabilidad condicional y total).** En la ventana de
 un saque puede haber varios remates (el rechace vuelve). Sean $S_k$ = "hay un $k$-ésimo remate",
 $G_k$ = "el $k$-ésimo entra" y $q_k=P(G_k\mid S_k,\bar G_1,\dots,\bar G_{k-1},C)$. Con

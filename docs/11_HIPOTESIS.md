@@ -385,5 +385,6 @@ análisis de tiros libres (peligrosos, barrera, arco libre) y el de laterales de
 **exploratorios**: se reportan con IC 95 % (y, métrica por métrica, con la misma etiqueta
 descriptiva de color que el resto de las tablas), pero no son hipótesis y no entran al BH global. H24–H26 siguen
 como se pre-registraron (la capa 1 de los centros no cambia; la de los demás saques es un modelo
-aparte). Cambiar `lateral_min_x` de 80 a 90 no toca ninguna métrica de H24–H26.
+aparte). El último cuarto de 5.4 es un umbral aparte (`lateral_cuarto_x` = 90); `lateral_min_x` sigue en 80
+porque define los tipos de saque de H24–H26.
 

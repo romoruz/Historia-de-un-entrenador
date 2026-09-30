@@ -137,8 +137,9 @@ futbol:
   presion_m: 2.0          # 360: "presionado" = un rival a ≤ 2 m
   min_defensores: 6       # 360: defensores visibles mínimos para medir el bloque
   tl_min_x: 60.0          # tiro libre en campo rival
-  lateral_min_x: 90.0     # lateral en el último cuarto de la cancha (zona de peligro)
-  lateral_octavo_x: 105.0 # lateral en el último octavo
+  lateral_min_x: 80.0     # lateral en zona de peligro (definición pre-registrada de la fase G: no cambiar)
+  lateral_cuarto_x: 90.0  # 5.4: lateral en el último cuarto de la cancha
+  lateral_octavo_x: 105.0 # 5.4: lateral en el último octavo
   ventana_bp: 15.0        # s: desenlace de una jugada a balón parado (cortada en la siguiente reanudación)
   contacto_s: 5.0         # s: plazo del primer contacto tras el saque
   cobertura_min: 0.8      # 360: fracción del área visible para contar jugadores en un saque

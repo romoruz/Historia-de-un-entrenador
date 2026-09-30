@@ -568,3 +568,36 @@ def test_barrera():
     # tiro libre a 20 m, centrado: tres en la barrera a 9.15 m, uno lejos, uno fuera del ángulo
     de = np.array([[109.15, 39.5], [109.15, 40.0], [109.15, 40.5], [118.0, 30.0], [105.0, 60.0]])
     assert xd.barrera(100.0, 40.0, de) == 3
+
+
+def test_conteo_por_partido_incluye_partidos_sin_saque():
+    j = pl.DataFrame({"match_id": [1, 1], "team": ["A", "A"], "tipo": ["tl_directo", "tl_directo"],
+                      "x_saque": [95.0, 95.0], "y_saque": [40.0, 40.0], "remates": [1, 1], "xg": [0.05, 0.05],
+                      "goles": [0, 0], "tecnica": [None, None], "zona": [None, None],
+                      "primer_contacto": [None, None], "remate_directo": [True, True],
+                      "fuera_de_lugar": [False, False], "intervienen": [0, 0]},
+                     schema_overrides={"tecnica": pl.Utf8, "zona": pl.Utf8, "primer_contacto": pl.Utf8})
+    tp = pl.DataFrame([{"match_id": m, "team": t, "rival": r, "coach": "F" if t == "A" else "L",
+                        "coach_rival": "L" if t == "A" else "F"} for m in (1, 2) for t, r in (("A", "B"), ("B", "A"))])
+    M = fb.unir(bp.metricas(j, tp), tp)
+    a = M.filter(pl.col("team") == "A")
+    assert a["n_tl_directo__n"].sum() / a["n_tl_directo__d"].sum() == pytest.approx(1.0)   # 2 en 2 partidos
+    b = M.filter(pl.col("team") == "B")
+    assert b["n_tl_directo__d"].sum() == 2 and b["n_tl_directo__n"].sum() == 0
+
+
+def test_varianza_comun_no_sesga_la_media_con_goles():
+    # 45 etapas iguales en la realidad; goles raros: quien no recibe goles tiene θ alto y varianza propia ~0
+    rng = np.random.default_rng(3)
+    filas = []
+    for e in range(45):
+        for m in range(40):
+            n = int(rng.integers(3, 8))
+            g = rng.binomial(n, 0.03)
+            filas.append({"match_id": e * 100 + m, "team": f"E{e}", "coach": f"T{e}",
+                          "x__n": 100 * (0.03 * n - g), "x__d": float(n)})
+    M = pl.DataFrame(filas)
+    prop = xd.por_etapa(M, "x", "propio", 30, "propia")
+    com = xd.por_etapa(M, "x", "propio", 30, "comun")
+    assert abs(com["mu"][0]) < abs(prop["mu"][0])          # la propia arrastra μ hacia los que no reciben goles
+    assert abs(com["mu"][0]) < 0.5

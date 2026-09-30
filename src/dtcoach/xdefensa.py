@@ -407,7 +407,7 @@ def familia_de(tipo: str) -> str | None:
     return next((f for f, ts in FAMILIAS.items() if tipo in ts), None)
 
 
-def descomposicion(j: pl.DataFrame, p1: pl.DataFrame, p2: pl.DataFrame) -> pl.DataFrame:
+def descomposicion(j: pl.DataFrame, p1: pl.DataFrame, p2: pl.DataFrame, lateral_cuarto_x: float = 0.0) -> pl.DataFrame:
     """Una fila por saque (de las tres familias) con p̂, s, B, F, g, κ y los cuatro términos de
     p̂κ − g, en goles, desde el punto de vista del que DEFIENDE (positivo = gol evitado).
     `p1`: capa 1 (todas las p̂ fuera de muestra); `p2`: capa 2 (xg_base, xg_full por remate con foto).
@@ -418,7 +418,9 @@ def descomposicion(j: pl.DataFrame, p1: pl.DataFrame, p2: pl.DataFrame) -> pl.Da
            .join(p2.select("id", "xg_base", "xg_full", "xg_sb"), on="id", how="left")
            .group_by("id_saque").agg(pl.col("xg_base").sum().alias("_b"), pl.col("xg_full").sum().alias("_f"),
                                      pl.col("xg_sb").sum().alias("_sb")))
-    d = (j.filter(pl.col("tipo").is_in(tipos))
+    # laterales que no van al área: solo los del último cuarto (5.4)
+    atras = (pl.col("tipo") == "lateral_zona") & (pl.col("x_saque") < lateral_cuarto_x)
+    d = (j.filter(pl.col("tipo").is_in(tipos) & ~atras)
          .select("match_id", "team", "id_saque", "tipo", "x_saque", "y_saque", "zona", "remates", "goles", "xg")
          .join(p1.select("id_saque", "p_remate"), on="id_saque", how="left")
          .join(rem, on="id_saque", how="left"))
@@ -540,8 +542,14 @@ def contraccion(theta: np.ndarray, var: np.ndarray) -> dict:
     return {"mu": float(mu), "tau2": float(tau2), "contraido": out, "confiabilidad": confi, "etapas": int(ok.sum())}
 
 
-def por_etapa(M: pl.DataFrame, m: str, lado: str = "propio", min_partidos: int = 30) -> pl.DataFrame:
+def por_etapa(M: pl.DataFrame, m: str, lado: str = "propio", min_partidos: int = 30,
+              varianza: str = "propia") -> pl.DataFrame:
     """Una fila por técnico-club: θ (razón de sumas), su varianza por partidos y el θ contraído.
+
+    `varianza`: "propia" = método delta con los residuos de cada etapa; "comun" = la misma varianza por
+    saque para todas las etapas (la de la liga), v_j = σ² Σ d_m² / (Σ d_m)². Con métricas de goles la
+    propia está acoplada a la media (quien no recibe goles tiene poca varianza Y un θ alto), así que pesa
+    de más a esas etapas y sesga μ; la común corta ese acoplamiento (04 §16.4).
 
     Ordenada de mayor a menor θ contraído: en xd_prev y xd_remate más alto = mejor defensa, así que la
     fila 1 es la mejor."""
@@ -550,11 +558,17 @@ def por_etapa(M: pl.DataFrame, m: str, lado: str = "propio", min_partidos: int =
     for (c, t), g in M.filter(pl.col(coach).is_not_null()).group_by(coach, team):
         if g["match_id"].n_unique() < min_partidos:
             continue
-        th, v = razon_y_varianza(g[f"{m}__n"].to_numpy(), g[f"{m}__d"].to_numpy())
-        filas.append({"coach": c, "team": t, "partidos": g["match_id"].n_unique(), "theta": th, "var": v})
+        n, d = g[f"{m}__n"].to_numpy(), g[f"{m}__d"].to_numpy()
+        th, v = razon_y_varianza(n, d)
+        filas.append({"coach": c, "team": t, "partidos": g["match_id"].n_unique(), "theta": th, "var": v,
+                      "_r2": float(((n - th * d) ** 2).sum()), "_d2": float((d ** 2).sum()), "_D": float(d.sum())})
     if not filas:
         return pl.DataFrame()
     E = pl.DataFrame(filas)
+    if varianza == "comun":
+        s2 = E["_r2"].sum() / max(E["_d2"].sum(), 1e-12)
+        E = E.with_columns((s2 * pl.col("_d2") / pl.col("_D") ** 2).alias("var"))
+    E = E.drop("_r2", "_d2", "_D")
     cc = contraccion(E["theta"].to_numpy(), E["var"].to_numpy())
     return E.with_columns(pl.Series("contraido", cc["contraido"]), pl.Series("confiabilidad", cc["confiabilidad"]),
                           pl.lit(cc["mu"]).alias("mu"), pl.lit(cc["tau2"]).alias("tau2")).sort("contraido", descending=True)

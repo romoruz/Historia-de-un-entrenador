@@ -22,7 +22,7 @@ import polars as pl
 
 from . import ingest
 
-TABLA_VERSION = 6          # sube cuando cambia lo que calcula `tabla_liga`: fuerza a rehacerla
+TABLA_VERSION = 7          # sube cuando cambia lo que calcula `tabla_liga`: fuerza a rehacerla
 
 
 def _slug(foco: str) -> str:
@@ -189,13 +189,13 @@ def tabla_liga(cfg, ev: pl.DataFrame | None = None, rehacer: bool = False) -> pl
     p2, r2 = xd.capa2(rem, fc["xd_folds"], fc["xd_lam"], cfg["seed"])
     p1.write_parquet(rb["capa1"])
     p2.write_parquet(rb["capa2"])
-    D = xd.descomposicion(j, p1, p2)
+    D = xd.descomposicion(j, p1, p2, fc["lateral_cuarto_x"])
     D.write_parquet(rb["cadena"])
     kappa = {t: float(v) for t, v in D.group_by("tipo").agg(pl.col("kappa").first()).iter_rows()}
     _json({"capa1": r1, "capa1_otros": r1o, "capa2": r2, "kappa": kappa}, rb["xdefensa"])
     tablas = (fb.ofensiva(ev, pos, fc) + fb.defensiva(ev, tp) + fb.transiciones(pos, fc)
               + fb.del_360(ev, rasgos, bloque, tp, fc) + of.metricas(ev, pos, fc, con_extra)
-              + df_.metricas(ev, rasgos, bloque, tp, fc) + bp.metricas(j, tp, fc["cobertura_min"], fc["lateral_min_x"])
+              + df_.metricas(ev, rasgos, bloque, tp, fc) + bp.metricas(j, tp, fc["cobertura_min"], fc["lateral_cuarto_x"])
               + xd.metricas_equipo(p1, p2, tp) + xd.metricas_descomposicion(D, tp) + xd.metricas_tl(p2, j, tp)
               + [estabilidad_once(leer_eventos(ingest.scan_events(cfg.ruta("eventos_parquet")))["xi"], tp)])
     M = fb.unir(tablas, tp)
@@ -760,8 +760,11 @@ def _md_etapa(E, foco: str, tit: str, n_etq: str) -> list[str]:
     if E is None or E.height == 0:
         return []
     fila = E.with_row_index("puesto", 1).filter(pl.col("coach") == foco).to_dicts()
-    L = [f"**{tit}** — contracción empírico-bayesiana entre {E.height} técnicos-club (τ² = {float(E['tau2'][0]):.2e}; "
-         "τ² ≈ 0 = no se detecta variación real entre equipos):", ""]
+    tau2 = float(E["tau2"][0])
+    L = [f"**{tit}** — contracción empírico-bayesiana entre {E.height} técnicos-club (media μ = {float(E['mu'][0]):+.4f}; "
+         f"τ² = {tau2:.2e}; τ² ≈ 0 = no se detecta variación real entre equipos):", ""]
+    if tau2 <= 0:
+        L += ["*τ² = 0: todos se contraen a la media y el puesto no significa nada.*", ""]
     L += [f"- {f['team']}: crudo {f['theta']:+.4f} ± {1.96 * np.sqrt(f['var']):.4f}, contraído {f['contraido']:+.4f} "
           f"{n_etq} (confiabilidad {f['confiabilidad']:.2f}; puesto {f['puesto']} de {E.height}, 1 = el mejor)"
           for f in fila]
@@ -809,10 +812,10 @@ def cmd_balon_parado(a, cfg):
         plano.update(_plano(r))
         return _sub(m)
 
-    def etapa(m, tit, etq, lado="propio", fig=True):
+    def etapa(m, tit, etq, lado="propio", fig=True, varianza="comun"):
         if f"{m}__n" not in M.columns:
             return None, []
-        E = xd.por_etapa(M, m, lado, mp)
+        E = xd.por_etapa(M, m, lado, mp, varianza)
         if E.height == 0:
             return None, []
         E.write_csv(out / f"etapas_{m}.csv")
@@ -863,8 +866,11 @@ def cmd_balon_parado(a, cfg):
         gs.descomposicion(cad, foco, out / "descomposicion.png", fam_nom)
     md += ["### Las hipótesis pre-registradas del xDefense (centros al área, H24 y H25)", ""]
     md += comparar({"xdefensa": ("propio", ["xd_prev", "xd_remate", "xd_gol"])})
-    Ep, L1 = etapa("xd_prev", "Capa 1 · prevención: remates evitados por centro en contra", "remates evitados por centro")
-    Es, L2 = etapa("xd_remate", "Capa 2 · supresión: xG que su defensa le quita a cada remate", "xG quitado por remate")
+    # H24 y H25: como se corrieron en la fase G (varianza propia de cada etapa)
+    Ep, L1 = etapa("xd_prev", "Capa 1 · prevención: remates evitados por centro en contra", "remates evitados por centro",
+                   varianza="propia")
+    Es, L2 = etapa("xd_remate", "Capa 2 · supresión: xG que su defensa le quita a cada remate", "xG quitado por remate",
+                   varianza="propia")
     md += L1 + L2
     gs.mapa_xdefensa(Ep, Es, foco, out / "mapa_xdefensa.png", "prevención (remates evitados por centro)",
                      "supresión (xG quitado por remate)")
@@ -932,8 +938,9 @@ def cmd_balon_parado(a, cfg):
     gs.tiros_libres(rtl, foco, out / "tiros_libres.png")
     nom = {"foco_ataque": f"{foco} a favor", "foco_defensa": f"{foco} en contra", "liga": "liga (cada equipo)"}
     md += ["### Cuántos, dónde y cómo se juegan", "",
-           "| quién | por partido | a ≤ 30 m por partido | de esos: directo · al área · corto | xG por directo | "
-           "goles por 100 directos | arco libre en el directo | en la barrera |", "|---|---|---|---|---|---|---|---|"]
+           "| quién | por partido | a ≤ 30 m por partido | de esos: directo · al área · corto | distancia del directo | "
+           "xG por directo | goles por 100 directos | arco libre en el directo | en la barrera |",
+           "|---|---|---|---|---|---|---|---|---|"]
     for g in ("foco_ataque", "foco_defensa", "liga"):
         r = rtl.get(g)
         if not r:
@@ -941,7 +948,7 @@ def cmd_balon_parado(a, cfg):
         rp, di = r["reparto_peligrosos"], r["directo"]
         md.append(f"| {nom[g]} | {r['por_partido']:.2f} | {r['peligrosos_por_partido']:.2f} | "
                   f"{100 * rp['tl_directo']:.0f} · {100 * rp['tl_centrado']:.0f} · {100 * rp['tl_otro']:.0f} % | "
-                  f"{_ic(di['xg'], '{:.3f}')} | {_ic(di['gol'], '{:.1f}', 100)} | "
+                  f"{_ic(di['dist'], '{:.1f}')} | {_ic(di['xg'], '{:.3f}')} | {_ic(di['gol'], '{:.1f}', 100)} | "
                   f"{_ic(di.get('goal_open'), '{:.0f}', 100)} % | {_ic(di.get('barrera'), '{:.1f}')} |")
     md += ["", "*En contra, la barrera y el arco libre son de SU defensa. Arco libre = fracción del arco que ve el que "
            "cobra, descontando la sombra de la barrera y de los defensores (capa 2).*", ""]
@@ -964,7 +971,7 @@ def cmd_balon_parado(a, cfg):
                               out / "linea_tiros_libres.png")
 
     # ------------------------------------------------------------------ 5.4 laterales
-    x0, x8 = fc["lateral_min_x"], fc.get("lateral_octavo_x", 105.0)
+    x0, x8 = fc["lateral_cuarto_x"], fc.get("lateral_octavo_x", 105.0)
     md += [f"## 5.4 Laterales en el último cuarto (x ≥ {x0:.0f} m) y en el último octavo (x ≥ {x8:.0f} m)", ""]
     md += comparar({"lat_favor": ("propio", LAT_FAVOR), "lat_contra": ("rival", LAT_FAVOR)})
     rl = bp.resumen_laterales(j, tp, foco, x0, x8, nb, seed)
