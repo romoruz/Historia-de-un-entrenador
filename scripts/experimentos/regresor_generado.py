@@ -25,10 +25,12 @@ from dtcoach.hipotesis import correr
 from dtcoach.mezcla import DatosPosesion, Mezcla, ajustar, responsabilidades
 
 
+FOCO = "Guillermo Almada"      # fijo: estos experimentos son solo sobre Almada
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", default="config/exp_mejoras.yaml")
-    ap.add_argument("--foco", default=None)
     ap.add_argument("--replicas", type=int, default=None)
     ap.add_argument("--muestra", type=int, default=0, help="humo: solo N partidos de la liga (todos los del foco)")
     ap.add_argument("--max-minutos", type=float, default=0, help="presupuesto de tiempo (0 = sin límite)")
@@ -38,7 +40,7 @@ def main():
     cfg = Config.load(a.config)
     ec = cfg["experimentos"]["regresor_generado"]
     R = a.replicas or ec["replicas"]
-    foco = a.foco or cfg["foco"]["coach"]
+    foco = FOCO
     c2, mc = dict(cfg["fase2"]), cfg["mezcla"]
     K, familias = c2["K"], c2["familias"]
     c2["foco"] = foco
@@ -122,7 +124,7 @@ def main():
     md += ["", "*«fijo» = misma remuestra con las r originales (calibra el bootstrap contra el IC publicado: ≈ 1 si es consistente); "
            "«doble» = mezcla reajustada. La inflación limpia aísla lo que añade la etapa 1.*"]
     (out / "REGRESOR_GENERADO.md").write_text("\n".join(md), encoding="utf-8")
-    print("\n".join(md[:14]))
+    print("\n".join(md))
     print(f"tiempo total: {time.time() - t0:.0f} s")
 
 

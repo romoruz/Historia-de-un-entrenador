@@ -22,16 +22,18 @@ from dtcoach.jugadores import cadena_jugadores
 from dtcoach.mezcla import DatosPosesion
 
 
+FOCO = "Guillermo Almada"      # fijo: estos experimentos son solo sobre Almada
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", default="config/exp_mejoras.yaml")
-    ap.add_argument("--foco", default=None)
     ap.add_argument("--muestra", type=int, default=0, help="humo: solo N partidos (todos los del foco)")
     a = ap.parse_args()
     t0 = time.time()
     cfg = Config.load(a.config)
     ec = cfg["experimentos"]["voronoi_grafo"]
-    foco = a.foco or cfg["foco"]["coach"]
+    foco = FOCO
     space, trans = _space(cfg), _trans(cfg)
     d = DatosPosesion.desde_transiciones(trans, space)
     Vz = vg.valor_de_zonas(np.asarray(d.S.sum(0)).ravel(), np.asarray(d.X.sum(0)).ravel(), d.n_transient, d.n_states,
