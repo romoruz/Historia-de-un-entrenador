@@ -69,6 +69,25 @@ def test_supuesto_pk_tamano_y_potencia():
     assert r["familias"][0]["P"]["tv"] > r["familias"][1]["P"]["tv"]   # la familia perturbada se desvía más
 
 
+def test_regresor_generado_piezas():
+    from dtcoach import regresor_generado as rg
+    rng = np.random.default_rng(0)
+    match = np.repeat(np.arange(40), 5)
+    pf = match < 10
+    con, sin = rg.estratos(match, pf)
+    assert len(con) == 10 and len(sin) == 30
+    idx = rg.remuestra(match, con, sin, rng)
+    assert len(idx) == 200 and np.mean(match[idx] < 10) in (0.25,)       # estratificada: mismos tamaños
+    R0 = rng.dirichlet(np.ones(3) * 0.3, 300)
+    perm = np.array([2, 0, 1])
+    assert np.array_equal(rg.alinear(R0, R0[:, perm]), np.argsort(perm))
+    fijo = [{"a": float(x)} for x in rng.normal(0, 1, 200)]
+    filas = rg.resumen(fijo, fijo, {"a": (0.0, -2.0, 2.0)})
+    assert filas[0]["infl_limpia"] == 1.0
+    doble = [{"a": 1.5 * x["a"]} for x in fijo]
+    assert abs(rg.resumen(fijo, doble, {"a": (0.0, -2.0, 2.0)})[0]["infl_limpia"] - 1.5) < 1e-9
+
+
 def test_voronoi_grafo_piezas():
     import polars as pl
 

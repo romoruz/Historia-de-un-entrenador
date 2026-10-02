@@ -521,6 +521,17 @@ primer intento omitió y volvía anticonservadora a la prueba: 22 % de rechazos 
 datos sembrados). Salidas en `reports/experimentos/supuesto_pk/`. Nada de la entrega cambia. Se
 decide con el resultado sobre Almada (RESUMEN.md).
 
+## ADR-v2-53 — EXPERIMENTO (no adoptado): regresor generado en la fase 2, documentado y cuantificado
+Rama `exp/mejoras-6`, sin push. Las r_sk salen del EM de la etapa 1 y el sandwich de la Prop. 7.2 las
+trata como dato: no propaga el error de primera etapa (04 §7.1). Se cuantifica con un bootstrap por
+partido, estratificado, que **reajusta la mezcla** en cada réplica (arranque en escalera, semilla
+fija por réplica `seed + 1000 + b`), con las familias alineadas por asignación húngara. La misma
+remuestra se evalúa con las r originales («fijo»), de modo que la inflación limpia
+(w_doble / w_fijo) aísla el efecto de la etapa 1 y la razón w_fijo / w_actual calibra el propio
+bootstrap. Regla: < 1.1 = despreciable. Con menos de 50 réplicas el veredicto es «necesita más
+réplicas». Costo: cada réplica reajusta la mezcla (minutos con los 467 mil secuencias reales), así que
+`--max-minutos` y `--reanudar`. Salidas en `reports/experimentos/regresor_generado/`.
+
 ## ADR-v2-54 — EXPERIMENTO EXPLORATORIO (no adoptado): Voronoi × grafo de jugadores
 Rama `exp/mejoras-6`, sin push. Une el espacio con que cada jugador EJECUTA (área Voronoi local, R = 10 m,
 128 puntos; 13.3) con lo que decide (pase / conducción / remate) y con el valor de zona V = N c de la

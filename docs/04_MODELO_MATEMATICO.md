@@ -365,6 +365,20 @@ empatar a perder, menos cuánto cambia la liga en las mismas secuencias.
 **Eficiencia (H7, H8).** xG por secuencia dentro de cada familia,
 $\sum_s r_{sk}\,xg_s / \sum_s r_{sk}$, foco contra liga, con bootstrap por partido (§9).
 
+### 7.1 Limitación: las $r_{sk}$ son un regresor generado (ADR-v2-53)
+
+Las responsabilidades $r_{sk}$ no se observan: son la salida del EM de la etapa 1 (la mezcla,
+§4), $r_{sk}=\hat\pi_kL_k(s)/\sum_l\hat\pi_lL_l(s)$ con $\hat\pi,\hat P$ estimados. La Prop. 7.2
+trata $r_s$ como dato: $\hat V$ solo contiene la variación de la etapa 2 (condicional a
+$\hat\theta_1$). La varianza correcta de un estimador en dos etapas es
+$V=V_2+G\,V_{1}\,G^\top$ con $G=\partial\hat\theta_2/\partial\theta_1$ (Murphy y Topel 1985), de modo
+que **omitir el segundo término estrecha los IC** de H1–H8. El sesgo no es la preocupación (la
+etapa 1 usa toda la liga y es muy precisa); sí lo es la sobreconfianza. Qué tan grande es: sin
+medir. Se cuantifica con un bootstrap por partido que reajusta la mezcla en cada réplica
+(`regresor_generado.py`, experimento, no adoptado): inflación limpia $=w_{\text{doble}}/w_{\text{fijo}}$,
+amplitudes de percentiles 2.5–97.5 con y sin reajustar la etapa 1 sobre la misma remuestra.
+Con $R$ réplicas el error relativo de una amplitud es $\approx1/\sqrt{2(R-1)}$ (5 % con 200).
+
 *Código:* `contexto.py`, `pesos.py`, `hipotesis.py`, `perfil.py`.
 
 ---
