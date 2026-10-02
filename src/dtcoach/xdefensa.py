@@ -471,7 +471,8 @@ def metricas_tl(p2: pl.DataFrame, j: pl.DataFrame, tp: pl.DataFrame) -> list[pl.
                                                pl.len().cast(pl.Float64).alias("barrera_tl__d"))]
 
 
-def cadena(d: pl.DataFrame, tp: pl.DataFrame, foco: str, n_boot: int = 500, seed: int = 0) -> dict:
+def cadena(d: pl.DataFrame, tp: pl.DataFrame, foco: str, n_boot: int = 500, seed: int = 0,
+           componentes: tuple = COMPONENTES) -> dict:
     """La cadena C → S → G de cada familia (y de cada tipo) para el foco atacando, el foco defendiendo y
     la liga: probabilidades observadas y esperadas, y los cuatro términos por 100 saques con IC 95 %
     (bootstrap de partidos). Signo: xD (goles evitados) al defender; xO (goles de más) al atacar."""
@@ -489,7 +490,7 @@ def cadena(d: pl.DataFrame, tp: pl.DataFrame, foco: str, n_boot: int = 500, seed
                 continue
             sg = -1.0 if g == "foco_ataque" else 1.0          # el foco al atacar: xO = −xD
             a = x.group_by("match_id").agg(pl.len().alias("n"), *[pl.col(c).sum() for c in
-                                                                   ("s", "p", "g", "B", "F", *COMPONENTES)],
+                                                                   ("s", "p", "g", "B", "F", *componentes)],
                                             (pl.col("s") * pl.col("kappa")).sum().alias("sk"),
                                             (pl.col("p") * pl.col("kappa")).sum().alias("pk"))
             A = {c: a[c].to_numpy().astype(float) for c in a.columns if c != "match_id"}
@@ -498,7 +499,7 @@ def cadena(d: pl.DataFrame, tp: pl.DataFrame, foco: str, n_boot: int = 500, seed
                  "v_obs": A["g"].sum() / S, "v_kappa": A["sk"].sum() / S, "v_base": A["B"].sum() / S,
                  "v_full": A["F"].sum() / S, "g_obs": A["g"].sum() / n, "g_esp": A["pk"].sum() / n}
             idx = [rng.integers(0, len(A["n"]), len(A["n"])) for _ in range(n_boot)]
-            for c in COMPONENTES:
+            for c in componentes:
                 v = sg * 100 * A[c].sum() / n
                 b = np.array([sg * 100 * A[c][i].sum() / A["n"][i].sum() for i in idx])
                 # H0: el término vale 0 (lo esperado con una defensa o un ataque promedio); p bilateral por

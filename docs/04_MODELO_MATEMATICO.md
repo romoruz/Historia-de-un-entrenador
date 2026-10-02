@@ -852,6 +852,29 @@ prevención y alejamiento depende de $\kappa_t$ (un promedio de la liga), pero *
 de los saques que no van al área (tiros libres cortos, laterales del último cuarto) es un modelo
 **aparte**: el de los centros al área, pre-registrado para H24, no cambia.
 
+
+### 16.7 Portero y definición, por separado (experimento xGOT, ADR-v2-56, no adoptado)
+
+El cuarto término $s_i(F_i-g_i)$ junta el remate que el atacante mandó fuera y el que el portero atajó: no es
+identificable como mérito del portero. Con la ubicación del balón en el plano de la portería, $(y,z)$, que
+StatsBomb da en `shot.end_location` cuando el remate llega al arco, se define, para cada remate $r$,
+$$xGOT_r=\begin{cases}E[G\mid\text{a puerta},(y,z)_r,\text{calidad previa}_r]&\text{si va a puerta}\\0&\text{si no}\end{cases}$$
+(«a puerta» = `shot.outcome` ∈ {Goal, Saved, Saved to Post}) y $X_i=\sum_{r\in i}xGOT_r$.
+
+**Proposición 16.7 (cinco términos, exacta).** Con los términos de la Prop. 16.6,
+$$\hat p_i\kappa_t-g_i=\text{prevención}+\text{alejamiento}+\text{supresión}
++\underbrace{s_i(F_i-X_i)}_{\text{definición}}+\underbrace{s_i(X_i-g_i)}_{\text{portero}} .$$
+
+*Demostración.* $s_i(F_i-X_i)+s_i(X_i-g_i)=s_i(F_i-g_i)$, el cuarto término de la Prop. 16.6, que ya es
+exacta. $\square$
+
+La exactitud no depende de que xGOT esté bien estimado: un mal xGOT solo reparte mal entre definición y
+portero. Por eso se ajusta fuera de muestra con pliegues por partido (logit L2, como las dos capas), sobre todos
+los remates a puerta de la liga, con la ubicación en el marco y la calidad previa del remate (el logit del xG con
+que entra en $F$). Un remate a puerta sin $z$ entra con su propio xG (neutro para la definición). Si los
+remates a puerta no traen $z$, el experimento se detiene: no se imputa nada con la $(x,y)$ en la cancha.
+*Código:* `xgot.py`, `scripts/experimentos/xgot.py`.
+
 **Barrera.** En el tiro libre directo, la regla 13 obliga a la barrera a 9.15 m. Se cuentan los
 defensores de campo a ≤ 12 m del balón cuya sombra (el disco de la Proposición 16.3) toca el ángulo
 del arco; la fracción de arco libre es el `goal_open` de ese remate.

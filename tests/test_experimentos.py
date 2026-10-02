@@ -159,3 +159,48 @@ def test_supuesto_pk_igual_n_desconfunde_potencia():
            for b in range(8)]
     assert np.median(pct) < 85                                 # a igual n deja de destacar
     assert np.isnan(res[0]["exceso"]).sum() == 0 and res[1]["partidos"] == 30
+
+
+def test_xgot_cinco_terminos_exactos_y_verificacion():
+    """ADR-v2-56: definición + portero = portero y definición, y los 5 términos suman p κ − g (< 1e-10)."""
+    import polars as pl
+
+    from dtcoach import xgot as xg
+    rng = np.random.default_rng(5)
+    n = 400
+    s = (rng.random(n) < 0.3).astype(float)
+    k = np.where(rng.random(n) < 0.5, 0.08, 0.12)
+    p = np.clip(rng.beta(2, 6, n), 0.01, 0.99)
+    nrem = np.where(s > 0, rng.integers(1, 3, n), 0)
+    ids = [[f"r{i}_{t}" for t in range(m)] for i, m in enumerate(nrem)]
+    todos = [x for l in ids for x in l]
+    fprev = dict(zip(todos, rng.uniform(0.01, 0.6, len(todos)).tolist()))
+    ap = dict(zip(todos, (rng.random(len(todos)) < 0.4).tolist()))
+    gol = {x: bool(ap[x] and rng.random() < 0.3) for x in todos}
+    B = np.array([sum(fprev[x] for x in l) * 1.1 for l in ids])
+    F = np.array([sum(fprev[x] for x in l) for l in ids])
+    g = np.array([float(sum(gol[x] for x in l)) for l in ids])
+    D = pl.DataFrame({"id_saque": [f"s{i}" for i in range(n)], "match_id": rng.integers(0, 40, n), "team": "A",
+                      "tipo": "corner", "p": p, "s": s, "B": B, "F": F, "g": g, "kappa": k})
+    D = D.with_columns(((pl.col("p") - pl.col("s")) * pl.col("kappa")).alias("prev"),
+                       (pl.col("s") * (pl.col("kappa") - pl.col("B"))).alias("lej"),
+                       (pl.col("s") * (pl.col("B") - pl.col("F"))).alias("sup"),
+                       (pl.col("s") * (pl.col("F") - pl.col("g"))).alias("port"))
+    j = pl.DataFrame({"id_saque": [f"s{i}" for i in range(n)], "ids_remate": ids})
+    conocidos = todos[: int(0.8 * len(todos))]                # el 20 % no está en la tabla de xGOT: entra neutro
+    rx = pl.DataFrame({"id": conocidos, "xgot": [rng.uniform(0, 0.9) if ap[x] else 0.0 for x in conocidos],
+                       "f_previo": [fprev[x] for x in conocidos]})
+    d5 = xg.partir(D, j, rx)
+    assert xg.error_exactitud(d5) < 1e-10
+    assert float((d5["port"] - d5["def"] - d5["portero"]).abs().max()) < 1e-10
+    assert float(d5.filter(pl.col("s") == 0)["def"].abs().max()) == 0.0
+    # verificación: sin z en los remates a puerta, NO pasa
+    m = 300
+    out = rng.random(m) < 0.5
+    base = {"match_id": rng.integers(0, 30, m), "id": [f"x{i}" for i in range(m)], "shot_outcome":
+            np.where(out, "Off T", np.where(rng.random(m) < 0.3, "Goal", "Saved")), "shot_type": "Open Play",
+            "xg_sb": rng.uniform(0.02, 0.5, m), "cabeza": 0.0, "n_end": 3}
+    r_ok = pl.DataFrame(base | {"end_y": rng.uniform(36.2, 43.8, m), "end_z": np.where(out, np.nan, rng.uniform(0.05, 2.6, m))}).with_columns(pl.col("end_z").fill_nan(None)) \
+        .with_columns(pl.col("shot_outcome").is_in(list(xg.A_PUERTA)).alias("a_puerta"), (pl.col("shot_outcome") == "Goal").alias("gol"))
+    assert xg.disponibilidad(r_ok)["ok"]
+    assert not xg.disponibilidad(r_ok.with_columns(pl.lit(None, pl.Float64).alias("end_z")))["ok"]

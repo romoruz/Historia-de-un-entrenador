@@ -558,3 +558,17 @@ aproximación razonable (limitación); ≥ 95 por los dos → el supuesto no se 
 concluyente, sin elegir rama. Script `scripts/experimentos/supuesto_pk_n.py` (no reajusta la mezcla). Prueba con
 datos sembrados: misma desviación en todos, foco con 5× partidos → percentil ≥ 85 a n completo y < 85 a igual n.
 
+## ADR-v2-56 — EXPERIMENTO (no adoptado): «portero y definición» se parte en dos con xGOT
+Rama `exp/mejoras-6`. El cuarto término de la Prop. 16.6, s(F − g), mezcla remates fuera (definición) con
+atajadas (portero). Decisión del experimento: (1) primero se VERIFICA que los remates a puerta traen la altura z en
+el plano de la portería (`shot.end_location` [x, y, z]; ≥ 90 % de los a puerta con z, ≥ 90 % dentro del marco, z
+con más de 10 valores); si no, el script se detiene y no se inventa nada con la (x, y) en la cancha. «A puerta» se
+deduce del `shot.outcome` (Goal, Saved, Saved to Post): StatsBomb no trae un booleano aparte. (2) xGOT por remate,
+logit L2 fuera de muestra con pliegues por partido, sobre los remates a puerta de toda la liga (ubicación en el
+marco + logit del xG previo + cabeza); fuera = 0. (3) definición = s(F − xGOT), portero = s(xGOT − g); la suma de
+los cinco términos es exacta (prueba con error < 1e-10). (4) τ² de cada término nuevo por técnico-club con la
+Prop. 16.4 y la varianza común. (5) H24–H26 no usan el cuarto término: se vuelven a correr para comprobarlo, y el BH
+global de la demostración se recalcula con las pruebas de la cadena «portero y definición» reemplazadas por las dos
+nuevas, para ver si alguna etiqueta cambiaría. Solo lee la tabla de la liga y la cadena del xDefense; no toca
+reports/historia ni la mezcla. Salidas en `reports/experimentos/xgot/`.
+
