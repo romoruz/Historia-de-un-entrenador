@@ -521,3 +521,17 @@ primer intento omitió y volvía anticonservadora a la prueba: 22 % de rechazos 
 datos sembrados). Salidas en `reports/experimentos/supuesto_pk/`. Nada de la entrega cambia. Se
 decide con el resultado sobre Almada (RESUMEN.md).
 
+## ADR-v2-54 — EXPERIMENTO EXPLORATORIO (no adoptado): Voronoi × grafo de jugadores
+Rama `exp/mejoras-6`, sin push. Une el espacio con que cada jugador EJECUTA (área Voronoi local, R = 10 m,
+128 puntos; 13.3) con lo que decide (pase / conducción / remate) y con el valor de zona V = N c de la
+Prop. 2.4 (cadena de toda la liga, fases promediadas con el peso de sus visitas), y lo cruza con el grafo de
+pases (ν, P(remate | balón en él), grupo espectral; 13.5). Medida: ΔV de intención y realizado, residualizada
+contra la media de la liga en la misma (zona de origen × tipo) para que «decidir bien» no sea «estar cerca
+del arco». Reglas escritas en el reporte: el 360 es foto del evento (se mide con cuánto espacio EJECUTÓ, no
+cómo recibe); solo jugadores en cámara (≥ 50 % del disco visible, actor del frame a ≤ 2 m del evento); n < 50
+por jugador-etapa se descarta; exploratorio, fuera del BH global y de las hipótesis pre-registradas.
+«¿Depende del técnico?»: solo con el MISMO jugador bajo ≥ 2 técnicos (n ≥ 50 y ≥ 3 partidos con cada uno);
+con menos de 15 jugadores no se concluye. El estadístico es z² de Welch por partido por par, con nula por
+permutación dentro del jugador; un primer diseño (diferencia ordenada por n) se descartó porque su media no
+medía al técnico. No separa técnico de club/compañeros/época. Salidas en `reports/experimentos/voronoi_grafo/`.
+

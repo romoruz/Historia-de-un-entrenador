@@ -67,3 +67,38 @@ def test_supuesto_pk_tamano_y_potencia():
     assert np.mean(np.array(p1) < 0.05) >= 0.6                   # potencia (≈ 0.7 medida): la prueba es conservadora
     r = _una(rng, True)
     assert r["familias"][0]["P"]["tv"] > r["familias"][1]["P"]["tv"]   # la familia perturbada se desvía más
+
+
+def test_voronoi_grafo_piezas():
+    import polars as pl
+
+    from dtcoach import voronoi_grafo as vg
+    # cadena de 2 estados transitorios (1 zona, 2 fases) con 4 absorbentes: V = N c a mano
+    nt, ns = 2, 6
+    C = np.zeros((nt, ns))
+    C[0] = [0, 5, 0, 0, 5, 0]          # estado 0: 5 → 1, 5 → LOSS
+    C[1] = [0, 0, 0, 10, 0, 0]         # estado 1: 10 → SHOT_NOGOAL(nt+1)
+    X = np.array([0.0, 1.0])           # xG 1.0 en 10 acciones desde el estado 1
+    Vz = vg.valor_de_zonas(C.ravel(), X, nt, ns, 2)
+    assert abs(Vz[0] - 0.075) < 1e-9       # V1 = 0.1, V0 = 0 + 0.5·0.1 = 0.05, promedio con pesos iguales
+    rng = np.random.default_rng(0)
+    n = 4000
+    a = pl.DataFrame({"z0": rng.integers(0, 3, n), "tipo": rng.choice(["pase", "conduccion"], n),
+                      "dv_int": rng.normal(0, 1, n) + 5.0, "dv_real": rng.normal(0, 1, n) + 5.0})
+    r = vg.residualizar(a)
+    assert abs(r["dv_int_perp"].mean()) < 1e-9 and abs(r["dv_real_perp"].mean()) < 1e-9
+    # mismo jugador: sin efecto del técnico, z² ≈ nula; con efecto, p de permutación chico
+    def acc(efecto):
+        filas = []
+        for pid in range(40):
+            for coach, base in (("A", 0.0), ("B", efecto)):
+                for m in range(8):
+                    mid = pid * 100 + (0 if coach == "A" else 50) + m
+                    for _ in range(12):
+                        filas.append((pid, f"j{pid}", coach, mid, rng.normal(base, 1.0), 80.0))
+        return pl.DataFrame(filas, schema=["player_id", "player", "coach", "match_id", "dv_real_perp", "area_local"],
+                            orient="row")
+    sin = vg.mismo_jugador(acc(0.0), 50, n_perm=100)
+    con = vg.mismo_jugador(acc(0.8), 50, n_perm=100)
+    assert sin["jugadores_con_2_tecnicos"] == 40 and sin["p_perm"] > 0.05
+    assert con["p_perm"] < 0.05 and con["z2_media"] > 2 * sin["z2_media"]
