@@ -645,6 +645,41 @@ El vocabulario oficial se queda en $5\times4$, $K=3$: es el más rico que los da
   ve no se imputa.
 * **xG y OBV son modelos del proveedor.** Por eso la eficiencia se contrasta con los dos y
   con la tasa de remate.
+* **El técnico solo mueve $\pi_k$, no $P^k$ (supuesto, ADR-v2-52).** El modelo de la fase 2 deja que
+  un técnico cambie los pesos de las tres familias, pero supone que cada familia, hecha por él, es
+  la misma cadena de Markov que hace la liga: «Ataque elaborado» de Almada = «Ataque elaborado» de
+  la liga, solo que más seguido. Nunca se había dicho. Si es falso, $\Delta\pi$ mezcla «hace
+  distinto» con «lo hace más» y los efectos en la cancha de H1–H2 se interpretan de más. Se
+  contrasta con una prueba de score (`supuesto_pk.py`, experimento, no adoptado; abajo §15.1).
+* **Las responsabilidades $r_{sk}$ son una estimación, no un dato (generated regressor,
+  ADR-v2-53).** Ver §7.1: el sandwich de la Prop. 7.2 las trata como observadas.
+
+### 15.1 Prueba del supuesto $P^k_{\text{foco}}=P^k_{\text{liga}}$ (experimento, no adoptado)
+
+Se perturba cada fila $i$ de la familia $k$ del foco: $P_{ij}(\theta)\propto P^k_{ij}e^{\theta_{ij}}$
+($\theta_{i,\text{ref}}=0$). El score en $\theta=0$ de la secuencia $s$ es
+$u_s(i,j)=r_{sk}\,(c_s(i,j)-n_s(i)P^k_{ij})$, con $c_s(i,j)$ las transiciones $i\to j$ y
+$n_s(i)=\sum_jc_s(i,j)$.
+
+**Proposición 15.1 (score bajo la nula).** Si $P^k_{\text{foco}}=P^k$ y la secuencia sigue la cadena
+de la familia $k$ ($r_{sk}=1$), $E[u_s(i,j)]=0$ y los scores de filas distintas son incorrelacionados.
+
+*Demostración.* Condicionado a visitar $i$ $n_s(i)$ veces, $E[c_s(i,j)\mid n_s(i)]=n_s(i)P^k_{ij}$ por
+la propiedad de Markov, así que cada sumando del score tiene esperanza 0. Para filas $i\ne i'$, el
+incremento de $i$ (en la visita $t$) tiene esperanza condicional 0 dado el pasado, y el de $i'$ en
+una visita posterior es medible respecto de ese pasado; el producto es una diferencia de
+martingala y su esperanza es 0. $\square$
+
+Con $U_g=\sum_{s\in g}u_s$ (partido $g$), la varianza de conglomerados **sin centrar** es
+$\hat V=\sum_gU_gU_g^\top$. Como $P^k_{\text{liga}}$ también se estima (con las secuencias de partidos
+sin el foco), la varianza suma el error de esa estimación (delta): $V=V_f+c_i^2V_{\text{liga}}$,
+$c_i=n_i^{f}/n_i^{\text{liga}}$. Sin ese término la prueba rechazaba 22 % al 5 % bajo $H_0$ en datos
+sembrados. Por fila, $T_i=U_i^\top V_i^{-1}U_i$ y $F_i=T_i\frac{G-d_i}{(G-1)d_i}\sim F(d_i,G-d_i)$; las filas
+de una familia se combinan con Fisher. *Código:* `supuesto_pk.py`.
+
+Con ruido de plantel un Wald «rechaza» a casi cualquier técnico, así que además se reporta la
+distancia (TV ponderada), el efecto en $E[T]$ y $P(\text{remate})$ de cambiar $P^k$, y el percentil
+del foco entre los demás técnicos-club (nula empírica).
 
 ---
 

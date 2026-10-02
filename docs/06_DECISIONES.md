@@ -512,3 +512,12 @@ América: las comparaciones, el Elo y la proyección necesitan a todos. Detalles
   vieron al formular las preguntas de la fase G. Sirven para confirmar lo que se demostró con la muestra
   anterior.
 
+## ADR-v2-52 — EXPERIMENTO (no adoptado): el supuesto «el técnico solo mueve π_k, no P^k» se dice y se prueba
+Rama `exp/mejoras-6`, sin push. Config `config/exp_mejoras.yaml` (hereda de default; no se toca).
+El modelo de la fase 2 supone que cada familia hecha por el foco es la cadena P^k de la liga. Se
+documenta en 04 §15 y se prueba con un score de H0: P^k_foco = P^k_liga por familia (y, aparte, el
+primer toque P0^k), varianza de conglomerados por partido más el error de estimar P^k_liga (que el
+primer intento omitió y volvía anticonservadora a la prueba: 22 % de rechazos al 5 % bajo H0 en
+datos sembrados). Salidas en `reports/experimentos/supuesto_pk/`. Nada de la entrega cambia. Se
+decide con el resultado sobre Almada (RESUMEN.md).
+

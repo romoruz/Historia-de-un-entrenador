@@ -1,0 +1,8 @@
+# EXPERIMENTOS NO ADOPTADOS (ADR-v2-52 a 54). Hereda de default sin cambiarlo:
+# vocabulario oficial (5x4, K=3) y resultados de la entrega siguen siendo la línea base.
+hereda: default.yaml
+experimentos:
+  salida: experimentos            # reports/experimentos/<nombre>/
+  supuesto_pk: {a: 10.0, n_min: 30.0, min_partidos_nula: 30}
+  regresor_generado: {replicas: 200, min_partidos: 5}
+  voronoi_grafo: {min_n_jugador: 50, min_n_cruce: 50, min_jugadores_cruce: 15}
