@@ -695,6 +695,39 @@ Con ruido de plantel un Wald «rechaza» a casi cualquier técnico, así que ade
 distancia (TV ponderada), el efecto en $E[T]$ y $P(\text{remate})$ de cambiar $P^k$, y el percentil
 del foco entre los demás técnicos-club (nula empírica).
 
+
+### 15.2 El percentil del foco, a igual tamaño (ADR-v2-55)
+
+La primera corrida sobre Almada rechazó $H_0$ en las tres familias (exceso $T/\text{gl}$ de 2.3 a 3.2) y lo
+puso en el percentil 98–100 de 44 técnicos-club. Ese percentil no se puede leer como magnitud: con una
+desviación fija $\delta$ por fila, $E[T]\approx \text{gl}+n\,\delta^2$, y Almada tiene 168 partidos contra ≥ 30 de
+la nula. La TV (0.035–0.046) no crece con $n$, pero tiene sesgo de muestreo hacia arriba con $n$ chico
+($E\,|\hat p-p|>0$ aun si $p$ es el de la liga), así que favorece a los técnicos con menos partidos.
+
+**Comparación honesta.** Cada unidad (técnico-club, y Almada completo y por club) se remuestrea a exactamente
+$n$ partidos, $R=20$ veces, con su $P^k_{\text{liga}}$ estimada una vez; en cada sorteo se calcula el percentil de
+Almada entre las demás unidades y se reporta la mediana, por exceso y por TV. A igual $n$, el exceso compara
+$\delta^2$ y la TV compara distancias con el mismo sesgo.
+
+**Regla, fijada antes de ver el resultado** (mediana a $n=30$):
+
+* percentil ≤ 80 por exceso y por TV: Almada se desvía de la liga **como un técnico cualquiera**; el supuesto es
+  una aproximación razonable, con la misma desviación que el ruido de plantel le da a todos, y queda como
+  limitación declarada;
+* percentil ≥ 95 por los dos: Almada **hace distinto** cada familia, no solo la usa más. El supuesto no se
+  sostiene para él y quedan en duda las lecturas de la fase 2 que lo usan: (i) las responsabilidades $r_{sk}$
+  de sus secuencias se calculan con las $P^k$ de la liga, así que si él hace cada familia distinto sus
+  secuencias se **clasifican** con una vara ajena; (ii) por eso H1 y H2, que leen $\Delta\pi$ como «usa más tal
+  familia», mezclan «la usa más» con «la hace distinta y se parece más a otra»; (iii) H3–H6, por la misma
+  razón en cada contexto; (iv) H7 y H8 comparan xG por secuencia dentro de cada familia, que ya incorpora cómo
+  la hace, así que su número se sostiene, pero hereda (i): la familia a la que se asigna cada secuencia.
+  No dependen del supuesto la proyección (§19, Maher con xG) ni los escenarios del simulador, que usan la
+  eficiencia del propio foco dentro de cada familia. Lo que mide el efecto en la cancha es pequeño:
+  $\Delta E[T]\approx-1$ acción por posesión en Circulación estéril y Ataque elaborado, $\Delta P(\text{remate})\le 1$ pp;
+* cualquier otra cosa: no concluyente; se reporta así.
+
+*Resultado:* pendiente de la corrida sobre los datos reales (`supuesto_pk_n.py`).
+
 ---
 
 ## 16. Balón parado: el xDefense en dos capas

@@ -121,3 +121,41 @@ def test_voronoi_grafo_piezas():
     con = vg.mismo_jugador(acc(0.8), 50, n_perm=100)
     assert sin["jugadores_con_2_tecnicos"] == 40 and sin["p_perm"] > 0.05
     assert con["p_perm"] < 0.05 and con["z2_media"] > 2 * sin["z2_media"]
+
+
+def test_supuesto_pk_igual_n_desconfunde_potencia():
+    """ADR-v2-55: con la MISMA magnitud de desviación en todos, el foco con 5× partidos queda arriba por
+    exceso a n completo (potencia), pero no a igual n."""
+    rng = np.random.default_rng(11)
+    P = _cadenas(rng)
+    mu = rng.dirichlet(np.ones(NT), size=2)
+    pi = np.array([0.55, 0.45])
+
+    def desviada():
+        Pf = P.copy()
+        for i in range(NT):
+            Pf[0, i] = 0.7 * P[0, i] + 0.3 * rng.dirichlet(np.ones(NS) * 0.7)
+        return Pf / Pf.sum(2, keepdims=True)
+
+    bloques = [_simular(rng, P, mu, 200, 20, pi)]
+    tam = [150] + [30] * 9                                    # el foco y 9 técnicos-club
+    for u, G in enumerate(tam):
+        bloques.append(_simular(rng, P, mu, G, 20, pi, 0, desviada(), id0=1000 * (u + 1)))
+    S1 = sp.vstack([b[0] for b in bloques]).tocsr()
+    match = np.concatenate([b[2] for b in bloques])
+    r = np.eye(2)[np.concatenate([b[3] for b in bloques])]
+    foco = (match >= 1000) & (match < 2000)
+    unidades = [{"nombre": u, "f": (match >= 1000 * (u + 1)) & (match < 1000 * (u + 2)), "excl": None}
+                for u in range(len(tam))]
+    for u in unidades:
+        u["excl"] = u["f"] | foco
+    completo = {u["nombre"]: spk.prueba_familia(S1, r[:, 0], match, u["f"],
+                                                spk.p_liga(S1, r[:, 0], ~u["excl"], P[0], 10.0, NT, NS), NT, NS,
+                                                liga=~u["excl"])["exceso"] for u in unidades}
+    otros = np.array([completo[u] for u in range(1, len(tam))])
+    assert spk.percentil(completo[0], otros) >= 85            # a n completo: arriba de casi todos
+    res = spk.igualar_n(S1, r, match, unidades, P, NT, NS, 30, 8, seed=3)
+    pct = [spk.percentil(res[0]["exceso"][b, 0], np.array([res[u]["exceso"][b, 0] for u in range(1, len(tam))]))
+           for b in range(8)]
+    assert np.median(pct) < 85                                 # a igual n deja de destacar
+    assert np.isnan(res[0]["exceso"]).sum() == 0 and res[1]["partidos"] == 30

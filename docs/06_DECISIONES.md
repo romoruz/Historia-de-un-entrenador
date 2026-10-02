@@ -546,3 +546,15 @@ con menos de 15 jugadores no se concluye. El estadístico es z² de Welch por pa
 permutación dentro del jugador; un primer diseño (diferencia ordenada por n) se descartó porque su media no
 medía al técnico. No separa técnico de club/compañeros/época. Salidas en `reports/experimentos/voronoi_grafo/`.
 
+## ADR-v2-55 — EXPERIMENTO (no adoptado): el percentil de la Mejora A se compara a igual número de partidos
+Rama `exp/mejoras-6`. La corrida de la Mejora A sobre Almada dio percentil 98, 100 y 100 entre 44 técnicos-club,
+pero Almada tiene 168 partidos y la nula ≥ 30. El exceso T/gl crece con n cuando hay una desviación fija
+(E[T] ≈ gl + n·δ²), así que ese percentil mezcla efecto con potencia. La TV no crece con n pero está sesgada hacia
+arriba con n chico: tampoco compara limpio. Decisión: el número que se reporta es el percentil con TODAS las
+unidades remuestreadas a exactamente n partidos (n = 30 y 40, 20 remuestras, la nula P^k_liga de cada unidad
+estimada una vez con su liga completa), mediana de los sorteos, por exceso y por TV, y además Almada por club.
+Regla de lectura fijada ANTES de correr sobre los datos reales, con la mediana a n = 30: ≤ 80 por los dos →
+aproximación razonable (limitación); ≥ 95 por los dos → el supuesto no se sostiene para Almada; lo demás → no
+concluyente, sin elegir rama. Script `scripts/experimentos/supuesto_pk_n.py` (no reajusta la mezcla). Prueba con
+datos sembrados: misma desviación en todos, foco con 5× partidos → percentil ≥ 85 a n completo y < 85 a igual n.
+

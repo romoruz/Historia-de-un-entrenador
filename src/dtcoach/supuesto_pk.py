@@ -61,9 +61,20 @@ def p_liga(S: sp.csr_matrix, r_k: np.ndarray, usar: np.ndarray, P_prior: np.ndar
     return (C + a * P_prior) / (C.sum(1, keepdims=True) + a)
 
 
+def score_liga(S: sp.csr_matrix, r_k: np.ndarray, match: np.ndarray, liga: np.ndarray, P: np.ndarray,
+               nt: int, ns: int) -> tuple[np.ndarray, np.ndarray]:
+    """Scores por partido de las secuencias con que se estimó `P` (para el término de error de estimación).
+    Se calcula una vez por unidad y se reutiliza en las remuestras de `igualar_n`."""
+    il = np.flatnonzero(liga)
+    ul, gl = np.unique(match[il], return_inverse=True)
+    AL = _conteos_por_partido(S[il], r_k[il], gl, len(ul)).reshape(len(ul), nt, ns)
+    NL = AL.sum(2)
+    return AL - NL[:, :, None] * P[None], NL
+
+
 def prueba_familia(S: sp.csr_matrix, r_k: np.ndarray, match: np.ndarray, foco: np.ndarray, P: np.ndarray,
                    nt: int, ns: int, n_min: float = 30.0, e_min: float = 5.0,
-                   liga: np.ndarray | None = None) -> dict:
+                   liga: np.ndarray | None = None, liga_UN: tuple | None = None) -> dict:
     """Score por fila de la familia k. `foco`: secuencias de ATAQUE del foco; `P`: la nula (nt, ns).
 
     `liga`: las secuencias con que se ESTIMÓ `P`. Si se da, la varianza incluye ese error de estimación
@@ -77,12 +88,10 @@ def prueba_familia(S: sp.csr_matrix, r_k: np.ndarray, match: np.ndarray, foco: n
     N = A.sum(2)                                                                 # (G, nt) visitas
     U = A - N[:, :, None] * P[None]                                              # score por partido
     UL = NL = None
-    if liga is not None:
-        il = np.flatnonzero(liga)
-        ul, gl = np.unique(match[il], return_inverse=True)
-        AL = _conteos_por_partido(S[il], r_k[il], gl, len(ul)).reshape(len(ul), nt, ns)
-        NL = AL.sum(2)
-        UL = AL - NL[:, :, None] * P[None]
+    if liga_UN is not None:
+        UL, NL = liga_UN
+    elif liga is not None:
+        UL, NL = score_liga(S, r_k, match, liga, P, nt, ns)
     filas = []
     for i in range(nt):
         n_i = float(N[:, i].sum())
@@ -172,3 +181,42 @@ def correr(S1: sp.csr_matrix, S0: sp.csr_matrix | None, r: np.ndarray, match: np
             fila[nombre] = pr
         res["familias"].append(fila)
     return res
+
+
+# ------------------------------------------------------------------ ADR-v2-55: el percentil, a igual n
+def igualar_n(S: sp.csr_matrix, r: np.ndarray, match: np.ndarray, unidades: list[dict], P: np.ndarray,
+              nt: int, ns: int, n_partidos: int, R: int, a: float = 10.0, n_min: float = 30.0,
+              seed: int = 0) -> dict:
+    """La MISMA prueba para cada unidad (técnico-club o el foco), pero con exactamente `n_partidos` partidos
+    suyos, sorteados `R` veces. Así el exceso T/gl (que crece con n cuando hay una desviación fija) y la TV
+    (sesgada hacia arriba con n chico) se comparan a igual tamaño.
+
+    `unidades`: [{"nombre", "f": secuencias de ataque de la unidad, "excl": partidos fuera de su liga}].
+    La nula P^k_liga de cada unidad se estima UNA vez con su liga completa (sin sus partidos ni los del foco);
+    solo se remuestrean los partidos de la unidad. Devuelve, por unidad, arrays (R, K) de exceso y TV
+    (NaN si no tiene `n_partidos` partidos)."""
+    K = r.shape[1]
+    rng = np.random.default_rng(seed)
+    out = {}
+    for u in unidades:
+        mu = np.unique(match[u["f"]])
+        ex, tv = np.full((R, K), np.nan), np.full((R, K), np.nan)
+        if len(mu) >= n_partidos:
+            liga = ~u["excl"]
+            for k in range(K):
+                Pl = p_liga(S, r[:, k], liga, P[k], a, nt, ns)
+                LUN = score_liga(S, r[:, k], match, liga, Pl, nt, ns)
+                rk = np.random.default_rng(rng.integers(2 ** 63))
+                for b in range(R):
+                    sel = rk.choice(mu, n_partidos, replace=False)
+                    fb = u["f"] & np.isin(match, sel)
+                    pr = prueba_familia(S, r[:, k], match, fb, Pl, nt, ns, n_min, liga_UN=LUN)
+                    ex[b, k], tv[b, k] = pr["exceso"], pr["tv"]
+        out[u["nombre"]] = {"partidos": int(len(mu)), "exceso": ex, "tv": tv}
+    return out
+
+
+def percentil(x: float, otros: np.ndarray) -> float:
+    """Qué parte (en %) de `otros` queda en o debajo de `x` (los NaN no cuentan)."""
+    o = otros[np.isfinite(otros)]
+    return float(100 * np.mean(o <= x)) if len(o) and np.isfinite(x) else float("nan")
