@@ -25,8 +25,6 @@ from dtcoach.hipotesis import correr
 from dtcoach.mezcla import DatosPosesion, Mezcla, ajustar, responsabilidades
 
 
-FOCO = "Guillermo Almada"      # fijo: estos experimentos son solo sobre Almada
-
 
 def main():
     ap = argparse.ArgumentParser()
@@ -40,7 +38,7 @@ def main():
     cfg = Config.load(a.config)
     ec = cfg["experimentos"]["regresor_generado"]
     R = a.replicas or ec["replicas"]
-    foco = FOCO
+    foco = cfg["foco"]["coach"]      # fijo en config/exp_mejoras.yaml: Guillermo Almada
     c2, mc = dict(cfg["fase2"]), cfg["mezcla"]
     K, familias = c2["K"], c2["familias"]
     c2["foco"] = foco

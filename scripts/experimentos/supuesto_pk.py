@@ -23,8 +23,6 @@ from dtcoach.contexto import tabla_secuencias
 from dtcoach.mezcla import DatosPosesion, Mezcla, responsabilidades
 
 
-FOCO = "Guillermo Almada"      # fijo: estos experimentos son solo sobre Almada
-
 
 def main():
     ap = argparse.ArgumentParser()
@@ -34,7 +32,7 @@ def main():
     t0 = time.time()
     cfg = Config.load(a.config)
     ec = cfg["experimentos"]["supuesto_pk"]
-    foco = FOCO
+    foco = cfg["foco"]["coach"]      # fijo en config/exp_mejoras.yaml: Guillermo Almada
     K = cfg["fase2"]["K"]
     m = Mezcla.cargar(cfg.ruta("mezcla_dir") / f"mezcla_K{K}.npz")
     space, trans = _space(cfg), _trans(cfg)
@@ -60,7 +58,7 @@ def main():
              .filter(pl.col("p") >= ec["min_partidos_nula"]))
     nula = []
     for coach, team, _ in otros.iter_rows():
-        f = ((t["coach"] == coach) & (t["team"] == team)).to_numpy()
+        f = ((t["coach"] == coach) & (t["team"] == team)).fill_null(False).to_numpy().astype(bool)
         # la liga de cada comparación excluye los partidos del propio técnico-club (como local o rival) y los del foco
         suyos = t.filter(((pl.col("coach") == coach) & (pl.col("team") == team)) | (pl.col("coach_faced") == coach))["match_id"]
         excl = np.isin(match, suyos.unique().to_numpy()) | pfoco
