@@ -792,7 +792,23 @@ $\delta^2$ y la TV compara distancias con el mismo sesgo.
   $\Delta E[T]\approx-1$ acción por posesión en Circulación estéril y Ataque elaborado, $\Delta P(\text{remate})\le 1$ pp;
 * cualquier otra cosa: no concluyente; se reporta así.
 
-*Resultado:* pendiente de la corrida sobre los datos reales (`supuesto_pk_n.py`).
+*Resultado (corrida del 2026-10-02 sobre los datos reales).* El exceso sí crece con los partidos entre los 44
+técnicos-club (ρ de Spearman +0.43, +0.65 y +0.69, p ≤ 0.004): el percentil a $n$ completo estaba confundido con la
+potencia. A igual $n=30$ (20 remuestras, 44 técnicos-club), la mediana del percentil de Almada por exceso / por TV es:
+
+| familia | exceso | TV | lectura (regla fijada antes) |
+|---|---|---|---|
+| Directa | 45 | 38 | **aproximación razonable** |
+| Circulación estéril | 91 | 61 | **no concluyente** |
+| Ataque elaborado | 70 | 33 | **aproximación razonable** |
+
+Solo con Pachuca (139 partidos) sale lo mismo (48 / 33, 89 / 67, 65 / 23). Así que en Directa y Ataque elaborado
+Almada se desvía de la $P^k$ de la liga **como un técnico cualquiera** con su plantel: el supuesto queda como
+limitación declarada. En Circulación estéril se desvía más que 9 de cada 10 técnicos por el exceso, pero no por la TV:
+no se puede decir que el supuesto falle ni que se sostenga. Las lecturas de la fase 2 que dependen de la Circulación
+estéril de Almada (H1 «juega menos Circulación estéril», y los perfiles de esa familia) llevan esa advertencia; es la
+misma familia donde la Mejora B encontró la mayor inflación (§7.2). (A $n=40$ los números son otros; no se usan: la
+regla se fijó a $n=30$ antes de correr.)
 
 ---
 

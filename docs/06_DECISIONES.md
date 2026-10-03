@@ -599,3 +599,12 @@ marginal. Comparación: CV por partido, escala común, predicción de la siguien
 (Prop. 14.2: con una sola cadena la ganancia es 0 por construcción, y se reporta como control). Aceptación: el
 criterio del vocabulario (04 §4); si falla (a), RECHAZADA.
 
+## ADR-v2-60 — EXPERIMENTO Mejora F: quinto absorbente INTERRUPCIÓN_FAVOR, primero la compuerta
+Rama `exp/mejoras-6`. Antes de tocar el espacio de estados o el EM se mide qué fracción de las secuencias que
+terminan en PÉRDIDA son en realidad una interrupción a favor: la primera acción (pase, conducción o remate, de
+cualquier equipo) después de la última acción de la secuencia es del mismo equipo y es un balón parado (pase de tipo
+Free Kick, Corner o Throw-in; remate de tipo Free Kick o Penalty), o entre ambas hay un `Foul Won` del mismo equipo.
+Regla fijada antes de correr: < 3 % de la masa de PÉRDIDA → NO RENTABLE, no se reajusta nada. Solo si pasa se
+implementa `config/absorbente5.yaml` (sin partir PÉRDIDA en robo / mal pase / intercepción). Script
+`scripts/experimentos/absorbente5.py` (solo lee transiciones y eventos).
+
