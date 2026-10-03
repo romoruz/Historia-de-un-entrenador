@@ -692,3 +692,14 @@ el 18.6 % de sus secuencias en INTERRUPCIÓN_FAVOR, percentil **77** con (ii) (5
 junta tres clubes contra unidades de un club y es el número menos honesto. Ningún percentil de uso de las familias se
 movió más de 5 puntos: el vocabulario no cambia.
 
+## ADR-v2-67 — Verificar la optimización contra el vocabulario oficial y plan de integración
+La optimización de `mezcla.py` (ADR-v2-64) se verificó bit a bit solo en la liga sintética. Antes de integrar nada,
+`scripts/experimentos/verificar_mezcla.py` reajusta K = 3 con `config/default.yaml` y los datos reales con el código nuevo
+y con el de antes de la optimización (`828c6b7~1`, cargado desde git como módulo aparte), y compara J, π, P, P0, μ, las
+iteraciones y el acuerdo suave entre ellos y contra la mezcla publicada. Si nuevo ≠ previo, no se integra nada. El plan
+(`docs/experimentos/INTEGRACION.md`) va del cambio menos invasivo al más invasivo: correcciones de texto (§7.2),
+el orden del bootstrap del balón parado (ADR-v2-61), la documentación de A/D/E y, al final, el quinto absorbente (ii).
+Al integrar el quinto absorbente, el valor de la reanudación va en una columna aparte (`valor_reanudacion`) que solo
+entra en c para V = N c. En el experimento se metió en `xg`, que también alimenta el «xG por secuencia» de H7–H8.
+`docs/experimentos/REVISION.md` resume el estado para un revisor externo.
+
