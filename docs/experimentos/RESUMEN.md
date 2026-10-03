@@ -1,5 +1,10 @@
 # Experimentos `exp/mejoras-6` — RESUMEN de las seis mejoras
 
+> **Estado (ADR-v2-69 a 72):** B (corrección del texto) y F (variante (ii)) quedaron **integradas** al modelo. A y D
+> quedaron como documentación, E se rechazó y C sigue como exploratoria. Lo que sigue es el registro de los
+> experimentos tal como se corrieron. Falta correr con los datos reales: `scripts/integrar.sh` y
+> `docs/experimentos/INTEGRACION.md`.
+
 Nada de esto cambia la entrega: el vocabulario oficial (5×4, K = 3), `config/default.yaml` y
 `reports/{mezcla,fase1,fase2,fase3,historia}` siguen siendo la línea base. Todos los números son de las corridas
 sobre los datos reales en la máquina del autor (2026-10-02 a 04). B se reporta con 200 réplicas. Copia versionada de
