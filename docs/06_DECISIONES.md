@@ -669,3 +669,26 @@ más de 5 puntos) y agrega `valor_zona` (V = N c de la liga promediado por sus a
 que dependen de c. El EM no usa c, así que (i) y (ii) tienen la misma mezcla, y por construcción los mismos acuerdo, rango
 de J, KS, uso, pérdida e interrupción.
 
+## ADR-v2-66 — Mejora F: la variante recomendada es (ii), con laterales y c = valor del balón parado
+Las tres variantes pasan el criterio del vocabulario (acuerdo suave 0.998, rango de J ≈ 5e-6 por secuencia, KS 0.0048 a
+0.0049, E[T] 6.502 contra 6.509; acuerdo con la mezcla oficial 0.981 a 0.983). El criterio NO decide entre (i) y (ii):
+el EM no usa c, así que son la misma mezcla. La elección se argumenta con el valor de cada reanudación:
+
+- (i) es la peor: con c = 0 iguala un penal (0.78 xG) con un lateral en campo propio (0.0023).
+- **Contra (iii).** El argumento para excluir los laterales era que valen menos que una secuencia cualquiera (0.0023 a
+  0.0070 contra 0.0102). Pero el mismo criterio excluiría los tiros libres de las columnas 1 a 3 (0.0031 a 0.0058, el 66 %
+  de los tiros libres a favor), y nadie propone volverlos PÉRDIDA. La comparación relevante no es contra «seguir
+  jugando», sino contra la etiqueta alternativa: en (iii) esos 37,873 laterales vuelven a PÉRDIDA, es decir, al balón
+  en poder del rival, que para el equipo vale 0 o menos. Un lateral a favor conserva el balón: no es una pérdida.
+- (ii) da a cada reanudación su propio valor por tipo y zona, así que un lateral pesa poco y un penal mucho, sin llamar
+  pérdida a lo que no lo es. En V la diferencia entre (ii) y (iii) es chica (ΔV máx. de la liga +0.0059 contra
+  +0.0057). Donde difieren es en B: (iii) deja 8 puntos más de masa en PÉRDIDA.
+
+Se recomienda (ii) y se reporta (iii) como sensibilidad. Sobre el foco, el efecto es **a su favor**, no en su contra. Su
+percentil de pérdida (qué parte de los técnicos-club pierde lo mismo o menos que él) baja de 30 a 14 en (ii), y a 20 en
+(iii): una vez separadas las interrupciones a favor, pierde el balón menos que antes respecto de los demás. La unidad
+comparable para la métrica nueva es el técnico-club, porque la nula se forma con técnicos-club: Almada · Pachuca termina
+el 18.6 % de sus secuencias en INTERRUPCIÓN_FAVOR, percentil **77** con (ii) (59 con (iii)). El 84 de «Almada (todo)»
+junta tres clubes contra unidades de un club y es el número menos honesto. Ningún percentil de uso de las familias se
+movió más de 5 puntos: el vocabulario no cambia.
+

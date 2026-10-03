@@ -381,42 +381,42 @@ Con $R$ réplicas el error relativo de una amplitud es $\approx1/\sqrt{2(R-1)}$ 
 
 ### 7.2 Resultado sobre Almada: qué se cae (ADR-v2-57)
 
-Con 100 réplicas (error relativo ≈ 7 %) la calibración del bootstrap contra el IC publicado es 0.997 y la
-inflación limpia mediana 1.073: **en la mayoría de las cantidades el error de la etapa 1 es despreciable; en
-Circulación estéril, no** (inflación de 2.7 a 5.3 en uso, P(remate) y xG por secuencia). Cada IC publicado se
-ensancha a $w=\max(w_{\text{actual}},w_{\text{doble}})$ conservando su forma; nunca se estrecha.
+Con **200 réplicas** cada IC publicado de H1–H8 se ensancha a $w=\max(w_{\text{actual}},w_{\text{doble}})$, conservando
+su forma; nunca se estrecha. Después se rehace el BH global de la demostración: cada p de la fase 2 se escala con el
+error «doble», partiendo del mayor z entre el que implica su p y el que implica su IC. Para las Wald H1–H6 se usan dos
+reglas, el f máximo de sus componentes y el del componente dominante.
 
-**Con los IC (41 cantidades), dejan de excluir el 0 exactamente dos:** P(remate) propia en Circulación estéril
-(+0.0032, IC [+0.0006, +0.0057] → [−0.0107, +0.0171]) y P(remate) del rival en Circulación estéril (−0.0055,
-[−0.0076, −0.0033] → [−0.0142, +0.0032]). xG por secuencia del rival en Circulación estéril no cambia: su IC ya
-contenía el 0.
+**Dejan de estar demostradas tres afirmaciones (246 → 243 de 730):**
 
-**En el BH global (730 afirmaciones)** cada p de la fase 2 se recalcula con el error «doble». La primera corrida
-escalaba solo el z que implica el p publicado; con p de bootstrap en el piso (1/2000) eso subestima el z y tumbó dos
-afirmaciones que su IC sostiene (uso de Directa del rival y P(remate) del rival en Directa). Corregido (el z de
-partida es el mayor entre el del p y el del IC), el cálculo con las cifras de la corrida da:
+| afirmación | p publicado | p con el error «doble» |
+|---|---|---|
+| ganando vs empatando: Directa del foco contra la liga (−1.7 pp) | 0.0145 | 0.0316 |
+| P(remate) propia en Circulación estéril (+0.32 pp) | 0.0175 | 0.625 |
+| P(remate) del rival en Circulación estéril (−0.55 pp) | 0.0005 | 0.217 |
 
-| afirmación | p publicado | p con el error «doble» | |
-|---|---|---|---|
-| P(remate) propia, Circulación estéril | 0.018 | 0.65 | **cae** |
-| P(remate) del rival, Circulación estéril | 0.0005 | 0.22 | **cae** |
-| ganando vs empatando: Directa del foco contra la liga | 0.0145 | 0.021 | **cae** (estaba a 0.002 del corte del BH) |
-| H2, identidad defensiva (Wald) | 0.00012 | 0.027 (f máx.) · 0.0067 (f del componente dominante) | **depende de la regla** |
-| uso de Directa del rival | 0.0005 | 0.002 | se sostiene (caía por el método) |
-| P(remate) del rival, Directa | 0.0005 | 0.0005 | se sostiene (caía por el método) |
+Las tres caen con las dos reglas para las Wald. **H2 no cae.** En cálculos anteriores (37 y 100 réplicas, y con el
+primer método, que escalaba el z de p de bootstrap en el piso) parecía caer o dependía de la regla. Con el método
+corregido y 200 réplicas se sostiene con las dos reglas, y hay que decirlo para que el registro quede limpio.
 
-Para H2 no hay forma exacta sin la covarianza «doble» de sus tres componentes. Con la regla conservadora cae, y una
-afirmación cuya demostración depende de qué regla se use no se narra.
+**Dos lecturas que no coinciden, y se dicen.** (1) La P(remate) propia en Directa (+1.03 pp) sigue demostrada en el BH
+(su p de bootstrap está en el piso), pero su IC «doble» toca el 0 ([−0.03, +2.06] pp). Es frágil y no se narra sin esa
+advertencia; hoy no está en el texto publicado. (2) «Ganando vs empatando · Directa» es al revés: su IC «doble» todavía
+excluye el 0 ([−3.12, −0.08] pp), pero su p pasa el corte del BH. Estaba a 0.002 de la línea (≈ 0.017) y un error 6 %
+mayor lo saca. Las dos reglas responden preguntas distintas (IC 95 % individual contra FDR del 5 % sobre 730
+afirmaciones). La regla de demostración del proyecto es el BH, así que esta cae.
 
-**Dónde se concentra.** En la mezcla oficial, Circulación estéril es la familia peor separada: impureza
-$\sum_sr_{sk}(1-r_{sk})/\sum_sr_{sk}=0.481$ (Directa 0.368, Elaborado 0.374), 42.8 % de sus secuencias con
-$r_{\max}<0.6$ (31.2 % y 27.8 %) y la mayor entropía media (0.672). Es también la de mayor inflación (máx. 5.31,
-contra 1.89 y 1.10). Una secuencia dudosa reparte su peso entre familias, y al reajustar la mezcla ese reparto se
-mueve: la familia peor separada es la que más paga el error de primera etapa. Es la misma familia que la Mejora A
-dejó como no concluyente (§15.2).
+**Limitación: el bootstrap es algo más ancho que el sandwich.** La razón $w_{\text{fijo}}/w_{\text{actual}}$ (el mismo
+remuestreo sin reajustar la mezcla, contra el IC publicado) era 0.997 con 100 réplicas y es **1.084** con 200. Entonces
+una parte de la amplitud «doble» no es error de la etapa 1, sino que el bootstrap por partido mide algo más de varianza
+que el sandwich de la Prop. 7.2. La inflación limpia ($w_{\text{doble}}/w_{\text{fijo}}$) aísla la etapa 1; la regla de
+arriba usa $w_{\text{doble}}$ contra lo publicado, que es la lectura conservadora. Con la inflación limpia caen las mismas
+tres y H3.
 
-*Pendiente:* volver a correr `regresor_generado_impacto.py` con el método corregido y con B a 200 réplicas; los
-números de esta tabla se reemplazan con esa corrida.
+**Dónde se concentra.** Circulación estéril es la familia peor separada por la mezcla: impureza
+$\sum_sr_{sk}(1-r_{sk})/\sum_sr_{sk}=0.481$ contra 0.368 y 0.374, y 42.8 % de sus secuencias con $r_{\max}<0.6$. Es
+también la de mayor inflación limpia (máx. 4.94, contra 1.68 y 1.12). Una secuencia dudosa reparte su peso entre
+familias, y al reajustar la mezcla ese reparto se mueve. Es la misma familia que la Mejora A deja como no concluyente
+(§15.2).
 
 *Código:* `contexto.py`, `pesos.py`, `hipotesis.py`, `perfil.py`.
 
