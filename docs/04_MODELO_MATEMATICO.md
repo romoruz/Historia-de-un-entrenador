@@ -685,7 +685,7 @@ El vocabulario oficial se queda en $5\times4$, $K=3$: es el más rico que los da
 
 *Código:* `direccion.py`, `voronoi.py`.
 
-### 14.1 La arista marcada (Mejora E, ADR-v2-59, experimento)
+### 14.1 La arista marcada (Mejora E, ADR-v2-59 y 62: rechazada)
 
 En lugar de ampliar el estado, se marca la **arista**: cada transición lleva $m\in\{$pase, conducción, remate,
 terminal$\}$ (las dos últimas estructurales) y cada familia factoriza
@@ -721,6 +721,11 @@ mínimo 0.884 (< 0.95) y rango de $J$ entre semillas $5.6\cdot10^{-4}$ por secue
 las semillas 1, 2 y 3. La duración y $E[T]$ sí se ajustan (KS 0.0036 contra 0.0050 de la entrega; $E[T]$ 6.503
 contra 6.509 observado), pero un vocabulario que cambia según la semilla no se puede usar.
 
+**Decisión (ADR-v2-71).** Rechazada por dos razones independientes. (1) **Empírica:** falla el criterio (a) del §4.
+(2) **Conceptual (Prop. 14.2):** al marginalizar la marca se recupera $P(j\mid i)$ exacta, así que con $K=1$ la
+arista gana **cero por construcción**, y con $K>1$ solo puede ganar ayudando a reconocer la familia. No es una
+cadena más rica, sino otra manera de identificar las mismas familias, y esa identificación resultó inestable.
+
 **Por qué la ganancia no se compara con la de §14.** En la CV por partido, la arista gana **+0.0014 nats por acción**
 (EE 0.0001) con $K=3$ y **exactamente 0** con $K=1$ (≤ 2e-17 en los cinco pliegues). Es la Prop. 14.2 vista en los
 datos: al marginalizar la marca se recupera $P(j\mid i)$, así que una sola cadena no puede ganar nada por
@@ -753,11 +758,13 @@ la otra cara de por qué la marca apenas ayuda a identificarlas.
   la misma cadena de Markov que hace la liga: «Ataque elaborado» de Almada = «Ataque elaborado» de
   la liga, solo que más seguido. Nunca se había dicho. Si es falso, $\Delta\pi$ mezcla «hace
   distinto» con «lo hace más» y los efectos en la cancha de H1–H2 se interpretan de más. Se
-  contrasta con una prueba de score (`supuesto_pk.py`, experimento, no adoptado; abajo §15.1).
+  contrasta con una prueba de score (§15.1) y se lee a igual número de partidos (§15.2). **Limitación declarada
+  (ADR-v2-71):** el supuesto es una aproximación razonable en Directa y en Ataque elaborado, y **no concluyente** en
+  Circulación estéril.
 * **Las responsabilidades $r_{sk}$ son una estimación, no un dato (generated regressor,
   ADR-v2-53).** Ver §7.1: el sandwich de la Prop. 7.2 las trata como observadas.
 
-### 15.1 Prueba del supuesto $P^k_{\text{foco}}=P^k_{\text{liga}}$ (experimento, no adoptado)
+### 15.1 Prueba del supuesto $P^k_{\text{foco}}=P^k_{\text{liga}}$ (la prueba; la lectura está en §15.2)
 
 Se perturba cada fila $i$ de la familia $k$ del foco: $P_{ij}(\theta)\propto P^k_{ij}e^{\theta_{ij}}$
 ($\theta_{i,\text{ref}}=0$). El score en $\theta=0$ de la secuencia $s$ es
@@ -958,7 +965,7 @@ de los saques que no van al área (tiros libres cortos, laterales del último cu
 **aparte**: el de los centros al área, pre-registrado para H24, no cambia.
 
 
-### 16.7 Portero y definición, por separado (experimento xGOT, ADR-v2-56, no adoptado)
+### 16.7 Portero y definición, por separado (xGOT, ADR-v2-56: documentado, no se narra)
 
 El cuarto término $s_i(F_i-g_i)$ junta el remate que el atacante mandó fuera y el que el portero atajó: no es
 identificable como mérito del portero. Con la ubicación del balón en el plano de la portería, $(y,z)$, que
@@ -999,7 +1006,9 @@ al área, xD definición en laterales largos). **No son narrables:** son 3 de 36
 bootstrap de 500 réplicas (pasos de 0.004, error de Monte Carlo ≈ ±0.009 cerca de p = 0.01), y entre corridas con el
 mismo código se movieron de 0.048 a 0.008: el orden de los partidos en el bootstrap no estaba fijo (ADR-v2-61).
 
-**Decisión.** Se documenta y **no se adopta como métrica narrativa**.
+**Decisión (ADR-v2-71).** La partición es **exacta** y segura, pero **no hay señal de equipo**, y las pruebas
+nuevas que salen demostradas no son narrables. Se documenta aquí y **no entra en `RESULTADOS_ALMADA.md` ni en la
+demostración**: el balón parado se sigue reportando con el término de cuatro de la Prop. 16.6.
 
 **Barrera.** En el tiro libre directo, la regla 13 obliga a la barrera a 9.15 m. Se cuentan los
 defensores de campo a ≤ 12 m del balón cuya sombra (el disco de la Proposición 16.3) toca el ángulo

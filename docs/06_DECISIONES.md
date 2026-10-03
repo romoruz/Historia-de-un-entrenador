@@ -770,3 +770,18 @@ Regla: la versión con el orden fijo es la reproducible y manda. Lo que cambie d
 Monte Carlo y se reescribe en `RESULTADOS_ALMADA.md` §5 según el veredicto nuevo. Si cambia de veredicto algo fuera
 de balón parado, el arreglo tocó más de lo previsto: se PARA y se revisa. La reescritura de §5 se hace con la salida
 real, no antes.
+
+## ADR-v2-71 — Integración, paso 3: A como limitación declarada, D documentada sin narrar, E rechazada
+Solo documentos. No cambia ningún número publicado.
+- **A** (ADR-v2-52 y 55): el supuesto «el técnico solo mueve π_k» pasa de supuesto implícito a **limitación declarada**,
+  en 04 §15 y en `RESULTADOS_ALMADA.md`, «Límites». Con la mediana a n = 30 y la regla fijada antes de correr, es una
+  aproximación razonable en Directa (45 / 38) y en Ataque elaborado (70 / 33), y **no concluyente** en Circulación
+  estéril (91 / 61). Los números de n = 40 no se usan.
+- **D** (ADR-v2-56, 58 y 61): la partición portero/definición (04 §16.7) es exacta y segura, pero no tiene señal de
+  equipo: Q de Cochran con p > 0.07 en las 24 combinaciones. Las 3 pruebas nuevas «demostradas» no son narrables.
+  Queda documentada y fuera de la demostración.
+- **E** (ADR-v2-59 y 62): la arista marcada (04 §14.1) se rechaza por el criterio (a) y por la Prop. 14.2: al
+  marginalizar la marca se recupera P(j|i), así que K = 1 gana cero por construcción.
+
+El código experimental (`supuesto_pk*.py`, `arista.py`, `xgot.py`, `voronoi_grafo.py`) se queda como herramienta y no
+entra en ninguna corrida de la historia.

@@ -264,3 +264,8 @@ Nada de esto se interpreta: sin evidencia suficiente, no se afirma ni que exista
 * **Multiplicidad, no selección:** el control corrige por hacer muchas pruebas, no por haber formulado algunas
   preguntas (balón parado por familias, pruebas de la proyección) después de ver la fase G. Los partidos nuevos de la
   temporada (2026/27, incluidos 9 del América) sirven para confirmarlas fuera de la muestra en que se formularon.
+* **El técnico mueve cuánto usa cada familia, no cómo la juega** (supuesto del modelo; `04_MODELO_MATEMATICO.md`
+  §15.2). Comparado contra técnicos con los mismos 30 partidos, es razonable en Directa y en Ataque elaborado y **no
+  concluyente en Circulación estéril**. Esa familia también es la peor separada por el modelo (§7.2). Por eso todo lo
+  que se dice de la Circulación estéril de Almada (por ejemplo, «juega menos Circulación estéril») lleva esta
+  advertencia.
