@@ -18,6 +18,15 @@ cat reports/experimentos/verificar_mezcla/VERIFICAR.md
   no sale así, **PARAR**: no se integra nada y se revisa la optimización.
 - **Secundaria:** «nuevo vs publicado». Si nuevo = previo pero los dos difieren de lo publicado, la causa no es la
   optimización: son datos o código posteriores a la publicación, y se revisa aparte antes del paso 4.
+- **Corrida real (2026-10-03):** nuevo = previo bit a bit, pero los dos difieren de lo publicado porque los datos
+  crecieron (ADR-v2-68). Antes del paso 1, la mezcla guardada debe reproducirse bit a bit sobre su propia muestra:
+
+```bash
+python scripts/experimentos/reproducir_publicada.py      # si no sale «SE REPRODUCE», PARAR
+```
+
+- **En el paso 4** (§4.2), el acuerdo ≈ 0.98 se compara contra un reajuste con **cuatro** absorbentes sobre los mismos
+  datos de hoy, y no contra la mezcla guardada, para no confundir el absorbente nuevo con los datos nuevos.
 
 ## Paso 1 — Correcciones de la narrativa (solo documentos; no se vuelve a correr nada)
 

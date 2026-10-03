@@ -703,3 +703,44 @@ Al integrar el quinto absorbente, el valor de la reanudación va en una columna 
 entra en c para V = N c. En el experimento se metió en `xg`, que también alimenta el «xG por secuencia» de H7–H8.
 `docs/experimentos/REVISION.md` resume el estado para un revisor externo.
 
+
+## ADR-v2-68 — La mezcla publicada se ajustó con menos datos de los que hay hoy: base de la integración
+`verificar_mezcla.py` con los datos reales (2026-10-03) dio dos resultados.
+
+- **Nuevo contra previo: idénticos bit a bit** (J, π, P, P0 y μ; 118 / 118 iteraciones). La optimización queda
+  verificada.
+- **Los dos difieren de la mezcla guardada en `mezcla_dir`**: diferencia relativa de 1.27e-2 en J y acuerdo suave de
+  0.9968.
+
+**Causa.** Se revisaron las tres hipótesis en orden.
+
+(a) **Los datos crecieron después de publicar. Es la causa.**
+- La mezcla se ajustó con 461,454 secuencias de 1,767 partidos (02_ESTADO, 10_RESULTADOS §9, 04 §5).
+- Después, ADR-v2-51 sumó la temporada en curso «sin reajustar el vocabulario». Hoy hay 467,327 secuencias de
+  1,789 partidos, con las eras hasta el 2026-11-23.
+- El crecimiento, 467,327 / 461,454 − 1 = 0.01273, es justamente la diferencia relativa en J. J por secuencia es
+  el mismo en los dos ajustes, hasta la tercera cifra.
+
+(b) **Un commit cambió el vocabulario: descartada.** Desde la versión inicial (`d07955a`), ningún commit tocó
+`possessions.py`, `grid.py`, `absorbing.py`, `aplanar.py` ni `partidos.py`. En `mezcla.py` hay tres commits:
+- `b219dda` solo agrega un campo al resumen;
+- `828c6b7` es la optimización, ya verificada;
+- `9598c49` cambia `_emparejar`, que no interviene en el ajuste.
+
+(c) **Otra semilla u otra config: descartada.** La sección `mezcla:` y `seed` de `config/default.yaml` no cambiaron
+desde `d07955a`. El último EM tuvo el mismo número de iteraciones (118) en los dos ajustes.
+
+**La prueba decisiva.** `scripts/experimentos/reproducir_publicada.py` reajusta K = 3 con el código de hoy, solo sobre
+las secuencias con las que se publicó. Esas secuencias son las `seq_uid` de `responsabilidades_K3.parquet`, que
+`dtcoach mezcla` escribe con la misma muestra con la que ajusta. El reajuste debe dar la mezcla guardada bit a bit. El
+script también comprueba que los eventos de los partidos viejos no cambiaron al reaplanar: la mezcla guardada, aplicada
+hoy a esas secuencias, debe dar las mismas responsabilidades. Por último, mide el cambio publicada → hoy en las
+cantidades que se narran (π, E[T], P(remate) y TV por fila de P), no en diferencias relativas máximas, que en celdas
+casi vacías no significan nada.
+
+**Base de la integración.** Todo lo publicado se calculó con la mezcla guardada, aplicada a los datos de hoy
+(ADR-v2-51). Por eso:
+- los pasos 1 a 3 se integran sobre ese archivo, que se conserva tal cual y no se reajusta;
+- el paso 4 sí reajusta, porque el espacio de estados cambia, y lo hace con los datos de hoy. Para separar el efecto
+  del absorbente del efecto de los datos nuevos, la comparación del paso 4 se hace contra un reajuste de cuatro
+  absorbentes sobre los mismos datos, y no contra la mezcla guardada.
