@@ -302,3 +302,54 @@ def test_absorbente5_variante_y_valor():
     v = ab.valor(tr2, rean, a=2.0).filter(pl.col("tipo") == "corner")
     # dos reanudaciones de 0.6 y 0.1 (xG de sus secuencias): media 0.35 → (0.7 + 2·0.35)/(2 + 2) = 0.35
     assert abs(v["valor"][0] - 0.35) < 1e-12 and v["n"][0] == 2
+
+
+def test_optimizacion_del_em_no_cambia_numeros():
+    """ADR-v2-64: _lse = scipy (bit a bit), S1 en caché = S − S0, reproducibilidad(ms=) = reproducibilidad(), y los ajustes
+    en paralelo = en serie."""
+    import sys
+    from pathlib import Path
+
+    import polars as pl
+    from scipy.special import logsumexp
+
+    from dtcoach import mezcla as mz
+    rng = np.random.default_rng(3)
+    for K in (1, 2, 3, 4, 5):
+        for esc in (0.1, 30.0):
+            a = rng.normal(0, esc, (20000, K))
+            assert np.array_equal(mz._lse(a), logsumexp(a, axis=1, keepdims=True))
+    a = rng.normal(0, 5, (1000, 3)); a[:50] = a[:50, :1]; a[60] = -np.inf
+    assert np.array_equal(mz._lse(a), logsumexp(a, axis=1, keepdims=True), equal_nan=True)
+
+    nt, ns, n = 4, 7, 400
+    filas = []
+    for s in range(n):
+        z = int(rng.integers(0, nt))
+        for t in range(10):
+            to = int(rng.integers(nt, ns)) if rng.random() < 0.2 else int(rng.integers(0, nt))
+            filas.append((f"s{s}", s // 10, t, z, to, "Pass"))
+            if to >= nt:
+                break
+            z = to
+    tr = pl.DataFrame(filas, schema=["seq_uid", "match_id", "event_index", "from_state", "to_state", "action_type"], orient="row")
+
+    class Esp:
+        n_transient, n_states, nx, ny, phases = nt, ns, 2, 2, ["all"]
+    d = mz.DatosPosesion.desde_transiciones(tr, Esp)
+    assert (d.S1 - (d.S - d.S0)).nnz == 0 and d.S1 is d.S1
+    kw = dict(max_iter=60, tol=1e-9, n_corto=5)
+    r0 = mz.reproducibilidad(d, 2, 20.0, 1.0, [1, 2], **kw)
+    ms = [mz.ajustar(d, 2, 20.0, 1.0, max_iter=60, tol=1e-9, seed=s, init="escalera", n_corto=5,
+                     pr=mz.prior(d, 20.0, 1.0, True, None)) for s in (1, 2)]
+    r1 = mz.reproducibilidad(d, 2, 20.0, 1.0, [1, 2], ms=ms, **kw)
+    assert r0 == r1
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts" / "experimentos"))
+    import absorbente5_variantes as av
+    mc = {"lam": 20.0, "a0": 1.0, "max_iter": 60, "tol": 1e-9, "n_corto": 5, "paso_inicial": True, "lam0": None}
+    serie = av._ajustes({"i": d}, [1, 2], 7, 2, mc, 1)
+    par = av._ajustes({"i": d}, [1, 2], 7, 2, mc, 3)
+    assert serie.keys() == par.keys()
+    for k in serie:
+        assert np.array_equal(serie[k].P, par[k].P) and np.array_equal(serie[k].pi, par[k].pi)
+        assert serie[k].objetivo == par[k].objetivo

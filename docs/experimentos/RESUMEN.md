@@ -75,5 +75,5 @@ nice python scripts/experimentos/absorbente5_variantes.py preparar        # F: z
 # cuando B termine las 200 réplicas:
 nice python scripts/experimentos/regresor_generado_impacto.py             # otra vez, con los números finales de B
 nice python scripts/experimentos/absorbente5_variantes.py ajustar --muestra 200 --semillas 1 2
-nice python scripts/experimentos/absorbente5_variantes.py ajustar         # F: 12 ajustes de la mezcla
+nice python scripts/experimentos/absorbente5_variantes.py ajustar         # F: 12 ajustes de la mezcla (--procesos 4 por omisión; ADR-v2-64)
 ```

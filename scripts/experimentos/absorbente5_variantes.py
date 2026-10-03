@@ -22,8 +22,16 @@ Uso:
   python scripts/experimentos/absorbente5_variantes.py ajustar
 Salida: reports/experimentos/absorbente5/{PREPARAR.md, AJUSTAR.md, *.json, *.csv, *.png}. No toca reports/mezcla.
 """
+import os
+
+# Un hilo de BLAS por proceso: el EM es casi todo álgebra dispersa y elementwise (no usa BLAS multihilo) y varios procesos
+# con varios hilos cada uno se pelean los núcleos (sobresuscripción). Se respeta lo que el usuario ya haya fijado.
+for _v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
+    os.environ.setdefault(_v, "1")
+
 import argparse
 import json
+import multiprocessing as mp
 import time
 
 import numpy as np
@@ -215,6 +223,43 @@ def _percentiles(g, tot, foco, metricas):
     return filas
 
 
+_DATOS: dict = {}          # variante → DatosPosesion; en cada worker lo llena `_init` (una vez por proceso)
+
+
+def _init(variantes: dict) -> None:
+    _DATOS.clear()
+    _DATOS.update(variantes)
+
+
+def _fit(args):
+    """Un ajuste de la mezcla. Las dos formas de llamada replican EXACTAMENTE las del código serie original: las
+    semillas de reproducibilidad con el prior fijo, y el ajuste «oficial» de la variante sin él."""
+    v, seed, forma, K, mc = args
+    d = _DATOS[v]
+    if forma == "repro":
+        pr = mz.prior(d, mc["lam"], mc["a0"], mc.get("paso_inicial", True), mc.get("lam0"))
+        return (v, seed, forma), mz.ajustar(d, K, mc["lam"], mc["a0"], max_iter=mc["max_iter"], tol=mc["tol"], seed=seed,
+                                            init="escalera", n_corto=mc.get("n_corto", 25), pr=pr)
+    return (v, seed, forma), mz.ajustar(d, K, mc["lam"], mc["a0"], max_iter=mc["max_iter"], tol=mc["tol"], seed=seed,
+                                        n_corto=mc.get("n_corto", 25), lam0=mc.get("lam0"))
+
+
+def _ajustes(variantes: dict, semillas: list[int], seed_cfg: int, K: int, mc: dict, procesos: int) -> dict:
+    """Los 4 ajustes de cada variante (len(semillas) de reproducibilidad + 1) con `procesos` procesos. Las tareas son
+    independientes y deterministas (cada una trae su semilla), así que el resultado no depende del reparto ni del orden."""
+    for d in variantes.values():
+        d.S1                                                   # el caché de S − S0 se calcula una vez, antes de repartir
+    tareas = [(v, s_, "repro", K, mc) for v in variantes for s_ in semillas] + [(v, seed_cfg, "oficial", K, mc) for v in variantes]
+    if procesos <= 1:
+        _init(variantes)
+        return dict(_fit(t) for t in tareas)
+    # «spawn» y no «fork»: el proceso padre ya tiene hilos (polars, BLAS) y fork con hilos puede dejar un candado tomado en el
+    # hijo (Python 3.12 lo avisa); un cuelgue silencioso en una corrida larga es peor que ~2 s de arranque. Los datos
+    # viajan UNA vez por worker (initargs), no una por tarea.
+    with mp.get_context("spawn").Pool(min(procesos, len(tareas)), initializer=_init, initargs=(variantes,)) as pool:
+        return dict(pool.imap_unordered(_fit, tareas, chunksize=1))
+
+
 def ajustar(a, cfg):
     t0 = time.time()
     out, dat = _rutas(cfg)
@@ -245,17 +290,22 @@ def ajustar(a, cfg):
 
     res, mapas = {"muestra": a.muestra or None, "semillas": semillas, "entrega": {"KS": b4["KS"], "E_T": b4["E_T_modelo"],
                                                                               "E_T_obs": b4["E_T_empirico"]}}, {}
-    for v, spec in ab.VARIANTES.items():
-        t1 = time.time()
+    D5 = {}
+    for v in ab.VARIANTES:
         f = dat / f"trans_{v}{'_muestra' if a.muestra else ''}.parquet"
         if not f.exists():
             raise SystemExit(f"falta {f}: corre antes `preparar`{' --muestra ' + str(a.muestra) if a.muestra else ''}")
-        tv = pl.read_parquet(f)
-        d5 = mz.DatosPosesion.desde_transiciones(tv, s5)
+        D5[v] = mz.DatosPosesion.desde_transiciones(pl.read_parquet(f), s5)
+    t_aj = time.time()
+    fits = _ajustes(D5, semillas, cfg["seed"], K, mc, a.procesos)
+    print(f"  {len(fits)} ajustes de la mezcla con {a.procesos} proceso(s): {time.time() - t_aj:.0f} s", flush=True)
+    for v, spec in ab.VARIANTES.items():
+        t1 = time.time()
+        d5 = D5[v]
         rep = mz.reproducibilidad(d5, K, mc["lam"], mc["a0"], semillas, mc["max_iter"], mc["tol"], mc.get("n_corto", 25),
-                                  paso_inicial=mc.get("paso_inicial", True), lam0=mc.get("lam0"))
-        m5 = mz.ajustar(d5, K, mc["lam"], mc["a0"], max_iter=mc["max_iter"], tol=mc["tol"], seed=cfg["seed"],
-                        n_corto=mc.get("n_corto", 25), lam0=mc.get("lam0"))
+                                  paso_inicial=mc.get("paso_inicial", True), lam0=mc.get("lam0"),
+                                  ms=[fits[(v, s_, "repro")] for s_ in semillas])
+        m5 = fits[(v, cfg["seed"], "oficial")]
         b5 = mz.bondad_largo(m5, d5, bc["t_min"], bc["kmax"])
         r5 = mz.responsabilidades(m5, d5)
         perm, acuerdo = mz._emparejar(r4.argmax(1), r5.argmax(1), K)
@@ -351,6 +401,9 @@ def main():
     ap.add_argument("--config", default="config/absorbente5.yaml")
     ap.add_argument("--muestra", type=int, default=0)
     ap.add_argument("--semillas", type=int, nargs="+", default=None)
+    ap.add_argument("--procesos", type=int, default=min(4, os.cpu_count() or 1),
+                    help="ajustes de la mezcla en paralelo (ajustar). Por omisión min(4, núcleos); 1 = serie. No cambia "
+                         "ningún número (cada ajuste es determinista y trae su semilla). Máx. razonable = núcleos físicos")
     a = ap.parse_args()
     cfg = Config.load(a.config)
     (preparar if a.fase == "preparar" else ajustar)(a, cfg)

@@ -638,3 +638,17 @@ artificial o el pase registrado como perdido). PÉRDIDA no se parte. Fase «prep
 por variante) solo después de B. Criterio del vocabulario de 04 §4; si falla (a), RECHAZADA. Script
 `scripts/experimentos/absorbente5_variantes.py`, módulo `absorbente5.py`, `config/absorbente5.yaml`.
 
+## ADR-v2-64 — Rendimiento del EM y de `ajustar` (Mejora F) sin cambiar un solo número
+Perfil de un ajuste (n = 37 mil secuencias, liga sintética): ~2/3 de cada iteración del EM era `scipy.special.logsumexp`,
+calculado DOS veces por iteración (responsabilidades y objetivo), y `S − S0` se recalculaba en cada iteración. Cambios en
+`mezcla.py`, todos con el mismo resultado bit a bit: (1) `_lse`, un logsumexp por filas con la misma aritmética que scipy
+(máximo fuera de la suma, log1p, conteo de empates), columna por columna para K = 2 y 3 (el orden de suma de numpy
+con K = 4 es otro y ahí se usa la ruta genérica; con algo no finito delega en scipy); (2) el logsumexp se calcula una
+vez por iteración y se reusa en el objetivo; (3) `S1` se guarda en caché por instancia. `reproducibilidad(ms=)` acepta
+los ajustes ya hechos. En `absorbente5_variantes.py ajustar`, los ajustes (4 por variante: las semillas de
+reproducibilidad y el «oficial») son independientes y deterministas, así que corren con `--procesos` procesos
+(`spawn`, no `fork`: el padre ya tiene hilos de polars y BLAS y un candado tomado en el hijo colgaría una corrida
+larga en silencio), con 1 hilo de BLAS por proceso. Verificación: salida idéntica (diferencia relativa 0.0) con la de
+referencia con 1, 2, 3 y 4 procesos; un ajuste de n = 295 mil da el mismo J, π y número de iteraciones. NO se
+tocó: el arranque en escalera, la tolerancia, el número de arranques ni el estado de B.
+

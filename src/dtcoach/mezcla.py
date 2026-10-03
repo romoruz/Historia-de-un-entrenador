@@ -89,7 +89,12 @@ class DatosPosesion:
 
     @property
     def S1(self) -> sp.csr_matrix:
-        return self.S - self.S0
+        # S − S0 se pedía en CADA iteración del EM (dos veces: verosimilitud y paso M); es constante. Se calcula una
+        # vez por instancia (ADR-v2-64); `sub()` crea una instancia nueva, así que el caché no se comparte.
+        s1 = self.__dict__.get("_S1")
+        if s1 is None:
+            s1 = self.__dict__["_S1"] = self.S - self.S0
+        return s1
 
     @property
     def X1(self) -> sp.csr_matrix:
@@ -268,8 +273,46 @@ def _m_step(d: DatosPosesion, r: np.ndarray, pr: Prior):
     return pi / pi.sum(), mu, P, P0
 
 
-def _objetivo(Lpi, P, P0, mu, pr: Prior) -> float:
-    J = float(logsumexp(Lpi, axis=1).sum())
+def _lse(a: np.ndarray) -> np.ndarray:
+    """logsumexp por filas, (n, 1). La MISMA aritmética que `scipy.special.logsumexp(a, axis=1, keepdims=True)` para
+    entradas finitas (el máximo se saca de la suma y se cuenta con `m`: log1p(s) + log(m) + máx), sin la maquinaria
+    genérica de scipy, que era ~2/3 del tiempo de cada iteración del EM (ADR-v2-64). Con K = 2 o 3 (el
+    caso de la mezcla) se opera columna por columna, que es mucho más rápido que reducir un eje de 3 elementos, y se
+    respeta el orden de suma de numpy (primer término + suma secuencial del resto) para dar los mismos bits (verificado
+    para K = 2 y 3; con K = 4 el orden de numpy es otro y se usa la ruta genérica). Si hay algo no finito, delega en
+    scipy."""
+    K = a.shape[1]
+    if K in (2, 3):
+        c = [a[:, k] for k in range(K)]
+        mx = c[0].copy()
+        for x in c[1:]:
+            np.maximum(mx, x, out=mx)
+        if not np.isfinite(mx).all():
+            return logsumexp(a, axis=1, keepdims=True)
+        es = [x == mx for x in c]
+        m = es[0].astype(a.dtype)
+        for z in es[1:]:
+            m += z
+        e = [np.exp(np.where(z, -np.inf, x) - mx) for x, z in zip(c, es)]
+        resto = e[1].copy()
+        for x in e[2:]:
+            resto += x
+        t = e[0] + resto
+        t = np.where(t == 0, t, t / m)
+        return (np.log1p(t) + np.log(m) + mx)[:, None]
+    mx = a.max(axis=1, keepdims=True)
+    if not np.isfinite(mx).all():
+        return logsumexp(a, axis=1, keepdims=True)
+    es_max = a == mx
+    m = es_max.sum(axis=1, keepdims=True).astype(a.dtype)
+    e = np.exp(np.where(es_max, -np.inf, a) - mx)
+    t = e.sum(axis=1, keepdims=True)
+    t = np.where(t == 0, t, t / m)
+    return np.log1p(t) + np.log(m) + mx
+
+
+def _objetivo(Lpi, P, P0, mu, pr: Prior, lse: np.ndarray | None = None) -> float:
+    J = float((_lse(Lpi) if lse is None else lse).sum())
     J += pr.lam * float((pr.Qp[None] * np.log(np.maximum(P, _EPS))).sum())
     if P0 is not None:
         J += pr.lam0 * float((pr.Q0p[None] * np.log(np.maximum(P0, _EPS))).sum())
@@ -294,14 +337,15 @@ def _em(d, pi, mu, P, P0, pr: Prior, max_iter, tol):
     obj, convergio = [], len(pi) == 1 and not pr.paso
     for it in range(max_iter):
         Lpi = _loglik_tipos(d, P, mu, P0) + np.log(pi)[None]
-        obj.append(_objetivo(Lpi, P, P0, mu, pr))
-        r = np.exp(Lpi - logsumexp(Lpi, axis=1, keepdims=True))
+        lse = _lse(Lpi)                                  # una vez: lo usan el objetivo y las responsabilidades
+        obj.append(_objetivo(Lpi, P, P0, mu, pr, lse))
+        r = np.exp(Lpi - lse)
         pi, mu, P, P0 = _m_step(d, r, pr)
         if len(pi) == 1 or (it > 0 and abs(obj[-1] - obj[-2]) < tol * abs(obj[-2])):
             convergio = True
             break
     Lpi = _loglik_tipos(d, P, mu, P0) + np.log(pi)[None]
-    obj.append(_objetivo(Lpi, P, P0, mu, pr))
+    obj.append(_objetivo(Lpi, P, P0, mu, pr, _lse(Lpi)))
     return Mezcla(pi, mu, P, pr.lam, pr.a0, obj, {}, P0), convergio
 
 
@@ -451,11 +495,17 @@ def ordenar_por_largo(m: Mezcla) -> Mezcla:
 
 def reproducibilidad(d: DatosPosesion, K: int, lam: float, a0: float, semillas: list[int],
                      max_iter: int, tol: float, n_corto: int = 25, paso_inicial: bool = True,
-                     lam0: float | None = None) -> dict:
-    """¿La escalera llega al mismo optimo desde semillas distintas? (ADR-v2-17)"""
-    pr = prior(d, lam, a0, paso_inicial, lam0)
-    ms = [ajustar(d, K, lam, a0, max_iter=max_iter, tol=tol, seed=s, init="escalera",
-                  n_corto=n_corto, pr=pr) for s in semillas]
+                     lam0: float | None = None, ms: list[Mezcla] | None = None) -> dict:
+    """¿La escalera llega al mismo optimo desde semillas distintas? (ADR-v2-17)
+
+    `ms`: los ajustes ya hechos, uno por semilla y en el mismo orden (p. ej. en paralelo; ADR-v2-64). Debe ser lo que
+    daría `ajustar(..., seed=s, init="escalera", pr=prior(d, lam, a0, paso_inicial, lam0))`; sin él se ajustan aquí."""
+    if ms is None:
+        pr = prior(d, lam, a0, paso_inicial, lam0)
+        ms = [ajustar(d, K, lam, a0, max_iter=max_iter, tol=tol, seed=s, init="escalera",
+                      n_corto=n_corto, pr=pr) for s in semillas]
+    elif len(ms) != len(semillas):
+        raise ValueError("`ms` debe traer un ajuste por semilla")
     J = np.array([m.objetivo[-1] for m in ms])
     mejor = ms[int(J.argmax())]
     R0 = responsabilidades(mejor, d)
