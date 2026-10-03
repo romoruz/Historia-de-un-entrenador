@@ -82,6 +82,10 @@ class DatosPosesion:
     n_phases: int
     S0: sp.csr_matrix | None = None   # solo la PRIMERA transicion de cada secuencia
     X0: sp.csr_matrix | None = None   # xG de la primera transicion
+    # valor de la reanudacion a balon parado (ADR-v2-72) por estado de origen: SOLO entra en c para V = N c, nunca en
+    # el xG por secuencia (H7-H8). None si las transiciones no traen `valor_reanudacion`.
+    XV: sp.csr_matrix | None = None
+    XV0: sp.csr_matrix | None = None
 
     @property
     def n(self) -> int:
@@ -99,6 +103,15 @@ class DatosPosesion:
     @property
     def X1(self) -> sp.csr_matrix:
         return self.X - self.X0
+
+    def Xc(self, primera: bool | None = None) -> sp.csr_matrix:
+        """Lo que entra en c para V = N c: xG de los remates + valor de la reanudacion (ADR-v2-72). `primera`: None =
+        todas las transiciones, True = solo la primera, False = las siguientes."""
+        X = self.X if primera is None else (self.X0 if primera else self.X1)
+        if self.XV is None:
+            return X
+        XV = self.XV if primera is None else (self.XV0 if primera else self.XV - self.XV0)
+        return X + XV
 
     @classmethod
     def desde_transiciones(cls, trans: pl.DataFrame, space: StateSpace) -> "DatosPosesion":
@@ -126,14 +139,21 @@ class DatosPosesion:
         X0 = sp.csr_matrix((xg[starts], (np.arange(n), fr[starts])), shape=(n, nt))
         largo = np.diff(np.append(starts, len(fr)))
         cols = [c for c in META_COLS if c in df.columns]
+        XV = XV0 = None
+        if "valor_reanudacion" in df.columns:
+            vr = df["valor_reanudacion"].fill_null(0.0).to_numpy()
+            XV = sp.csr_matrix((vr, (pid, fr)), shape=(n, nt))
+            XV.sum_duplicates()
+            XV0 = sp.csr_matrix((vr[starts], (np.arange(n), fr[starts])), shape=(n, nt))
         return cls(S, X, fr[starts], largo, df[starts].select(cols), nt, ns,
-                   space.nx, space.ny, len(space.phases), S0, X0)
+                   space.nx, space.ny, len(space.phases), S0, X0, XV, XV0)
 
     def sub(self, mask: np.ndarray) -> "DatosPosesion":
         idx = np.flatnonzero(mask) if mask.dtype == bool else np.asarray(mask)
         return DatosPosesion(self.S[idx], self.X[idx], self.inicio[idx], self.largo[idx], self.meta[idx],
                              self.n_transient, self.n_states, self.nx, self.ny, self.n_phases,
-                             self.S0[idx], self.X0[idx])
+                             self.S0[idx], self.X0[idx], None if self.XV is None else self.XV[idx],
+                             None if self.XV0 is None else self.XV0[idx])
 
     def columna_x(self, estados: np.ndarray) -> np.ndarray:
         zona = np.asarray(estados) // self.n_phases
@@ -623,16 +643,22 @@ def resumen_tipos(m: Mezcla, d: DatosPosesion, r: np.ndarray, n_tipicas: int = 5
     xg_sec = np.asarray(d.X.sum(axis=1)).ravel()
     S1, X1 = (d.S1, d.X1) if m.paso_inicial else (d.S, d.X)
     out = []
+    # V = N c con c = (xG de remates + valor de la reanudacion) / acciones (ADR-v2-72); el xG por posesion del
+    # modelo usa solo los remates, para compararlo con el empirico (que es la suma del xG de los remates)
+    XC1 = d.Xc(primera=False) if m.paso_inicial else d.Xc()
     for k in range(m.K):
         w = r[:, k]
         C1 = np.asarray(S1.T @ w).reshape(nt, ns)
         c = recompensa_xg(C1.sum(axis=1), np.asarray(X1.T @ w).ravel())
+        cv = recompensa_xg(C1.sum(axis=1), np.asarray(XC1.T @ w).ravel())
         if m.paso_inicial:
             C0 = np.asarray(d.S0.T @ w).reshape(nt, ns)
             c0 = recompensa_xg(C0.sum(axis=1), np.asarray(d.X0.T @ w).ravel())
+            cv0 = recompensa_xg(C0.sum(axis=1), np.asarray(d.Xc(primera=True).T @ w).ravel())
         else:
-            c0 = c
+            c0, cv0 = c, cv
         q = m.inicio(k, c, c0)
+        qv = q if d.XV is None else m.inicio(k, cv, cv0)
         cad = m.cadena(k)
         Q0 = m.P0e(k)[:, :nt]
         vis = m.mu[k] + (m.mu[k] @ Q0) @ cad.fundamental()      # visitas esperadas por estado
@@ -650,13 +676,15 @@ def resumen_tipos(m: Mezcla, d: DatosPosesion, r: np.ndarray, n_tipicas: int = 5
             "E_T_modelo": q["E_T"], "E_T_empirico": float(pesos @ d.largo),
             "P_gol": float(q["B"][0]), "P_remate_sin_gol": float(q["B"][1]),
             "P_perdida": float(q["B"][2]), "P_fuera": float(q["B"][3]),
+            **({"P_interrupcion_favor": float(q["B"][4])} if len(q["B"]) > 4 else {}),
             "P_remate_empirico": float(pesos @ remata),
             "xG_por_posesion_modelo": q["xG"], "xG_por_posesion_empirico": float(pesos @ xg_sec),
+            "valor_por_posesion_modelo": qv["xG"],      # = xG + valor de las reanudaciones a favor (V = N c)
             "visitas_por_zona": vis_z.tolist(),
             "inicio_por_zona": m.mu[k].reshape(n_zonas, d.n_phases).sum(axis=1).tolist(),
             # con el estado zona × nivel de presión (ADR-v2-36): qué fracción de sus visitas es en cada nivel
             "visitas_por_fase": (vis / vis.sum()).reshape(n_zonas, d.n_phases).sum(axis=0).tolist(),
-            "valor_por_zona": _por_zona(q["V"], C1, n_zonas, d.n_phases),
+            "valor_por_zona": _por_zona(qv["V"], C1, n_zonas, d.n_phases),
             "posesiones_tipicas": tip,
         })
     return out

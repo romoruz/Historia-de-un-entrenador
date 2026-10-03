@@ -275,9 +275,10 @@ def test_absorbente5_variante_y_valor():
     import polars as pl
 
     from dtcoach import absorbente5 as ab
-    from dtcoach.grid import StateSpace
-    sp = StateSpace(nx=2, ny=2, phases=("all",))
+    from dtcoach.grid import ABSORBING_4, StateSpace
+    sp = StateSpace(nx=2, ny=2, phases=("all",), absorbing=ABSORBING_4)
     s5 = ab.espacio5(sp)
+    assert ab.espacio5(s5) == s5 and ab.espacio4(s5) == sp
     LOSS, INT = sp.absorbing_index("LOSS"), s5.absorbing_index(ab.INTERRUPCION)
     assert LOSS == s5.absorbing_index("LOSS") and INT == sp.n_states
     tr = pl.DataFrame({"seq_uid": ["a", "a", "b", "b", "c"], "match_id": 1, "team": "X",

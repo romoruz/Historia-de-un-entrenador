@@ -36,14 +36,36 @@ fin del pase (intentado, aunque falle), de la conducción o del remate.
 
 **Definición 1.2 (malla y estados).** Sea $\mathcal Z = \{1,\dots,20\}$ la partición de la
 cancha en una malla uniforme $5 \times 4$ (celdas de $24 \times 20$ m). Los estados son
-$\mathcal S = \mathcal Z \cup \mathcal A$ con cuatro absorbentes
-$\mathcal A = \{\text{GOL}, \text{REMATE}, \text{PÉRDIDA}, \text{FUERA}\}$.
+$\mathcal S = \mathcal Z \cup \mathcal A$ con cinco absorbentes
+$\mathcal A = \{\text{GOL}, \text{REMATE}, \text{PÉRDIDA}, \text{FUERA}, \text{INTERRUPCIÓN}\}$
+(INTERRUPCIÓN = interrupción a favor, Def. 1.5; ADR-v2-72). La entrega usó los cuatro primeros: el quinto va al final,
+así que los índices de los otros no cambian.
 
 **Definición 1.3 (transición).** Cada acción produce una transición $i \to j$: $i$ es la
 zona del origen y $j$ la del destino si el equipo conserva el balón; si no, $j$ es el
 absorbente correspondiente (remate con o sin gol, pase perdido, balón fuera). Si una
 posesión termina en una zona sin evento que la cierre, se añade una transición
-artificial a PÉRDIDA (*absorción terminal*).
+artificial a PÉRDIDA (*absorción terminal*). Después se aplica la Def. 1.5.
+
+**Definición 1.5 (interrupción a favor; ADR-v2-60, 63 y 72).** Una secuencia que termina en PÉRDIDA es una
+*interrupción a favor* si la **primera** acción de cualquier equipo después de su última acción real es del **mismo**
+equipo y es un balón parado (lateral, tiro libre, córner o penal), o si antes de esa acción hay un `Foul Won` del mismo
+equipo. Su última transición cambia de destino, de PÉRDIDA a INTERRUPCIÓN. **Nada más cambia**: ni el origen de
+ninguna transición, ni el corte de las secuencias, ni el xG de los remates. Un robo, un mal pase o una intercepción
+siguen siendo PÉRDIDA. Los laterales se incluyen: un lateral a favor conserva el balón, y llamarlo pérdida era el sesgo
+que la definición corrige.
+
+*Lectura.* Con la Def. 1.3 sola, el 21 % de la masa que terminaba en PÉRDIDA eran interrupciones a favor: una falta
+recibida o un córner ganado contaban como haber perdido el balón.
+
+**Valor de la reanudación.** Para el tipo $\tau$ de la reanudación y la zona $z$ donde se cobra (o donde se recibió la
+falta),
+$$v(\tau,z)=\frac{\sum_{r\in(\tau,z)}\text{xG}(r)+a\,\bar v_\tau}{n_{\tau z}+a},\qquad a=50,$$
+donde $\text{xG}(r)$ es el xG de la secuencia que **arranca** con la reanudación $r$, y $\bar v_\tau$ la media del tipo
+(Prop. 3.1 con $a$ pseudo-reanudaciones). Una falta sin balón parado inmediato toma el valor del tiro libre de su zona.
+$v$ es la recompensa de la transición a INTERRUPCIÓN y **solo** entra en $c$ (Prop. 2.4). No entra en el xG por
+secuencia que usan H7 y H8, que sigue siendo la suma del xG de los remates (columna `valor_reanudacion`, aparte de
+`xg`).
 
 **Definición 1.4 (secuencia).** Una secuencia es el tramo de una posesión desde su inicio
 hasta su **primera** absorción. Una posesión con $m$ absorciones produce $m$ secuencias.
@@ -60,18 +82,24 @@ sobre trayectorias que ella misma declara imposibles: la duración esperada del 
 quedaba por debajo de la observada en todos los tipos. Con el corte, $E[T]$ modelo
 $=6.502$ contra $6.509$ observado.
 
-*Código:* `possessions.build_transitions`, `possessions.segmentar_secuencias`.
+Como la Def. 1.5 no cambia el corte, las secuencias, sus duraciones y este $E[T]$ son los mismos con cuatro y con
+cinco absorbentes.
+
+*Código:* `possessions.build_transitions`, `possessions.segmentar_secuencias`, `absorbente5.integrar` (Def. 1.5, en
+`dtcoach fase0`).
 
 ---
 
 ## 2. La cadena absorbente y sus formas cerradas
 
-Ordenando primero los 20 transitorios y después los 4 absorbentes, la matriz de
+Ordenando primero los 20 transitorios y después los 5 absorbentes, la matriz de
 transición tiene la forma canónica
 
 $$
-P = \begin{pmatrix} Q & R \\ 0 & I \end{pmatrix},\qquad Q \in \mathbb R^{20\times 20},\ R \in \mathbb R^{20\times 4}.
+P = \begin{pmatrix} Q & R \\ 0 & I \end{pmatrix},\qquad Q \in \mathbb R^{20\times 20},\ R \in \mathbb R^{20\times 5}.
 $$
+
+(Con el vocabulario de la entrega, $R\in\mathbb R^{20\times4}$. Nada de este § depende del número de absorbentes.)
 
 **Proposición 2.1 (la secuencia termina).** Si $\rho(Q) < 1$, entonces $Q^t \to 0$, la
 serie $N = \sum_{t\ge 0} Q^t$ converge, $N = (I - Q)^{-1}$ y
@@ -105,14 +133,25 @@ $\alpha$, $\Pr(T > t) = \alpha Q^{t}\mathbf 1$ (distribución *phase-type*).
 $E[T\mid X_0=i] = \sum_j N_{ij}$. Para la cola, $\{T > t\} = \{X_t \in \mathcal Z\}$ y
 $\Pr(X_t \in \mathcal Z) = \alpha Q^t \mathbf 1$. $\square$
 
-**Proposición 2.4 (valor de zona).** Sea $c_i$ el xG inmediato esperado de una acción que
-parte de $i$ (xG de los remates desde $i$ entre las acciones desde $i$). Entonces
-$V = Nc$ es el xG esperado que termina produciendo una secuencia que está en $i$.
+**Proposición 2.4 (valor de zona).** Sea $c_i$ el valor inmediato esperado de una acción que
+parte de $i$:
+$$c_i=\frac{\sum_{\text{acciones desde }i}\big(\text{xG del remate}+v(\tau,z)\,\mathbb 1\{\to\text{INTERRUPCIÓN}\}\big)}
+{\#\{\text{acciones desde }i\}},$$
+con $v$ el valor de la reanudación (§1). Entonces $V = Nc$ es el valor esperado, en goles, que termina produciendo una
+secuencia que está en $i$: el xG de sus remates más el de la reanudación que gana. Con el vocabulario de la entrega,
+$v\equiv0$ y $V$ es solo xG.
 
 *Demostración.* Primer paso: $V_i = c_i + \sum_j Q_{ij} V_j$, o sea $(I-Q)V = c$. $\square$
 
 $V$ es el análogo, en forma cerrada, del *Expected Threat* (Singh, 2018): allí se itera
 $V \leftarrow c + QV$ hasta converger; aquí se resuelve el sistema lineal.
+
+*Por qué $v$ va en $c$ y no en el xG de la secuencia.* $B=NR$ ya dice con qué probabilidad termina una secuencia en
+INTERRUPCIÓN; $V$ le pone precio. Un penal ganado (0.78) y un lateral en campo propio (0.002) son interrupciones a
+favor, pero no valen lo mismo. Con $c=0$ en esa transición (la variante (i) del experimento) valdrían igual. En cambio,
+el «xG por secuencia» de la fase 2 compara remates entre técnicos, y sumarle $v$ mezclaría dos cosas distintas.
+`DatosPosesion.X` (remates) y `DatosPosesion.XV` (reanudaciones) van por separado: solo `Xc()` los suma, y solo para
+$V$ (prueba `test_xg_por_secuencia_identico_antes_y_despues`).
 
 **Proposición 2.5 (llegar a una región).** Sea $A \subset \mathcal Z$ (p. ej. "frente al
 área") y $\bar A$ su complemento transitorio. Con $h_i = \Pr(\text{tocar } A \mid X_0 = i)$
@@ -255,10 +294,21 @@ permutar los tipos y tiene óptimos locales. Por eso:
    responsabilidad que cae en el mismo tipo alineado) es $\ge 0.95$ y (c) ningún tipo
    tiene $\pi_k < 1\%$.
 
-**Resultado (§16 de 10_RESULTADOS).** Con 461,454 secuencias, $K = 3$ es reproducible
-(acuerdo 0.997; rango de $J$ de $4\cdot10^{-6}$ por secuencia) y $K\ge4$ no lo es en ninguna
-malla. La mezcla con paso inicial reproduce la duración: KS $= 0.0051$ (una sola cadena:
-0.0597).
+**Resultado de la entrega (§16 de 10_RESULTADOS).** Medido con **461,454 secuencias** (1,767 partidos, hasta el
+2026-09-14) y **cuatro absorbentes**: $K = 3$ es reproducible (acuerdo 0.997; rango de $J$ de $4\cdot10^{-6}$ por
+secuencia) y $K\ge4$ no lo es en ninguna malla. La mezcla con paso inicial reproduce la duración: KS $= 0.0051$ (una
+sola cadena: 0.0597). **Estos números del criterio son de esa muestra, no de los 467,327 de hoy.** La temporada en
+curso se sumó después sin reajustar (ADR-v2-51): 22 partidos y 5,873 secuencias más. El archivo publicado se reproduce
+bit a bit sobre su propia muestra, y reajustar con los 467,327 mueve las familias lo mismo que cambiar la semilla:
+acuerdo 0.9968 contra 0.9965 entre semillas, Δπ ≤ 0.05 pp, ΔP(remate) ≤ 0.05 pp (ADR-v2-68).
+
+**El vocabulario con cinco absorbentes (ADR-v2-72).** Se reajusta con los 467,327 secuencias de hoy y se juzga con el
+mismo criterio. El experimento F con esos datos, variante (ii), dio: acuerdo suave entre semillas 0.998, rango de $J$
+≈ $5\cdot10^{-6}$ por secuencia, KS 0.0049 y $E[T]$ 6.502 contra 6.509. El EM no usa $c$, así que la mezcla de la
+integración es la de la variante (ii) del experimento. La corrida de integración debe repetir esos números
+(`dtcoach reproducibilidad`, `dtcoach bondad`). Además, se compara **contra un ajuste de cuatro absorbentes sobre los
+mismos datos de hoy**, nunca contra el archivo publicado: así la diferencia es del absorbente y no de los 22 partidos
+nuevos (`scripts/experimentos/verificar_absorbente5.py`). Los números de esa corrida se registran en ADR-v2-72.
 
 *Código:* `mezcla.py` (`ajustar`, `_m_step`, `reproducibilidad`, `bondad_largo`).
 
@@ -417,6 +467,27 @@ $\sum_sr_{sk}(1-r_{sk})/\sum_sr_{sk}=0.481$ contra 0.368 y 0.374, y 42.8 % de su
 también la de mayor inflación limpia (máx. 4.94, contra 1.68 y 1.12). Una secuencia dudosa reparte su peso entre
 familias, y al reajustar la mezcla ese reparto se mueve. Es la misma familia que la Mejora A deja como no concluyente
 (§15.2).
+
+**A qué vocabulario corresponden estos números (limitación declarada, ADR-v2-72).** Las 200 réplicas de B se
+calcularon con el vocabulario de **cuatro absorbentes**: la mezcla publicada, aplicada a las 467,327 secuencias de hoy
+(ADR-v2-51), y reajustada en cada réplica también con cuatro absorbentes. El vocabulario integrado tiene cinco. **B no
+se repite** con cinco absorbentes (serían unas 8 h). Las tres afirmaciones retiradas se siguen retirando, aunque la
+demostración regenerada las vuelva a marcar (ADR-v2-69). No repetirlo es razonable por tres razones:
+1. **Las responsabilidades apenas se mueven.** El quinto absorbente solo cambia el destino de la última transición de
+   una parte de las secuencias que terminaban en PÉRDIDA. Las familias se reconocen igual: lo mide el acuerdo suave
+   contra cuatro absorbentes sobre los mismos datos (`verificar_absorbente5.py`; en la liga sintética, 0.9965; en el
+   experimento, 0.981–0.983 contra el archivo publicado, que además mezcla los datos nuevos). El 0.998 es otra cosa: el
+   acuerdo **entre semillas** del vocabulario nuevo, su reproducibilidad.
+2. **El mecanismo de la inflación no depende del absorbente.** La inflación de B viene de que la Circulación estéril
+   está mal separada (impureza 0.48 contra 0.37: secuencias que reparten su peso entre familias). Esa ambigüedad está
+   en los transitorios, en *cómo* circula el balón, que la Def. 1.5 no toca. Sí puede cambiar un poco el destino final
+   de las secuencias ambiguas, pero no si se parecen a una familia o a otra.
+3. **Lo que sí podría cambiar va en la dirección que no importa aquí.** B ensancha IC; nunca agrega afirmaciones.
+   Repetirlo podría retirar alguna más o devolver alguna de las tres, pero no cambia la regla.
+
+**Es un supuesto declarado, no implícito.** Si al regenerar, el acuerdo con cuatro absorbentes sale < 0.98 o la
+impureza de la Circulación estéril cambia más de 0.02, el argumento 1 o el 2 no se sostiene y B se repite antes de
+narrar.
 
 *Código:* `contexto.py`, `pesos.py`, `hipotesis.py`, `perfil.py`.
 
@@ -665,7 +736,7 @@ contra la de las frecuencias base (habilidad $= 1 - \text{Brier}/\text{Brier}_{\
 
 ---
 
-## 14. Los experimentos que se probaron y no se adoptaron
+## 14. Los experimentos que se probaron: uno se adoptó (§14.2), los demás no
 
 **Estado aumentado.** Se sustituyó el estado $z$ por $(z, \ell)$: $\ell$ = nivel de presión
 (Voronoi local del 360, ADR-v2-36) o dirección de la acción que trajo el balón
@@ -725,6 +796,31 @@ contra 6.509 observado), pero un vocabulario que cambia según la semilla no se 
 (2) **Conceptual (Prop. 14.2):** al marginalizar la marca se recupera $P(j\mid i)$ exacta, así que con $K=1$ la
 arista gana **cero por construcción**, y con $K>1$ solo puede ganar ayudando a reconocer la familia. No es una
 cadena más rica, sino otra manera de identificar las mismas familias, y esa identificación resultó inestable.
+
+### 14.2 El quinto absorbente INTERRUPCIÓN (Mejora F, ADR-v2-60, 63, 66 y 72: ADOPTADA, variante (ii))
+
+A diferencia de §14 y §14.1, no amplía el estado ni la arista: corrige el **destino** de una transición que estaba mal
+clasificada (Def. 1.5). Por eso no tiene el costo de identificabilidad de los demás. Los transitorios y los parámetros
+por fila no cambian ($n_s$ pasa de 24 a 25), y la mezcla ve lo mismo salvo que una parte de PÉRDIDA ahora es otra
+columna.
+
+**Resultado del experimento (467,327 secuencias).** Las tres variantes cumplen el criterio del §4: acuerdo suave 0.998,
+rango de $J$ ≈ $5\cdot10^{-6}$ por secuencia, KS 0.0048–0.0049, $E[T]$ 6.502 contra 6.509. (i) y (ii) son **la misma
+mezcla**, porque el EM no usa $c$; difieren solo en $V$. Se adopta (ii): con laterales, y $c$ con el valor de la
+reanudación.
+- (i) iguala un penal con un lateral en campo propio.
+- (iii), que saca los laterales, vuelve a llamar PÉRDIDA a un balón que el equipo conserva.
+
+Ningún percentil de uso de las familias del foco se movió más de 5 puntos.
+
+**Efecto sobre Almada (experimento; se confirma al regenerar).**
+- El percentil de PÉRDIDA (la fracción de técnicos-club que pierde lo mismo o menos que él) baja de 30 a 14: una vez
+  separadas las interrupciones a favor, pierde el balón menos que antes respecto de los demás.
+- Con Pachuca, el 18.6 % de sus secuencias termina en INTERRUPCIÓN, percentil 77 entre técnicos-club.
+
+**Integración.** `absorbente5.integrar` en `dtcoach fase0`. El valor va en `valor_reanudacion` y nunca en `xg`.
+`scripts/experimentos/verificar_absorbente5.py` comprueba con los datos reales dos cosas: que el xG por secuencia es
+idéntico bit a bit antes y después, y el acuerdo con cuatro absorbentes **sobre los mismos datos**.
 
 **Por qué la ganancia no se compara con la de §14.** En la CV por partido, la arista gana **+0.0014 nats por acción**
 (EE 0.0001) con $K=3$ y **exactamente 0** con $K=1$ (≤ 2e-17 en los cinco pliegues). Es la Prop. 14.2 vista en los

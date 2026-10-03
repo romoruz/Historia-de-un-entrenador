@@ -4,7 +4,16 @@ from dtcoach.grid import StateSpace
 
 
 def test_una_fase_da_veinte_zonas(space):
-    assert space.n_transient == 20 and space.n_states == 24
+    assert space.n_transient == 20 and space.n_states == 25          # 5 absorbentes (ADR-v2-72)
+
+
+def test_quinto_absorbente_al_final(space):
+    """ADR-v2-72: INTERRUPCION_FAVOR va al final; los índices de los cuatro de la entrega no cambian."""
+    from dtcoach.grid import ABSORBING_4
+    s4 = StateSpace(nx=5, ny=4, phases=space.phases, absorbing=ABSORBING_4)
+    for a in ABSORBING_4:
+        assert space.absorbing_index(a) == s4.absorbing_index(a)
+    assert space.absorbing_index("INTERRUPCION_FAVOR") == s4.n_states
 
 
 def test_zonas_y_espejo():

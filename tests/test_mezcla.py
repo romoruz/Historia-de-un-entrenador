@@ -4,13 +4,14 @@ import polars as pl
 import pytest
 
 from dtcoach.estimate import count_matrix, shrink
-from dtcoach.grid import StateSpace
+from dtcoach.grid import ABSORBING_4, StateSpace
 from dtcoach.mezcla import (
     DatosPosesion, ajustar, bondad_largo, cv_k, loglik_por_posesion, pooled,
     reproducibilidad, responsabilidades, resumen_tipos,
 )
 
-SP = StateSpace(nx=2, ny=2, phases=("all",))      # 4 zonas + 4 absorbentes
+SP = StateSpace(nx=2, ny=2, phases=("all",), absorbing=ABSORBING_4)   # 4 zonas + 4 absorbentes (la mezcla no depende
+#                                                                   de cuántos absorbentes haya; ADR-v2-72)
 # filas: 4 transitorios; columnas: 0..3 zonas, 4 GOAL, 5 SHOT_NOGOAL, 6 LOSS, 7 OUT
 P_DIRECTO = np.array([
     [0, 0, .45, .45, 0, 0, .10, 0],

@@ -9,7 +9,11 @@ El contexto c (marcador) NO entra al estado: se usa como estratificacion,
 porque meterlo al estado multiplica el numero de parametros sin multiplicar
 los datos (ver README, seccion "El trade-off que decide tu alcance").
 
-Estados absorbentes: GOAL, SHOT_NOGOAL, LOSS, OUT.
+Estados absorbentes: GOAL, SHOT_NOGOAL, LOSS, OUT, INTERRUPCION_FAVOR.
+
+INTERRUPCION_FAVOR (ADR-v2-72): la secuencia termina porque el mismo equipo reanuda a balon parado (lateral, tiro
+libre, corner, penal) o le hicieron falta. Antes contaba como LOSS. Va AL FINAL: los indices de los cuatro primeros
+no cambian. La reclasificacion la hace `absorbente5.integrar` en `dtcoach fase0`.
 """
 
 from __future__ import annotations
@@ -18,7 +22,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
-ABSORBING = ("GOAL", "SHOT_NOGOAL", "LOSS", "OUT")
+ABSORBING = ("GOAL", "SHOT_NOGOAL", "LOSS", "OUT", "INTERRUPCION_FAVOR")
+ABSORBING_4 = ABSORBING[:4]    # el vocabulario anterior (entrega), para comparar sobre los mismos datos
 PHASES = ("open", "transition", "restart", "set_piece")
 
 

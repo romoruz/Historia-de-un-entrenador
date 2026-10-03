@@ -20,7 +20,9 @@ def comparar(a: pl.DataFrame, b: pl.DataFrame) -> pl.DataFrame:
     a, b = a.select([c for c in cols if c in a.columns]), b.select([c for c in cols if c in b.columns])
     return (a.join(b, on=["seccion", "id"], how="full", suffix="_nuevo", coalesce=True)
             .with_columns((pl.col("p_nuevo") - pl.col("p")).alias("dp"),
-                          (pl.col("veredicto") != pl.col("veredicto_nuevo")).fill_null(True).alias("cambia")))
+                          (pl.col("veredicto") != pl.col("veredicto_nuevo")).fill_null(False).alias("cambia"),
+                          pl.col("veredicto_nuevo").is_null().alias("solo_antes"),
+                          pl.col("veredicto").is_null().alias("solo_despues")))
 
 
 def reporte(c: pl.DataFrame, titulo: str) -> list[str]:
@@ -31,14 +33,16 @@ def reporte(c: pl.DataFrame, titulo: str) -> list[str]:
           f"{c.filter(pl.col('veredicto_nuevo').is_not_null()).height} después. "
           f"Demostradas: **{dem0} → {dem1}**.", "",
           "## Por sección: cuántos p se movieron y cuánto", "",
-          "| sección | afirmaciones | p distintos | máx. abs(Δp) | cambian de veredicto |", "|---|---|---|---|---|"]
+          "| sección | afirmaciones | solo antes | solo después | p distintos | máx. abs(Δp) | cambian de veredicto |",
+          "|---|---|---|---|---|---|---|"]
     for (sec,), g in sorted(c.group_by(["seccion"]), key=lambda t: str(t[0][0])):
         d = g.filter(pl.col("dp").is_not_null() & pl.col("dp").is_not_nan())
         mx = d["dp"].abs().max() if d.height else 0.0
-        md.append(f"| {sec} | {g.height} | {d.filter(pl.col('dp') != 0).height} | {mx or 0.0:.4g} | "
-                  f"{g['cambia'].sum()} |")
+        md.append(f"| {sec} | {g.height} | {g['solo_antes'].sum()} | {g['solo_despues'].sum()} | "
+                  f"{d.filter(pl.col('dp') != 0).height} | {mx or 0.0:.4g} | {g['cambia'].sum()} |")
     ch = c.filter(pl.col("cambia")).sort(["seccion", "id"])
-    md += ["", f"## Afirmaciones que cambian de veredicto ({ch.height})", ""]
+    md += ["", "*«Solo antes» / «solo después»: afirmaciones que existen en una sola de las dos corridas (no se "
+               "comparan).*", "", f"## Afirmaciones que cambian de veredicto ({ch.height})", ""]
     if ch.height:
         md += ["| sección | afirmación | p antes → después | q antes → después | veredicto antes → después |",
                "|---|---|---|---|---|"]

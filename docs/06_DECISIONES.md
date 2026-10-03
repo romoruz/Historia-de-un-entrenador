@@ -785,3 +785,39 @@ Solo documentos. No cambia ningún número publicado.
 
 El código experimental (`supuesto_pk*.py`, `arista.py`, `xgot.py`, `voronoi_grafo.py`) se queda como herramienta y no
 entra en ninguna corrida de la historia.
+
+## ADR-v2-72 — Integración, paso 4: el quinto absorbente INTERRUPCIÓN_FAVOR entra al vocabulario (variante (ii))
+**Qué cambia.**
+- `grid.ABSORBING` suma `INTERRUPCION_FAVOR` al final. Los índices de GOAL, SHOT_NOGOAL, LOSS y OUT no cambian.
+- `dtcoach fase0` aplica `absorbente5.integrar`, la Def. 1.5 de 04: la última transición de una secuencia que terminaba
+  en PÉRDIDA pasa a INTERRUPCIÓN si la reanuda el mismo equipo a balón parado o le hicieron falta. Los laterales se
+  incluyen.
+- El valor de la reanudación, E[xG | tipo, zona] encogido con a = 50, va en una columna **aparte**,
+  `valor_reanudacion`, y no en `xg`. `DatosPosesion` lo carga como `XV`, y solo `Xc()` lo suma al xG de los remates
+  para c en V = N c (`resumen_tipos`: `valor_por_zona` y `valor_por_posesion_modelo`). El «xG por posesión» del
+  modelo y el empírico siguen siendo solo de remates.
+
+**Por qué en una columna aparte.** El experimento metió el valor en `xg`. Integrado así, habría contaminado el xG por
+secuencia que `contexto.tabla_secuencias` lee de `d.X` (fase 2, H7 y H8), y con él sus IC y la demostración. La prueba
+`test_xg_por_secuencia_identico_antes_y_despues` comprueba en datos sembrados que `X` es idéntico bit a bit con y sin el
+quinto absorbente. `verificar_absorbente5.py` lo comprueba con los datos reales, secuencia por secuencia y transición
+por transición, contra las transiciones archivadas. Si no es idéntico, se PARA.
+
+**Contra qué se compara.** Contra un ajuste K = 3 de **cuatro** absorbentes sobre los **mismos** datos de hoy
+(`absorbente5.a_cuatro`), y nunca contra el archivo publicado. Así la diferencia es del absorbente y no de los 22
+partidos nuevos (ADR-v2-68). El criterio del §4 se vuelve a medir (`reproducibilidad`, `bondad`) con 467,327
+secuencias. Los números de la entrega (0.997, KS 0.0051) se midieron con 461,454 y así se dice en 04 §4.
+
+**B no se repite** (04 §7.2). Los números de las 200 réplicas son del vocabulario de cuatro absorbentes, y eso queda
+como limitación declarada. Si el acuerdo con cuatro absorbentes sale < 0.98 o la impureza de alguna familia cambia
+más de 0.02, B se repite antes de narrar. `verificar_absorbente5.py` lo avisa.
+
+**El archivo publicado no se borra.** `dtcoach mezcla` escribe en `mezcla_dir`, así que antes de `fase0` se archivan las
+transiciones, la mezcla y los reportes de cuatro absorbentes en `data/processed/archivo_4abs/` y
+`reports/archivo_4abs/` (`scripts/integrar.sh`).
+
+**Pruebas.** El número de estados pasa de 24 a 25. `test_mezcla` fija los cuatro absorbentes en su espacio sintético,
+porque la mezcla no depende de cuántos haya. Se agregan `test_quinto_absorbente_al_final`,
+`test_integrar_solo_cambia_el_destino_final` y `test_xg_por_secuencia_identico_antes_y_despues`. `pytest -q`: 174.
+
+**Datos reales (se completa al correr).** Acuerdo con cuatro absorbentes: —. Criterio del §4: —. KS: —.

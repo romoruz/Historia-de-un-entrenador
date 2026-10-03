@@ -1,20 +1,23 @@
 """
-EXPERIMENTO (Mejora F, ADR-v2-60, 63): quinto absorbente INTERRUPCIÓN_FAVOR.
+Quinto absorbente INTERRUPCIÓN_FAVOR (Mejora F, ADR-v2-60 y 63; INTEGRADO con la variante (ii), ADR-v2-72).
 
 Una secuencia que acaba porque al equipo le hicieron falta (o ganó un córner, un lateral, un penal) no terminó en
-una PÉRDIDA: la Def. 1.3 la manda ahí porque la falta recibida no es acción. Aquí:
+una PÉRDIDA: la Def. 1.3 la mandaba ahí porque la falta recibida no es acción. Aquí:
 
   clasificar      cada secuencia que termina en PÉRDIDA: ¿la reanuda el mismo equipo con un balón parado? ¿cuál, y
                   en qué zona?
   valor           E[xG de la secuencia que arranca con la reanudación | tipo, zona], de TODAS las reanudaciones de la
                   liga, encogido hacia la media del tipo (a pseudo-reanudaciones).
-  variante        las transiciones con el quinto absorbente: la última transición de la secuencia (la terminal
-                  artificial o el pase que se registró como perdido) va a INTERRUPCIÓN_FAVOR; su recompensa es 0 o el
-                  valor de la reanudación (entra a c = xG por acción desde el estado de origen, como un remate).
+  integrar        lo OFICIAL (`dtcoach fase0`, variante (ii)): la última transición de cada secuencia a favor va a
+                  INTERRUPCIÓN_FAVOR y su valor se escribe en la columna `valor_reanudacion`, NO en `xg`. Así el «xG por
+                  secuencia» (fase 2, H7–H8) no cambia; el valor solo entra en c cuando se calcula V = N c.
+  a_cuatro        el inverso para comparar: INTERRUPCIÓN_FAVOR vuelve a PÉRDIDA y el espacio a cuatro absorbentes.
+  variante        lo del EXPERIMENTO (tres variantes; el valor iba en `xg`). Se conserva para reproducirlo.
   por_zona        B = N R y V = N c por zona de la cadena de la liga y de cada familia.
 
-Las tres variantes (ADR-v2-63): (i) con laterales, c = 0; (ii) con laterales, c = valor; (iii) sin laterales (solo
-tiro libre, córner, penal y falta), c = valor. Ningún cambio parte PÉRDIDA en robo / mal pase / intercepción.
+Las tres variantes del experimento (ADR-v2-63): (i) con laterales, c = 0; (ii) con laterales, c = valor; (iii) sin
+laterales (solo tiro libre, córner, penal y falta), c = valor. Ningún cambio parte PÉRDIDA en robo / mal pase /
+intercepción.
 """
 from __future__ import annotations
 
@@ -34,9 +37,18 @@ VARIANTES = {"i": {"laterales": True, "valor": False, "nombre": "(i) con lateral
 
 
 def espacio5(space: StateSpace) -> StateSpace:
-    """El mismo espacio con INTERRUPCIÓN_FAVOR al FINAL: los índices de los cuatro absorbentes no cambian."""
+    """El mismo espacio con INTERRUPCIÓN_FAVOR al FINAL: los índices de los cuatro absorbentes no cambian. Si ya lo
+    tiene (el espacio oficial desde ADR-v2-72), lo devuelve igual."""
+    if INTERRUPCION in space.absorbing:
+        return space
     return StateSpace(nx=space.nx, ny=space.ny, length=space.length, width=space.width, phases=space.phases,
                       absorbing=tuple(space.absorbing) + (INTERRUPCION,))
+
+
+def espacio4(space: StateSpace) -> StateSpace:
+    """El mismo espacio con los cuatro absorbentes de la entrega (GOAL, SHOT_NOGOAL, LOSS, OUT)."""
+    return StateSpace(nx=space.nx, ny=space.ny, length=space.length, width=space.width, phases=space.phases,
+                      absorbing=tuple(a for a in space.absorbing if a != INTERRUPCION))
 
 
 def _xy(loc: pl.Series) -> tuple[np.ndarray, np.ndarray]:
@@ -141,6 +153,52 @@ def variante(trans: pl.DataFrame, clas: pl.DataFrame, val: pl.DataFrame | None, 
                           ).drop("_ult", "_v", "_sel")
 
 
+def integrar(trans: pl.DataFrame, ev: pl.DataFrame, space: StateSpace, laterales: bool = True,
+             a: float = 50.0) -> tuple[pl.DataFrame, dict]:
+    """La variante (ii) como parte de fase 0 (ADR-v2-72). `space` debe traer INTERRUPCIÓN_FAVOR al final.
+
+    Solo cambia el DESTINO de la última transición (la que iba a PÉRDIDA) de las secuencias que reanuda el mismo
+    equipo a balón parado. El valor de la reanudación va en `valor_reanudacion` (0 en las demás filas). `xg`, el
+    origen de cada transición, las secuencias y su orden no se tocan: el xG por secuencia es el mismo antes y después.
+    `ev`: eventos con match_id, index, type, team, pass_type, shot_type, location."""
+    if INTERRUPCION not in space.absorbing:
+        raise ValueError("integrar: el espacio no tiene INTERRUPCION_FAVOR (¿grid.ABSORBING de antes de ADR-v2-72?)")
+    uid = "seq_uid" if "seq_uid" in trans.columns else "poss_uid"
+    clas = clasificar(trans, ev, space)
+    val = valor(trans, reanudaciones(ev, space), a=a)
+    base = trans.with_row_index("_fila")                        # el orden de salida es el de entrada
+    v = variante(base, clas, val, laterales, space).sort("_fila")  # destino nuevo; el valor quedó en `xg`
+    if not np.array_equal(v["_fila"].to_numpy(), base["_fila"].to_numpy()):
+        raise RuntimeError("integrar: la variante perdió o duplicó transiciones")
+    base = base.drop("_fila")
+    INT = space.absorbing_index(INTERRUPCION)
+    cambia = (v["to_state"] == INT) & (base["to_state"] != INT)
+    out = base.with_columns(pl.Series("to_state", v["to_state"]).cast(base.schema["to_state"]),
+                            pl.when(cambia).then(v["xg"]).otherwise(0.0).fill_null(0.0).alias("valor_reanudacion"))
+    fav = clas.filter(pl.col("a_favor"))
+    if not laterales:
+        fav = fav.filter(pl.col("tipo") != "lateral")
+    LOSS = space.absorbing_index("LOSS")
+    res = {"secuencias_perdida_antes": int(clas.height),
+           "a_interrupcion": int(cambia.sum()),
+           "frac_de_perdida": float(cambia.sum() / max(clas.height, 1)),
+           "por_tipo": dict(fav.group_by("tipo").len().iter_rows()),
+           "perdida_despues": int(out.filter(pl.col("to_state") == LOSS)[uid].n_unique()),
+           "valor_medio": float(out.filter(pl.col("to_state") == INT)["valor_reanudacion"].mean() or 0.0),
+           "laterales": laterales, "a": a}
+    return out, res
+
+
+def a_cuatro(trans: pl.DataFrame, space: StateSpace) -> pl.DataFrame:
+    """Las MISMAS transiciones con el vocabulario de cuatro absorbentes: INTERRUPCIÓN_FAVOR vuelve a PÉRDIDA y se
+    quita `valor_reanudacion`. Usar con `espacio4(space)`. Es lo que se compara contra el quinto absorbente sobre los
+    mismos datos (ADR-v2-72): así la diferencia es del absorbente, no de los datos."""
+    INT, LOSS = space.absorbing_index(INTERRUPCION), space.absorbing_index("LOSS")
+    t = trans.with_columns(pl.when(pl.col("to_state") == INT).then(LOSS).otherwise(pl.col("to_state"))
+                           .cast(trans.schema["to_state"]).alias("to_state"))
+    return t.drop("valor_reanudacion") if "valor_reanudacion" in t.columns else t
+
+
 def por_zona(P: np.ndarray, c: np.ndarray, nt: int, n_zonas: int) -> dict:
     """B (nt × n_abs) y V (nt) de una cadena, promediados a zona (las fases, si hay más de una, en partes iguales)."""
     cad = Cadena(P, nt)
@@ -166,5 +224,5 @@ def cadena_familia(m, d, r: np.ndarray, k: int) -> tuple[np.ndarray, np.ndarray]
     return m.P[k], np.where(n > 0, x / np.maximum(n, 1e-300), 0.0)
 
 
-__all__ = ["ABSORBING", "INTERRUPCION", "VARIANTES", "espacio5", "reanudaciones", "clasificar", "valor", "variante",
-           "por_zona", "cadena_liga", "cadena_familia"]
+__all__ = ["ABSORBING", "INTERRUPCION", "VARIANTES", "espacio5", "espacio4", "reanudaciones", "clasificar", "valor",
+           "integrar", "a_cuatro", "variante", "por_zona", "cadena_liga", "cadena_familia"]

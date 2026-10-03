@@ -91,6 +91,15 @@ def cmd_fase0(a, cfg):
     print("construyendo transiciones de toda la liga...", flush=True)
     trans = build_transitions(lf, space, cfg)
     print(f"  {trans.height:,} transiciones en {time.time() - t0:.0f}s", flush=True)
+    # ADR-v2-72: el quinto absorbente INTERRUPCION_FAVOR (variante (ii)); el valor de la reanudacion va en
+    # `valor_reanudacion`, no en `xg`
+    from .absorbente5 import integrar
+    ev = (ingest.scan_events(cfg.ruta("eventos_parquet"))
+          .select("match_id", "index", "type", "team", "pass_type", "shot_type", "location").collect())
+    trans, rep_int = integrar(trans, ev, space)
+    del ev
+    print(f"  INTERRUPCION_FAVOR: {rep_int['a_interrupcion']:,} de {rep_int['secuencias_perdida_antes']:,} "
+          f"secuencias que terminaban en PÉRDIDA ({100 * rep_int['frac_de_perdida']:.1f} %)", flush=True)
 
     v2 = cfg.ruta("eras_dir").parent / (cfg.ruta("eras_dir").name + "_v2")
     if v2.exists():
@@ -167,6 +176,8 @@ def cmd_fase0(a, cfg):
         "partidos": trans["match_id"].n_unique(),
         "equipos": len(equipos),
         "estados_transitorios": space.n_transient,
+        "absorbentes": list(space.absorbing),
+        "interrupcion_favor": rep_int,
         "frac_filas_sin_dt": round(float(frac_null), 4),
         "discrepancias_eras_vs_api": verif.height,
         "coordinate_sanity": san,

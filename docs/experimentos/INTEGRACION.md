@@ -1,6 +1,6 @@
 # Plan de integración de lo que se adopta de `exp/mejoras-6`
 
-Este documento es solo el plan; todavía no se integra nada. Cada paso dice qué cambia, con qué comandos y qué hay que
+**Estado (ADR-v2-69 a 72):** el código y los documentos de los pasos 1 a 4 están integrados en `exp/mejoras-6`. Lo que falta es correr con los datos reales (`scripts/integrar.sh`) y reescribir los resultados con esa salida. Cada paso dice qué cambia, con qué comandos y qué hay que
 volver a correr. Los pasos van del menos invasivo al más invasivo: si un paso falla su verificación, los siguientes
 esperan. Todos los comandos son desde la raíz del repo, con el venv activo.
 
@@ -50,18 +50,23 @@ Además se integran a `docs/04_MODELO_MATEMATICO.md` §7.1–7.2 y los ADR-v2-53
   `src/dtcoach/balon_parado.py` (`razon_boot`, lo mismo). Hoy los p de la cadena del xDefense cambian entre corridas
   con la misma semilla.
 - **Prueba:** `test_razon_boot_no_depende_del_orden`.
-- **Volver a correr:**
+- **Volver a correr (`bash scripts/integrar.sh paso2`).** Se corre con el código del **paso 2**, con cuatro
+  absorbentes y la mezcla publicada, porque el código del paso 4 cambia el espacio de estados. El script hace checkout
+  del commit del paso 2 y al final regresa a `exp/mejoras-6`:
 
 ```bash
+D=reports/historia/guillermo_almada
+cp -a $D/demostracion $D/demostracion_antes_paso2          # la versión publicada, para comparar
+cp -a $D/balon_parado $D/balon_parado_antes_paso2
 pytest -q
 dtcoach balon-parado --foco "Guillermo Almada"
 dtcoach demostracion --foco "Guillermo Almada"
+python scripts/experimentos/comparar_demostracion.py $D/demostracion_antes_paso2/demostracion.csv \
+    $D/demostracion/demostracion.csv --titulo "Paso 2: balón parado con el orden fijo"
 ```
 
-- **Verificar:** comparar `reports/historia/guillermo_almada/demostracion/demostracion.csv` contra la versión anterior
-  (guárdala antes de correr). Las afirmaciones de la cadena que cambien de veredicto estaban dentro del ruido de Monte
-  Carlo (±0.01 en p) y se reescriben en `RESULTADOS_ALMADA.md` §5 según el nuevo veredicto. Esa versión es la
-  reproducible.
+- **Verificar (ADR-v2-70):** en `COMPARAR.md`, solo deben moverse p de la sección `balon_parado`. Lo que cambie de
+  veredicto se reescribe en `RESULTADOS_ALMADA.md` §5. Si cambia algo fuera de balón parado, PARAR.
 
 ## Paso 3 — Documentación de A, D y E (solo documentos)
 
@@ -77,66 +82,83 @@ Se integran a `docs/04_MODELO_MATEMATICO.md`, con sus ADR:
 El código experimental (`supuesto_pk*.py`, `arista.py`, `xgot.py`, `voronoi_grafo.py`) puede quedarse en
 `scripts/experimentos/` y en `src/dtcoach/` como herramienta. No entra en ninguna corrida de la entrega.
 
-## Paso 4 — El quinto absorbente INTERRUPCIÓN_FAVOR, variante (ii) (el único cambio al modelo)
+## Paso 4 — El quinto absorbente INTERRUPCIÓN_FAVOR, variante (ii) (el único cambio al modelo; ADR-v2-72)
 
-### 4.1 Código
+### 4.1 Código (hecho)
 
-1. **`src/dtcoach/grid.py`:** `ABSORBING = ("GOAL", "SHOT_NOGOAL", "LOSS", "OUT", "INTERRUPCION_FAVOR")`. Va AL FINAL,
-   así que los índices de los cuatro absorbentes actuales no cambian (`cli.py:944`, `voronoi_grafo.py:49`,
-   `mezcla._es_remate` y `ofensiva.py:268` siguen valiendo).
-2. **`src/dtcoach/possessions.py`, `build_transitions`:** después de `_append_terminal_absorption` y de segmentar las
-   secuencias, se reclasifica la última transición de cada secuencia que termina en LOSS y que la reanuda el mismo
-   equipo a balón parado (lateral, tiro libre, córner o penal; o un `Foul Won` propio antes de la siguiente acción).
-   La regla y el código están en `src/dtcoach/absorbente5.py` (`clasificar`, `variante`) y se mueven ahí.
-   **Laterales incluidos.**
-3. **La recompensa, en una columna aparte.** El valor de la reanudación, E[xG | tipo, zona] con el encogimiento de
-   `absorbente5.valor`, va en una columna nueva `valor_reanudacion`, **no** en `xg`. En el experimento se metió en `xg`.
-   Integrado así, contaminaría el «xG por secuencia» de la fase 2 (`contexto.py` lo lee de `d.X`) y los IC de H7–H8. La
-   columna nueva solo entra en `c` cuando se calcula V = N c (`absorbing.recompensa_xg` y quien la llame para V:
-   `mezcla.inicio`, `voronoi_grafo.valor_de_zonas`). Hace falta una prueba que asegure que «xG por secuencia» no cambia
-   al agregar la columna.
-4. **Pruebas:** adaptar las de `possessions` y `grid` que cuentan absorbentes (n_states = n_transient + 5) y portar
-   `test_absorbente5_variante_y_valor`.
+1. **`grid.ABSORBING`** suma `INTERRUPCION_FAVOR` al final, y `ABSORBING_4` es el de la entrega. Los índices de los
+   cuatro de antes no cambian.
+2. **`dtcoach fase0`** aplica `absorbente5.integrar` (Def. 1.5 de 04). Se clasifica después de la absorción terminal y
+   del corte de secuencias. Solo cambia el destino de la última transición.
+3. **La recompensa va en `valor_reanudacion`, no en `xg`.** `DatosPosesion.XV` la carga, y `Xc()` la suma al xG solo
+   para c en V = N c. El «xG por secuencia» de H7–H8 (`contexto.tabla_secuencias`, `d.X`) no la ve.
+4. **Pruebas:** `test_xg_por_secuencia_identico_antes_y_despues`, `test_integrar_solo_cambia_el_destino_final` y
+   `test_quinto_absorbente_al_final`. `test_mezcla` fija cuatro absorbentes en su espacio sintético. `pytest -q`: 174.
 
-### 4.2 Volver a correr, en este orden
+### 4.2 Volver a correr, en este orden (`bash scripts/integrar.sh paso4`)
 
 ```bash
-pytest -q
-dtcoach fase0                                   # transiciones con el quinto absorbente
-dtcoach mezcla --K 3                            # el vocabulario
-dtcoach reproducibilidad --K 3 --semillas 1 2 3 # criterio (a)
-dtcoach bondad --K 3                            # criterio (b) y (c)
+# 0. archivar lo de cuatro absorbentes (el archivo publicado NO se borra)
+mkdir -p data/processed/archivo_4abs reports/archivo_4abs
+cp -a data/processed/transitions.parquet data/processed/archivo_4abs/
+cp -a data/processed/mezcla data/processed/archivo_4abs/
+cp -a reports/mezcla reports/fase2 reports/fase3 reports/historia reports/archivo_4abs/
+pytest -q                                       # 174
+dtcoach fase0                                   # transiciones con el quinto absorbente y `valor_reanudacion`
+dtcoach mezcla --K 3                            # el vocabulario nuevo (467,327 secuencias)
+python scripts/experimentos/verificar_absorbente5.py \
+    --antes data/processed/archivo_4abs/transitions.parquet \
+    --publicada data/processed/archivo_4abs/mezcla/mezcla_K3.npz   # xG idéntico + 5 contra 4 sobre los mismos datos
+dtcoach reproducibilidad --K 3 --semillas 1 2 3 # criterio (a) y (c), con 467,327 secuencias
+dtcoach bondad --K 3                            # criterio (b): KS y E[T]
 bash scripts/correr_foco.sh "Guillermo Almada"  # fase 2 (H1–H8), fase 3a, atlas, decisiones, simulador
 bash scripts/historia.sh "Guillermo Almada"     # secciones 1–8, incluida la demostración
+python scripts/experimentos/comparar_demostracion.py \
+    reports/archivo_4abs/historia/guillermo_almada/demostracion/demostracion.csv \
+    reports/historia/guillermo_almada/demostracion/demostracion.csv --titulo "Paso 4: cinco contra cuatro absorbentes"
 ```
 
-- **Verificar:** el criterio del vocabulario debe repetir lo del experimento (acuerdo suave ≈ 0.998, rango de J ≈ 5e-6,
-  KS ≈ 0.0049, E[T] 6.502 contra 6.509) y el acuerdo con la mezcla anterior debe ser ≈ 0.98. Si no, PARAR.
-- La malla (5×4, §5) no se vuelve a elegir: el absorbente nuevo no tiene área y no cambia la partición. Es opcional
-  confirmarlo con `dtcoach mallado`.
+**Compuertas, en orden. Si una falla, PARAR:**
+1. `verificar_absorbente5.py` sale con 0: xG por secuencia idéntico bit a bit y acuerdo con cuatro absorbentes
+   ≥ 0.95. Si avisa «repetir B» (acuerdo < 0.98 o impureza que cambia > 0.02), B se repite antes de narrar (04 §7.2).
+2. `reproducibilidad`: acuerdo suave ≥ 0.95, rango de J ≤ 1.08e-4 por secuencia y π mín ≥ 1 %. El experimento dio
+   0.998 y ≈ 5e-6.
+3. `bondad`: KS ≤ 0.0051 y |E[T] modelo − observado| ≤ 0.02. El experimento dio 0.0049, y 6.502 contra 6.509.
 
-### 4.3 Qué secciones de 04 se reescriben
+La malla (5×4) no se vuelve a elegir: el absorbente nuevo no tiene área y no cambia la partición.
 
-- **§1:** la Def. 1.3 suma el absorbente nuevo y una definición de «interrupción a favor», con la regla de clasificación.
-- **§2:** B = N R con cinco columnas; c = (xG de los remates + valor de la reanudación) / acciones; V = N c.
-- **§4:** el resultado del vocabulario (acuerdo, rango de J, KS, E[T]) con los números nuevos.
-- **§7.2:** las tres caídas se calcularon con el vocabulario anterior. Con el nuevo, lo riguroso es repetir B, 200
-  réplicas, unas 8 h con la optimización. Si no se repite, se dice que §7.2 corresponde al vocabulario anterior.
-- **§14:** se agrega F como experimento que **sí** se adoptó.
+### 4.3 Qué secciones de 04 se reescribieron (hecho)
+
+- **§1:** Def. 1.2 con cinco absorbentes; Def. 1.5 (interrupción a favor) y el valor de la reanudación.
+- **§2:** R de 20 × 5. En la Prop. 2.4, c = (xG de remates + valor de la reanudación) / acciones, y por qué v va en c y
+  no en el xG de la secuencia.
+- **§4:** el criterio de la entrega se midió con 461,454 secuencias y cuatro absorbentes. El vocabulario nuevo se mide
+  con 467,327 y se compara contra cuatro absorbentes sobre los mismos datos.
+- **§7.2:** los números de B son del vocabulario de cuatro absorbentes. Por qué no se repite, y la condición para
+  repetirlo (limitación declarada).
+- **§14.2:** F, el único experimento adoptado.
 
 ### 4.4 Qué resultados de Almada se regeneran y qué se espera
 
-- **Se regeneran:** `RESULTADOS_ALMADA.md` §1 (identidad y familias: H1–H6), §2 y §3 en lo que use familias, §6
-  (simulación y escenarios) y la demostración completa.
-- **No se tocan:** §4 (jugadores) y §5 (balón parado: el xDefense se calcula con eventos, no con la cadena), salvo por
-  la demostración global.
+- **Se regeneran** (con `correr_foco.sh` + `historia.sh`):
+  - `RESULTADOS_ALMADA.md` §1 (identidad: H1–H6 y familias), §2 y §3 en lo que use familias (perfiles de ataque y de
+    defensa: H7 y H8), §6 (simulación y escenarios: usan las familias y V) y la **demostración completa**.
+  - `reports/mezcla/` (tipos, estabilidad), `reports/fase2/`, `reports/fase3/` y `reports/historia/`.
+- **No deberían cambiar** (verificarlo con `comparar_demostracion.py`): §4 (jugadores), §5 (balón parado: el xDefense
+  se calcula con eventos, no con la cadena), y las métricas de eventos de §2 y §3. Si cambian, es por la demostración
+  global (un BH sobre todo) y no por el absorbente.
 - **Esperado, según el experimento:**
   - El uso de las familias no se mueve más de 5 puntos de percentil.
-  - La fracción de secuencias que terminan en PÉRDIDA baja de 82.5 % a 63.9 % en Pachuca, y su percentil de 30 a 20:
-    pierde menos que antes respecto de los demás, **a favor** de Almada.
-  - Aparece una métrica nueva: en Pachuca, el 18.6 % de sus secuencias termina en interrupción a favor, percentil 77
-    entre técnicos-club.
-  - Cualquier afirmación del texto que hable de «pérdidas» en términos de la cadena se revisa con la definición nueva.
+  - El percentil de PÉRDIDA de Almada baja de 30 a 14: pierde menos que antes respecto de los demás. Es un efecto
+    **a su favor**.
+  - Aparece una métrica nueva: con Pachuca, el 18.6 % de sus secuencias termina en INTERRUPCIÓN, percentil 77 entre
+    técnicos-club. El 84 de «Almada (todo)» no es comparable.
+  - El xG por secuencia (H7–H8) es idéntico **por secuencia**. Sus efectos por familia pueden moverse un poco, porque
+    se ponderan con las r_sk nuevas.
+- **Reglas al reescribir `RESULTADOS_ALMADA.md`:**
+  - Solo lo que la demostración nueva marque como demostrado.
+  - Las tres afirmaciones de ADR-v2-69 siguen retiradas aunque vuelvan a salir.
+  - Cualquier frase sobre «pérdidas» de la cadena usa la definición nueva.
 
 ## Paso 5 — Cierre
 
