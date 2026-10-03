@@ -55,6 +55,12 @@ def _rutas(cfg):
     return out, dat
 
 
+def _archivo(dat, v, muestra):
+    """Transiciones de la variante v. El tamaño de la muestra va en el nombre: `preparar --muestra 50` y
+    `ajustar --muestra 200` no pueden mezclarse (ADR-v2-65)."""
+    return dat / f"trans_{v}{f'_muestra{muestra}' if muestra else ''}.parquet"
+
+
 def _muestra(trans, n, seed):
     if not n:
         return trans
@@ -124,7 +130,7 @@ def preparar(a, cfg):
     total_xg = float(trans["xg"].fill_null(0.0).sum())
     for v, spec in ab.VARIANTES.items():
         tv = ab.variante(trans, clas, val if spec["valor"] else None, spec["laterales"], s5)
-        tv.write_parquet(dat / f"trans_{v}{'_muestra' if a.muestra else ''}.parquet")
+        tv.write_parquet(_archivo(dat, v, a.muestra))
         fin = tv.sort(uid, "event_index").group_by(uid).agg(pl.col("to_state").last())["to_state"].to_numpy() - space.n_transient
         masa = np.bincount(fin, minlength=5) / len(fin)
         cambiadas = int((fin == 4).sum())
@@ -175,9 +181,10 @@ def preparar(a, cfg):
     print("\n".join(md))
 
 
-def _metricas_unidad(m, d, r, perm, ns, foco, minp, space):
-    """Por técnico-club: uso de cada familia (alineada a la oficial), fracción a PÉRDIDA y a INTERRUPCIÓN, y valor
-    esperado al empezar la secuencia."""
+def _metricas_unidad(m, d, r, perm, ns, foco, minp, space, V_liga):
+    """Por técnico-club: uso de cada familia (alineada a la oficial), fracción a PÉRDIDA y a INTERRUPCIÓN, y dos
+    métricas que dependen de c (y por lo tanto distinguen (i) de (ii)): valor esperado al empezar la secuencia según
+    su mezcla, y valor de zona de la liga (V = N c) promediado por sus acciones."""
     nt = d.n_transient
     K = m.K
     from dtcoach.absorbing import Cadena
@@ -194,17 +201,23 @@ def _metricas_unidad(m, d, r, perm, ns, foco, minp, space):
     onehot[np.flatnonzero(ok), celda_abs[ok]] = 1.0
     A = np.asarray(d.S @ onehot)
     to = np.where(A.sum(1) > 0, A.argmax(1), -1)
+    # visitas de cada secuencia a cada estado de origen → V de la liga promedio por acción
+    origen = np.zeros((nt * ns, nt))
+    origen[np.arange(nt * ns), np.arange(nt * ns) // ns] = 1.0
+    vis = np.asarray(d.S @ origen)
+    vz = (vis @ np.asarray(V_liga)) / np.maximum(vis.sum(1), 1e-300)
     meta = meta.with_columns(pl.Series("_loss", (to == 2).astype(float)), pl.Series("_int", (to == 4).astype(float)),
-                             *[pl.Series(f"_u{k}", r[:, perm[k]]) for k in range(K)])
+                             pl.Series("_vz", vz), *[pl.Series(f"_u{k}", r[:, perm[k]]) for k in range(K)])
     g = (meta.filter(pl.col("coach").is_not_null())
          .group_by("coach", "team").agg(pl.col("match_id").n_unique().alias("partidos"),
                                         *[pl.col(f"_u{k}").mean().alias(f"uso_{k + 1}") for k in range(K)],
                                         pl.col("_loss").mean().alias("perdida"), pl.col("_int").mean().alias("interrupcion"),
-                                        pl.col("_v").mean().alias("valor_inicio"))
+                                        pl.col("_v").mean().alias("valor_inicio"), pl.col("_vz").mean().alias("valor_zona"))
          .filter(pl.col("partidos") >= minp))
     tot = meta.filter(pl.col("coach") == foco).select(
         *[pl.col(f"_u{k}").mean().alias(f"uso_{k + 1}") for k in range(K)], pl.col("_loss").mean().alias("perdida"),
-        pl.col("_int").mean().alias("interrupcion"), pl.col("_v").mean().alias("valor_inicio"))
+        pl.col("_int").mean().alias("interrupcion"), pl.col("_v").mean().alias("valor_inicio"),
+        pl.col("_vz").mean().alias("valor_zona"))
     return g, tot
 
 
@@ -284,18 +297,24 @@ def ajustar(a, cfg):
     for k in range(K):
         P, c = ab.cadena_familia(m4, d4, r4, k)
         Z4[fam[k]] = ab.por_zona(P, c, nt, space.n_zones)
-    met = [f"uso_{k + 1}" for k in range(K)] + ["perdida", "interrupcion", "valor_inicio"]
-    g4, tot4 = _metricas_unidad(m4, d4, r4, np.arange(K), n4, foco, minp, space)
+    met = [f"uso_{k + 1}" for k in range(K)] + ["perdida", "interrupcion", "valor_inicio", "valor_zona"]
+    from dtcoach.absorbing import Cadena
+    g4, tot4 = _metricas_unidad(m4, d4, r4, np.arange(K), n4, foco, minp, space, Cadena(P4, nt).valor(c4))
     pc4 = {(x["unidad"], x["metrica"]): x for x in _percentiles(g4, tot4, foco, met)}
 
     res, mapas = {"muestra": a.muestra or None, "semillas": semillas, "entrega": {"KS": b4["KS"], "E_T": b4["E_T_modelo"],
                                                                               "E_T_obs": b4["E_T_empirico"]}}, {}
     D5 = {}
     for v in ab.VARIANTES:
-        f = dat / f"trans_{v}{'_muestra' if a.muestra else ''}.parquet"
+        f = _archivo(dat, v, a.muestra)
         if not f.exists():
-            raise SystemExit(f"falta {f}: corre antes `preparar`{' --muestra ' + str(a.muestra) if a.muestra else ''}")
+            raise SystemExit(f"falta {f}: corre antes `preparar`{' --muestra ' + str(a.muestra) if a.muestra else ''} "
+                             "(con el MISMO --muestra)")
         D5[v] = mz.DatosPosesion.desde_transiciones(pl.read_parquet(f), s5)
+        # las variantes solo cambian el destino de la última transición: deben ser EXACTAMENTE las secuencias de la base
+        if not D5[v].meta["seq_uid"].equals(d4.meta["seq_uid"]):
+            raise SystemExit(f"{f} no tiene las mismas secuencias que las transiciones de la base: vuelve a correr "
+                             f"`preparar`{' --muestra ' + str(a.muestra) if a.muestra else ''}")
     t_aj = time.time()
     fits = _ajustes(D5, semillas, cfg["seed"], K, mc, a.procesos)
     print(f"  {len(fits)} ajustes de la mezcla con {a.procesos} proceso(s): {time.time() - t_aj:.0f} s", flush=True)
@@ -321,7 +340,10 @@ def ajustar(a, cfg):
         delta = {u: {"dV": (Z5[u]["V"] - Z4[u]["V"]).tolist(), "dB_perdida": (Z5[u]["B"][:, 2] - Z4[u]["B"][:, 2]).tolist(),
                      "B_interrupcion": Z5[u]["B"][:, 4].tolist()} for u in Z4}
         mapas[v] = delta
-        g5, tot5 = _metricas_unidad(m5, d5, r5, perm, s5.n_states, foco, minp, space)
+        g5, tot5 = _metricas_unidad(m5, d5, r5, perm, s5.n_states, foco, minp, space, Cadena(P5, nt).valor(c5))
+        todos = [{**x, "antes": pc4.get((x["unidad"], x["metrica"]), {}).get("percentil", float("nan")),
+                  "valor_antes": pc4.get((x["unidad"], x["metrica"]), {}).get("valor", float("nan"))}
+                 for x in _percentiles(g5, tot5, foco, met)]
         mueven = []
         nuevo_int = [x for x in _percentiles(g5, tot5, foco, ["interrupcion"])]
         for x in _percentiles(g5, tot5, foco, met):
@@ -334,6 +356,7 @@ def ajustar(a, cfg):
                   "suave_con_oficial": mz.acuerdo_suave(r4, r5[:, perm]),
                   "veredicto": "RECHAZADA (falla a)" if not crit["a"] else ("cumple" if crit["b"] and crit["c"] else "falla b o c"),
                   "delta_zona": delta, "percentiles_que_se_mueven": mueven, "percentil_interrupcion": nuevo_int,
+                  "percentiles": todos,
                   "segundos": time.time() - t1}
         print(f"  {spec['nombre']}: {res[v]['veredicto']} (suave {crit['suave']:.3f}, rango {crit['rango']:.2e}, "
               f"KS {crit['KS']:.4f}, E[T] {crit['E_T']:.3f} vs {crit['E_T_obs']:.3f}) · {time.time() - t1:.0f} s", flush=True)
@@ -388,9 +411,27 @@ def ajustar(a, cfg):
                   + "; ".join(f"{x['unidad']} {100 * x['valor']:.1f} % (percentil {x['percentil']:.0f})"
                               for x in res[v]["percentil_interrupcion"]))
         md.append("")
-    md += ["*uso_k: fracción de sus secuencias en la familia k (alineada a la oficial); pérdida: fracción de sus secuencias "
-           "que terminan en PÉRDIDA (cambia por definición: parte se va a INTERRUPCIÓN); valor_inicio: "
-           "xG esperado al empezar la secuencia según su mezcla.*", "", f"Tiempo: {time.time() - t0:.0f} s."]
+    # tabla completa: todas las métricas, todas las variantes (también las que NO se mueven)
+    unidades = sorted({x["unidad"] for v in ab.VARIANTES for x in res[v]["percentiles"]})
+    md += [f"## Todas las métricas de {foco}: valor y percentil (entrega → i / ii / iii)", "",
+           "| unidad | métrica | entrega | (i) | (ii) | (iii) |", "|---|---|---|---|---|---|"]
+    for u in unidades:
+        for mtr in met:
+            fila = {v: next((x for x in res[v]["percentiles"] if x["unidad"] == u and x["metrica"] == mtr), None)
+                    for v in ab.VARIANTES}
+            x0 = next((x for x in fila.values() if x), None)
+            if x0 is None:
+                continue
+            fmt = (lambda z: f"{100 * z:.2f} %") if mtr in ("perdida", "interrupcion") or mtr.startswith("uso") else (lambda z: f"{z:.5f}")
+            antes = "—" if mtr == "interrupcion" else f"{fmt(x0['valor_antes'])} (p{x0['antes']:.0f})"
+            md.append(f"| {u} | {mtr} | {antes} | " + " | ".join(
+                f"{fmt(fila[v]['valor'])} (p{fila[v]['percentil']:.0f})" if fila[v] else "—" for v in ab.VARIANTES) + " |")
+    md += ["", "*Percentil = qué parte de los técnicos-club (≥ " + str(minp) + " partidos, sin el foco) queda en o debajo del "
+           "foco. uso_k: fracción de sus secuencias en la familia k (alineada a la oficial); pérdida e interrupción: fracción "
+           "de sus secuencias que terminan ahí (en la entrega la interrupción está dentro de pérdida); valor_inicio: xG "
+           "esperado al empezar la secuencia según su mezcla; valor_zona: V = N c de la liga promediado por sus acciones. "
+           "Las dos últimas son las únicas que dependen de c: el EM no usa c, así que (i) y (ii) tienen la MISMA mezcla y "
+           "los mismos uso / pérdida / interrupción por construcción.*", "", f"Tiempo: {time.time() - t0:.0f} s."]
     (out / "AJUSTAR.md").write_text("\n".join(x for x in md if x is not None), encoding="utf-8")
     print("\n".join(md))
 

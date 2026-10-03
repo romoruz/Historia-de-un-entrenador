@@ -353,3 +353,26 @@ def test_optimizacion_del_em_no_cambia_numeros():
     for k in serie:
         assert np.array_equal(serie[k].P, par[k].P) and np.array_equal(serie[k].pi, par[k].pi)
         assert serie[k].objetivo == par[k].objetivo
+
+
+def test_emparejar_exige_las_mismas_secuencias():
+    """ADR-v2-65: `_emparejar` con asignaciones de submuestras distintas (51,970 contra 12,798 secuencias) tronaba con
+    un IndexError opaco; ahora falla con un mensaje que dice qué pasó. Y `preparar --muestra N` y `ajustar --muestra M`
+    escriben / leen archivos distintos si N ≠ M."""
+    import sys
+    from pathlib import Path
+
+    import pytest
+
+    from dtcoach import mezcla as mz
+    rng = np.random.default_rng(0)
+    a = rng.integers(0, 3, 500)
+    perm, acuerdo = mz._emparejar(a, (a + 1) % 3, 3)
+    assert acuerdo == 1.0 and list(perm) == [1, 2, 0]
+    with pytest.raises(ValueError, match="MISMAS secuencias"):
+        mz._emparejar(a, a[:200], 3)
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts" / "experimentos"))
+    import absorbente5_variantes as av
+    d = Path("x")
+    assert av._archivo(d, "ii", 50) != av._archivo(d, "ii", 200) != av._archivo(d, "ii", 0)
+    assert av._archivo(d, "ii", 0).name == "trans_ii.parquet"

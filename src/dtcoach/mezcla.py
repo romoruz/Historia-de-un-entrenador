@@ -453,6 +453,12 @@ def _tarjetas(m: Mezcla) -> np.ndarray:
 
 
 def _emparejar(a_ref: np.ndarray, a: np.ndarray, K: int):
+    """Empareja los tipos de dos ajustes por sus asignaciones duras SOBRE LAS MISMAS SECUENCIAS, en el mismo orden
+    (matriz de confusión + asignación húngara). Con secuencias distintas no hay nada que emparejar (ADR-v2-65)."""
+    a_ref, a = np.asarray(a_ref), np.asarray(a)
+    if a_ref.shape != a.shape:
+        raise ValueError(f"_emparejar: las dos asignaciones deben ser de las MISMAS secuencias en el mismo orden; llegaron "
+                         f"{a_ref.shape[0]:,} y {a.shape[0]:,} (¿datos de submuestras distintas?)")
     conf = np.zeros((K, K))
     np.add.at(conf, (a_ref, a), 1)
     i, j = linear_sum_assignment(-conf)

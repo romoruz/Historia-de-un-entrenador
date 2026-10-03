@@ -652,3 +652,20 @@ larga en silencio), con 1 hilo de BLAS por proceso. Verificación: salida idént
 referencia con 1, 2, 3 y 4 procesos; un ajuste de n = 295 mil da el mismo J, π y número de iteraciones. NO se
 tocó: el arranque en escalera, la tolerancia, el número de arranques ni el estado de B.
 
+## ADR-v2-65 — `_emparejar` exige las mismas secuencias; las submuestras de F llevan su tamaño en el nombre
+Falla vista con los datos reales: `absorbente5_variantes.py ajustar --muestra 200` leyó las transiciones de
+`preparar --muestra 50`, porque ambos usaban `trans_<v>_muestra.parquet`. `_emparejar` (mezcla.py) recibió asignaciones
+de 51,970 y 12,798 secuencias y tronó con un IndexError opaco. Si los tamaños hubieran coincidido, habría emparejado
+secuencias distintas en silencio. Corrección: (1) el archivo lleva el tamaño (`trans_<v>_muestra<N>.parquet`); (2)
+`ajustar` comprueba que las secuencias de cada variante son exactamente las de la base (`seq_uid`, mismo orden); (3)
+`_emparejar` levanta un ValueError claro si las asignaciones no tienen la misma forma. **Alcance:** en el pipeline oficial,
+`_emparejar` solo se llama en `estabilidad` y `reproducibilidad`, siempre con las responsabilidades de los MISMOS datos
+(`d`), y en `arista.py` con dos vistas de las mismas transiciones: no podía ocurrir ahí. Solo afectaba a
+`absorbente5_variantes.py` con `--muestra` distintos entre `preparar` y `ajustar`; las corridas completas (sin `--muestra`)
+eran correctas. Prueba: `test_emparejar_exige_las_mismas_secuencias`.
+
+Además, el reporte de `ajustar` ahora muestra TODAS las métricas del foco en todas las variantes (no solo las que se mueven
+más de 5 puntos) y agrega `valor_zona` (V = N c de la liga promediado por sus acciones). Con `valor_inicio`, son las únicas
+que dependen de c. El EM no usa c, así que (i) y (ii) tienen la misma mezcla, y por construcción los mismos acuerdo, rango
+de J, KS, uso, pérdida e interrupción.
+
