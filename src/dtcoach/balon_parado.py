@@ -542,7 +542,7 @@ def razon_boot(d: pl.DataFrame, num: pl.Expr, den: pl.Expr, n_boot: int = 500, r
     rng = rng if rng is not None else np.random.default_rng(0)
     if d.height == 0:
         return {"valor": float("nan"), "lo": float("nan"), "hi": float("nan"), "n": 0}
-    a = d.group_by("match_id").agg(num.cast(pl.Float64).alias("n"), den.cast(pl.Float64).alias("d"))
+    a = d.group_by("match_id").agg(num.cast(pl.Float64).alias("n"), den.cast(pl.Float64).alias("d")).sort("match_id")
     n, dd = a["n"].to_numpy(), a["d"].to_numpy()
     v = n.sum() / dd.sum() if dd.sum() > 0 else float("nan")
     b = []

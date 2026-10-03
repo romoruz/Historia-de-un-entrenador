@@ -52,11 +52,24 @@ def cantidad_de(id_: str, afirmacion: str, familias: list[str], metricas_perfil:
     return None
 
 
-def p_escalada(p: float, f: float) -> float:
+def p_escalada(p: float, f: float, z_ic: float | None = None) -> float:
+    """p con el error estándar multiplicado por f. El z de partida es el MAYOR entre el que implica el p publicado
+    y el que implica su IC (|e| / ((hi − lo)/3.92)): un p de bootstrap en el piso (1/n_boot) subestima su z, y
+    escalar ese z subestimado tumbaba afirmaciones que su propio IC sostiene (primera corrida, 2026-10-03).
+    Nunca devuelve un p menor que el publicado."""
     if not np.isfinite(p) or f <= 1:
         return p
     z = stats.norm.isf(max(p, 1e-300) / 2)
-    return float(2 * stats.norm.sf(z / f))
+    if z_ic is not None and np.isfinite(z_ic):
+        z = max(z, z_ic)
+    return float(max(p, 2 * stats.norm.sf(z / f)))
+
+
+def p_escalada_previa(p: float, f: float) -> float:
+    """El método de la primera corrida (solo el z del p): se conserva para mostrar qué caídas eran artefacto."""
+    if not np.isfinite(p) or f <= 1:
+        return p
+    return float(2 * stats.norm.sf(stats.norm.isf(max(p, 1e-300) / 2) / f))
 
 
 def bh(d: pl.DataFrame, col: str, alpha: float = 0.05) -> np.ndarray:
@@ -100,7 +113,8 @@ def main():
         d_libre = (lo - dd) > 0 or (hi + dd) < 0
         t1.append({"cantidad": n, "estimacion": e, "lo": lo, "hi": hi, "lo_doble": lo - dl, "hi_doble": hi + dl,
                    "excluye_actual": a_, "excluye_doble": d_, "cambia": a_ != d_, "excluye_doble_sin_piso": d_libre,
-                   "f": w / wa if wa > 0 else 1.0, "f_limpia": max(1.0, f["infl_limpia"])})
+                   "f": w / wa if wa > 0 else 1.0, "f_limpia": max(1.0, f["infl_limpia"]),
+                   "z_ic": abs(e) / ((hi - lo) / 3.919928) if hi > lo else float("nan")})
     T1 = {x["cantidad"]: x for x in t1}
 
     # ------------------------------------------------------------ 2. el BH global
@@ -113,37 +127,54 @@ def main():
         d = d.with_columns(pl.col("p").cast(pl.Float64), pl.col("partidos_foco").cast(pl.Float64),
                            pl.col("no_demostrable").cast(pl.Utf8), pl.col("pocos").cast(pl.Boolean))
         sec2 = d["seccion"].str.contains("fase 2").to_numpy()
-        p_f, p_l, cant = [], [], []
+        p_f, p_l, p_prev, p_dom, cant = [], [], [], [], []
         for i, (sid, idd, af, p) in enumerate(zip(d["seccion"], d["id"], d["afirmacion"], d["p"])):
-            c, f1, f2 = None, 1.0, 1.0
+            c, f1, f2, z_ic = None, 1.0, 1.0, None
             if sec2[i]:
                 c = cantidad_de(idd, af, fam, F2["metricas_perfil"])
                 if c in T1:
-                    f1, f2 = T1[c]["f"], T1[c]["f_limpia"]
-                elif idd in COMP_H:                       # Wald global: el f más grande de sus componentes
+                    f1, f2, z_ic = T1[c]["f"], T1[c]["f_limpia"], T1[c]["z_ic"]
+                elif idd in COMP_H:
+                    # Wald global: sin la covarianza «doble» no se puede escalar exacto. Regla CONSERVADORA: el f más
+                    # grande de sus componentes (W' = W / f²). Sensibilidad: el f del componente que más pesa en la
+                    # prueba (el de mayor z por su IC).
                     comps = [x for x in T1 if re.search(COMP_H[idd], x)]
                     if comps:
-                        f1 = max(T1[x]["f"] for x in comps)
-                        f2 = max(T1[x]["f_limpia"] for x in comps)
                         gl = F2["hipotesis"][idd]["gl"]
                         W = stats.chi2.isf(max(p, 1e-300), gl)
-                        p_f.append(float(stats.chi2.sf(W / f1 ** 2, gl)))
-                        p_l.append(float(stats.chi2.sf(W / f2 ** 2, gl)))
-                        cant.append(f"Wald {idd} ({len(comps)} componentes)")
+                        f_max = max(T1[x]["f"] for x in comps)
+                        dom = max(comps, key=lambda x: T1[x]["z_ic"] if np.isfinite(T1[x]["z_ic"]) else -1)
+                        p_f.append(max(p, float(stats.chi2.sf(W / f_max ** 2, gl))))
+                        p_l.append(max(p, float(stats.chi2.sf(W / max(T1[x]["f_limpia"] for x in comps) ** 2, gl))))
+                        p_prev.append(p_f[-1])
+                        p_dom.append(max(p, float(stats.chi2.sf(W / T1[dom]["f"] ** 2, gl))))
+                        cant.append(f"Wald {idd}: f máx {f_max:.2f}; dominante «{dom}» f {T1[dom]['f']:.2f}")
                         continue
-            p_f.append(p_escalada(p, f1))
-            p_l.append(p_escalada(p, f2))
+            p_f.append(p_escalada(p, f1, z_ic))
+            p_l.append(p_escalada(p, f2, z_ic))
+            p_prev.append(p_escalada_previa(p, f1))
+            p_dom.append(p_f[-1])
             cant.append(c)
-        d = d.with_columns(pl.Series("p_doble", p_f), pl.Series("p_limpia", p_l), pl.Series("cantidad_B", cant))
+        d = d.with_columns(pl.Series("p_doble", p_f), pl.Series("p_limpia", p_l), pl.Series("p_previo", p_prev),
+                           pl.Series("p_dominante", p_dom), pl.Series("cantidad_B", cant))
         v0, v1, v2 = bh(d, "p"), bh(d, "p_doble"), bh(d, "p_limpia")
-        d = d.with_columns(pl.Series("antes", v0), pl.Series("doble", v1), pl.Series("limpia", v2))
+        v3, v4 = bh(d, "p_previo"), bh(d, "p_dominante")
+        d = d.with_columns(pl.Series("antes", v0), pl.Series("doble", v1), pl.Series("limpia", v2),
+                           pl.Series("previo", v3), pl.Series("dominante", v4))
         caen = d.filter((pl.col("antes") == "demostrado") & (pl.col("doble") != "demostrado"))
+        artefacto = d.filter((pl.col("antes") == "demostrado") & (pl.col("previo") != "demostrado")
+                             & (pl.col("doble") == "demostrado"))
+        caen_dom = d.filter((pl.col("antes") == "demostrado") & (pl.col("dominante") != "demostrado"))
         caen_l = d.filter((pl.col("antes") == "demostrado") & (pl.col("limpia") != "demostrado"))
         suben = d.filter((pl.col("antes") != "demostrado") & (pl.col("doble") == "demostrado"))
         res_bh = {"afirmaciones": d.height, "demostradas_antes": int((v0 == "demostrado").sum()),
                   "demostradas_doble": int((v1 == "demostrado").sum()), "demostradas_limpia": int((v2 == "demostrado").sum()),
                   "caen": caen.select("seccion", "id", "afirmacion", "efecto", "p", "p_doble", "cantidad_B").to_dicts(),
                   "caen_limpia": caen_l.select("id", "afirmacion", "p", "p_limpia").to_dicts(),
+                  "caen_dominante": caen_dom.select("id", "afirmacion", "p", "p_dominante").to_dicts(),
+                  "artefacto_metodo_previo": artefacto.select("id", "afirmacion", "p", "p_previo", "p_doble").to_dicts(),
+                  "demostradas_previo": int((v3 == "demostrado").sum()),
+                  "demostradas_dominante": int((v4 == "demostrado").sum()),
                   "suben": suben.select("id", "afirmacion", "p", "p_doble").to_dicts()}
         d.write_csv(out / "impacto_demostracion.csv")
 
@@ -199,6 +230,12 @@ def main():
             md.append(f"- **{x['afirmacion']}** (`{x['id']}`, efecto {ef}): p {x['p']:.3g} → {x['p_doble']:.3g}")
         if not res_bh["caen"]:
             md.append("- ninguna")
+        md += ["", f"**Sensibilidad para las Wald H1–H6** (f del componente dominante en vez del máximo): demostradas "
+               f"{res_bh['demostradas_dominante']}; caen: " + (", ".join(f"`{x['id']}`" for x in res_bh["caen_dominante"]) or "ninguna") + ".",
+               "", f"**Corrección de método.** La primera corrida escalaba solo el z que implica el p publicado; con p de "
+               f"bootstrap en el piso eso tumbaba afirmaciones que su IC sostiene (demostradas con ese método: "
+               f"{res_bh['demostradas_previo']}). Caían por el método, no por los datos: "
+               + (", ".join(f"`{x['id']}` (p {x['p_previo']:.3g} → con el IC {x['p_doble']:.3g})" for x in res_bh["artefacto_metodo_previo"]) or "ninguna") + "."]
         md += ["", "Con la inflación limpia (sensibilidad): " + (", ".join(f"`{x['id']}`" for x in res_bh["caen_limpia"]) or "ninguna")
                + ". Por el BH, una caída puede arrastrar a otras afirmaciones (de cualquier sección) que estaban en el margen.", ""]
     else:

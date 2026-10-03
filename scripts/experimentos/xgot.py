@@ -264,9 +264,16 @@ def main():
         md += ["", f"Afirmaciones que cambiarían de veredicto: **{len(bh['cambian'])}**."]
         for x in bh["cambian"]:
             md.append(f"- {x['afirmacion']} (`{x['id']}`): {x['antes']} → {x['despues']} (q {x['q_antes']:.4g} → {x['q_despues']:.4g})")
-        md += ["", "Las pruebas nuevas (no entran a la entrega; así quedarían si se adoptara):", ""]
+        se01 = 2 * np.sqrt(0.01 * 0.99 / nb)
+        md += ["", "Las pruebas nuevas (no entran a la entrega; así quedarían si se adoptara). **Ninguna es narrable** "
+               "(ADR-v2-58, 61): son un experimento no adoptado, y su p es de bootstrap con "
+               f"{nb} réplicas: p = máx(1/{nb}, 2·mín(frac ≤ 0, frac ≥ 0)), en pasos de {2 / nb:.3f}, con error de "
+               f"Monte Carlo ≈ ±{se01:.3f} cerca de p = 0.01. Un «demostrado» con p de 0.004 a 0.016 está dentro de ese "
+               "ruido del corte del BH (las primeras corridas, con el orden de los partidos sin fijar, los movieron de "
+               "0.048 a 0.008 con el mismo código).", ""]
         for x in bh["nuevas_veredicto"]:
-            md.append(f"- {x['afirmacion']}: p {x['p']:.3g}, q {x['q']:.3g} → {x['veredicto']}")
+            et = " — **NO narrable**" if x["veredicto"] == "demostrado" else ""
+            md.append(f"- {x['afirmacion']}: p {x['p']:.3g}, q {x['q']:.3g} → {x['veredicto']}{et}")
     else:
         md += ["", "*Sin `reports/historia/<foco>/demostracion/demostracion.csv` (o en humo): no se recalculó el BH global.*"]
     md += ["", f"Tiempo: {time.time() - t0:.0f} s."]

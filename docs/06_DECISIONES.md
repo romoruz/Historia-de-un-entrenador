@@ -608,3 +608,13 @@ Regla fijada antes de correr: < 3 % de la masa de PÉRDIDA → NO RENTABLE, no s
 implementa `config/absorbente5.yaml` (sin partir PÉRDIDA en robo / mal pase / intercepción). Script
 `scripts/experimentos/absorbente5.py` (solo lee transiciones y eventos).
 
+## ADR-v2-61 — El bootstrap por partido del balón parado fija el orden de los partidos (corrección de código de la entrega)
+`xdefensa.cadena` y `balon_parado.razon_boot` agrupaban por partido sin ordenar; polars no garantiza el orden de los
+grupos, así que con la MISMA semilla cada corrida remuestreaba partidos distintos y los p y los IC de la cadena del
+xDefense cambiaban de corrida a corrida (visto en la Mejora D: con el mismo código, 248 y 249 demostradas; p de 0.048 a
+0.008). Ahora se ordena por `match_id` antes de remuestrear (`comparar.py` ya lo hacía). Es un cambio en código de la
+entrega: los números publicados salieron de UN orden al azar y volver a correr la sección 5 los movería dentro del
+ruido de Monte Carlo (± ~0.01 en p cerca del corte con 500 réplicas). No se reescribe `reports/historia` en esta rama:
+se recomienda volver a correr `dtcoach balon-parado` y `dtcoach demostracion` al integrar, y revisar qué afirmaciones de
+la cadena estaban a menos de ese ruido del corte del BH. Prueba: `test_razon_boot_no_depende_del_orden`.
+

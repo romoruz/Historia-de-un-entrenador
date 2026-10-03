@@ -253,3 +253,17 @@ def test_arista_marginal_igual_al_modelo_base():
     assert np.allclose(sa, sb, atol=1e-10)
     g = ar.ganancia(sa - sb, pz["match"])
     assert abs(g["nats_por_accion"]) < 1e-10 and g["partidos"] == n // 10
+
+
+def test_razon_boot_no_depende_del_orden():
+    """ADR-v2-61: el bootstrap por partido debe dar lo mismo con la misma semilla aunque cambie el orden de las filas
+    (antes el orden de los grupos de polars entraba al remuestreo)."""
+    import polars as pl
+
+    from dtcoach.balon_parado import razon_boot
+    rng = np.random.default_rng(0)
+    d = pl.DataFrame({"match_id": rng.integers(0, 80, 3000), "x": rng.random(3000), "y": rng.random(3000) + 0.5})
+    a = razon_boot(d, pl.col("x").sum(), pl.col("y").sum(), 300, np.random.default_rng(1))
+    b = razon_boot(d.sample(fraction=1.0, shuffle=True, seed=5), pl.col("x").sum(), pl.col("y").sum(), 300,
+                   np.random.default_rng(1))
+    assert abs(a["lo"] - b["lo"]) < 1e-12 and abs(a["hi"] - b["hi"]) < 1e-12   # mismo remuestreo (1 ulp: orden de suma)

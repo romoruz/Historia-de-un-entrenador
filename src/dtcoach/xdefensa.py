@@ -492,7 +492,9 @@ def cadena(d: pl.DataFrame, tp: pl.DataFrame, foco: str, n_boot: int = 500, seed
             a = x.group_by("match_id").agg(pl.len().alias("n"), *[pl.col(c).sum() for c in
                                                                    ("s", "p", "g", "B", "F", *componentes)],
                                             (pl.col("s") * pl.col("kappa")).sum().alias("sk"),
-                                            (pl.col("p") * pl.col("kappa")).sum().alias("pk"))
+                                            (pl.col("p") * pl.col("kappa")).sum().alias("pk")).sort("match_id")
+            # ordenado: sin esto el orden de los grupos de polars cambia entre corridas y el bootstrap (misma semilla)
+            # remuestrea partidos distintos; los p cambiaban de corrida a corrida (ADR-v2-61)
             A = {c: a[c].to_numpy().astype(float) for c in a.columns if c != "match_id"}
             n, S = A["n"].sum(), max(A["s"].sum(), 1e-12)
             r = {"saques": int(n), "partidos": int(x["match_id"].n_unique()), "p_obs": A["s"].sum() / n, "p_esp": A["p"].sum() / n,
