@@ -3,7 +3,8 @@
 > **Regla de este documento.** Solo se narra lo que sobrevive a **un único control de falsos positivos**
 > (Benjamini-Hochberg, α = 0.05) aplicado a **730 afirmaciones**: hipótesis, cada métrica contra la liga, cada
 > efecto con su intervalo y las pruebas de cada sección (`reports/historia/guillermo_almada/demostracion/`).
-> Sobrevivieron **246**. Lo que no sobrevivió se dice como "no demostrado" y no se interpreta.
+> Sobrevivieron **246**; al propagar el error de estimar las familias (`04_MODELO_MATEMATICO.md` §7.2) se retiran 3,
+> así que se narran **243**. Lo que no sobrevivió se dice como "no demostrado" y no se interpreta.
 > Datos: Liga MX 2021/22 a 2026/27 (1,789 partidos hasta el 2026-11-23). Almada: 168 partidos
 > (Pachuca 139, Santos Laguna 20, América 9). Con América (9 partidos) nada es demostrable por sí solo.
 > Nada de esto es causa y efecto: describe lo que hizo su equipo, no separa al técnico de sus jugadores.
@@ -24,12 +25,12 @@
 * **Su mezcla de familias es distinta (H1 y H2 🟢).** El ataque y la defensa se reparten entre tres maneras de jugar
   (Directa, Circulación estéril, Ataque elaborado). Lo demostrado individualmente:
   * juega **menos Circulación estéril** (−0.95 pp);
-  * a sus rivales les sale **más Directa** (+1.8 pp) y **menos Ataque elaborado** (−2.0 pp), y remata menos en
-    las tres (P(remate) del rival: −3.1 pp en Directa, −1.7 pp en Elaborado, −0.5 pp en Circulación);
+  * a sus rivales les sale **más Directa** (+1.8 pp) y **menos Ataque elaborado** (−2.0 pp), y sus rivales rematan
+    menos en Directa (−3.1 pp) y en Ataque elaborado (−1.7 pp);
   * xG por secuencia del rival: **−0.0029 en Directa** y **−0.0014 en Ataque elaborado** (H8.1 y H8.3 🟢);
     en total −0.0017 por secuencia.
-* **Reacciona menos que la liga (H3 y H6 🟢).** Cuando va ganando sube menos su Directa (−1.7 pp contra la liga) y
-  baja menos su Ataque elaborado (+2.2 pp); contra un rival 100 Elo más fuerte, lo mismo (Directa −1.2 pp,
+* **Reacciona menos que la liga (H3 y H6 🟢).** Cuando va ganando, baja menos su Ataque elaborado que la liga
+  (+2.2 pp); contra un rival 100 Elo más fuerte, lo mismo (Directa −1.2 pp,
   Elaborado +2.1 pp, Circulación −0.9 pp). Su receta cambia menos que la de la liga con el marcador y con el rival.
 * **Viaja.** H1 y H3 se sostienen tanto en Pachuca como en Santos Laguna; H6 en Pachuca y H2 en Santos Laguna. En
   América (9 partidos) no hay nada demostrable.
@@ -248,6 +249,10 @@ Nada de esto se interpreta: sin evidencia suficiente, no se afirma ni que exista
   lugar; xD/xO de tiros libres y laterales (salvo la supresión).
 * Que la proyección mejore la inercia; si rindió más de lo que merecía.
 * **No demostrables por diseño:** rotación del once (H17) y estabilidad del once (calendario incompleto).
+* **Retiradas al propagar el error de estimar las familias** (demostradas en la versión anterior; ver
+  `04_MODELO_MATEMATICO.md` §7.2): que cuando va ganando suba menos su Directa que la liga; que remate más por
+  secuencia de Circulación estéril; que sus rivales rematen menos por secuencia de Circulación estéril. Las dos
+  últimas son de la familia peor separada por el modelo.
 
 ## Límites
 

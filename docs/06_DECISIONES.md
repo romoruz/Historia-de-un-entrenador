@@ -744,3 +744,17 @@ casi vacías no significan nada.
 - el paso 4 sí reajusta, porque el espacio de estados cambia, y lo hace con los datos de hoy. Para separar el efecto
   del absorbente del efecto de los datos nuevos, la comparación del paso 4 se hace contra un reajuste de cuatro
   absorbentes sobre los mismos datos, y no contra la mezcla guardada.
+
+## ADR-v2-69 — Integración, paso 1: se retiran del texto las tres afirmaciones que no aguantan el error de la etapa 1
+Se adopta la corrección de §7.2 (ADR-v2-57; 200 réplicas). En `RESULTADOS_ALMADA.md`:
+- «sus rivales rematan menos en las tres familias» pasa a decir «en Directa (−3.1 pp) y en Ataque elaborado
+  (−1.7 pp)». Se quita la Circulación estéril.
+- «cuando va ganando sube menos su Directa y baja menos su Ataque elaborado» pasa a decir «baja menos su Ataque
+  elaborado (+2.2 pp)». Se quita la Directa.
+- La P(remate) propia en Circulación estéril, que no estaba en el texto, se lista en «Lo que NO se demostró» junto a
+  las otras dos, como retiradas.
+- El encabezado dice 246 → **243**.
+
+No se vuelve a correr nada. La demostración (`demostracion.csv`) no se toca aquí: se regenera completa en el paso 4.
+Esa demostración no incluye el error de la etapa 1, así que puede volver a marcar como demostradas estas tres. Si lo
+hace, **siguen retiradas**: la corrección se arrastra como regla (§7.2), porque B no se repite.

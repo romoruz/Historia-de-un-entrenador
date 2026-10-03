@@ -375,7 +375,7 @@ $V=V_2+G\,V_{1}\,G^\top$ con $G=\partial\hat\theta_2/\partial\theta_1$ (Murphy y
 que **omitir el segundo término estrecha los IC** de H1–H8. El sesgo no es la preocupación (la
 etapa 1 usa toda la liga y es muy precisa); sí lo es la sobreconfianza. Qué tan grande es: sin
 medir. Se cuantifica con un bootstrap por partido que reajusta la mezcla en cada réplica
-(`regresor_generado.py`, experimento, no adoptado): inflación limpia $=w_{\text{doble}}/w_{\text{fijo}}$,
+(`regresor_generado.py`; la corrección que resulta se adoptó en `RESULTADOS_ALMADA.md`, ADR-v2-69): inflación limpia $=w_{\text{doble}}/w_{\text{fijo}}$,
 amplitudes de percentiles 2.5–97.5 con y sin reajustar la etapa 1 sobre la misma remuestra.
 Con $R$ réplicas el error relativo de una amplitud es $\approx1/\sqrt{2(R-1)}$ (5 % con 200).
 
