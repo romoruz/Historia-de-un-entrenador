@@ -758,3 +758,15 @@ Se adopta la corrección de §7.2 (ADR-v2-57; 200 réplicas). En `RESULTADOS_ALM
 No se vuelve a correr nada. La demostración (`demostracion.csv`) no se toca aquí: se regenera completa en el paso 4.
 Esa demostración no incluye el error de la etapa 1, así que puede volver a marcar como demostradas estas tres. Si lo
 hace, **siguen retiradas**: la corrección se arrastra como regla (§7.2), porque B no se repite.
+
+## ADR-v2-70 — Integración, paso 2: el balón parado se vuelve a correr con el orden fijo (ADR-v2-61) y se compara
+Los p publicados de la cadena del xDefense y de `razon_boot` salieron antes del arreglo de ADR-v2-61. Con la misma
+semilla podían moverse ±0.01 de una corrida a otra. Se vuelve a correr `dtcoach balon-parado` y
+`dtcoach demostracion` con el código del paso 2, todavía con el vocabulario de cuatro absorbentes. La demostración
+anterior se guarda antes de correr, y `scripts/experimentos/comparar_demostracion.py` empareja las afirmaciones por
+(sección, id). Reporta cuántos p se movieron por sección, cuánto, y cuáles cambian de veredicto.
+
+Regla: la versión con el orden fijo es la reproducible y manda. Lo que cambie de veredicto estaba dentro del ruido de
+Monte Carlo y se reescribe en `RESULTADOS_ALMADA.md` §5 según el veredicto nuevo. Si cambia de veredicto algo fuera
+de balón parado, el arreglo tocó más de lo previsto: se PARA y se revisa. La reescritura de §5 se hace con la salida
+real, no antes.
