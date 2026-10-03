@@ -204,3 +204,52 @@ def test_xgot_cinco_terminos_exactos_y_verificacion():
         .with_columns(pl.col("shot_outcome").is_in(list(xg.A_PUERTA)).alias("a_puerta"), (pl.col("shot_outcome") == "Goal").alias("gol"))
     assert xg.disponibilidad(r_ok)["ok"]
     assert not xg.disponibilidad(r_ok.with_columns(pl.lit(None, pl.Float64).alias("end_z")))["ok"]
+
+
+def test_arista_marginal_igual_al_modelo_base():
+    """ADR-v2-59: con las mismas r_sk, Σ_m del paso M de la arista = paso M del modelo base; con K = 1 el puntaje
+    secuencial de la siguiente zona es idéntico (la ganancia de la arista solo puede venir de la mezcla)."""
+    import polars as pl
+
+    from dtcoach import arista as ar
+    from dtcoach import mezcla as mz
+    rng = np.random.default_rng(2)
+    nt, ns, n = 4, 7, 600
+    filas = []
+    for s in range(n):
+        z = int(rng.integers(0, nt))
+        for t in range(12):
+            m = int(rng.choice([0, 1, 2], p=[0.6, 0.3, 0.1]))
+            to = int(rng.integers(nt, ns)) if m == 2 or rng.random() < 0.15 else int(rng.integers(0, nt))
+            tipo = ("Pass", "Carry", "Shot")[m] if to < nt or m == 2 else "Pass"
+            filas.append((f"s{s}", s // 10, t, z, to, tipo))
+            if to >= nt:
+                break
+            z = to
+    tr = pl.DataFrame(filas, schema=["seq_uid", "match_id", "event_index", "from_state", "to_state", "action_type"],
+                      orient="row")
+
+    class Esp:
+        n_transient, n_states, nx, ny, phases = nt, ns, 2, 2, ["all"]
+    db = mz.DatosPosesion.desde_transiciones(tr, Esp)
+    da = ar.datos(tr, Esp)
+    assert da.n_states == ar.M * ns and np.allclose(np.asarray(da.S.sum(1)).ravel(), np.asarray(db.S.sum(1)).ravel())
+    r = rng.dirichlet(np.ones(3), db.n)
+    pb, pa = mz.prior(db, 50.0, 1.0, True), mz.prior(da, 50.0, 1.0, True)
+    _, mub, Pb, P0b = mz._m_step(db, r, pb)
+    _, mua, Pa, P0a = mz._m_step(da, r, pa)
+    assert np.allclose(Pa.reshape(3, nt, ar.M, ns).sum(2), Pb, atol=1e-12)
+    assert np.allclose(P0a.reshape(3, nt, ar.M, ns).sum(2), P0b, atol=1e-12) and np.allclose(mua, mub)
+    # K = 1: misma predicción de la siguiente zona, acción por acción
+    one = np.ones((db.n, 1))
+    pib, mub1, Pb1, P0b1 = mz._m_step(db, one, pb)
+    pia, mua1, Pa1, P0a1 = mz._m_step(da, one, pa)
+    mb = mz.Mezcla(pib, mub1, Pb1, 50.0, 1.0, [], {}, P0b1)
+    ma = mz.Mezcla(pia, mua1, Pa1, 50.0, 1.0, [], {}, P0a1)
+    pz = ar.pasos(tr)
+    area = np.full(nt, 1 / nt)
+    sb = ar.puntaje(mb, pz, nt, ns, area, con_marca=False)
+    sa = ar.puntaje(ma, pz, nt, ns, area, con_marca=True)
+    assert np.allclose(sa, sb, atol=1e-10)
+    g = ar.ganancia(sa - sb, pz["match"])
+    assert abs(g["nats_por_accion"]) < 1e-10 and g["partidos"] == n // 10

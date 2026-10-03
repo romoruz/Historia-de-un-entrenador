@@ -680,6 +680,38 @@ El vocabulario oficial se queda en $5\times4$, $K=3$: es el más rico que los da
 
 *Código:* `direccion.py`, `voronoi.py`.
 
+### 14.1 La arista marcada (Mejora E, ADR-v2-59, experimento)
+
+En lugar de ampliar el estado, se marca la **arista**: cada transición lleva $m\in\{$pase, conducción, remate,
+terminal$\}$ (las dos últimas estructurales) y cada familia factoriza
+$P^k(m,j\mid i)=P^k(m\mid i)\,P^k(j\mid i,m)$.
+
+**Proposición 14.1 (las formas cerradas se conservan).** La dinámica de la zona de la familia $k$ es la marginal
+$\bar P^k_{ij}=\sum_mP^k(m,j\mid i)$, estocástica por filas, con el mismo bloque transitorio/absorbente; $N^k$, $B^k$,
+$V^k$, $E[T\mid k]$ y la supervivencia del §2 y §4 son las de $\bar P^k$ (y $\bar P^{0,k}$ para el primer paso).
+
+*Demostración.* La marca no entra en el estado: la probabilidad de que la zona siguiente sea $j$ dado el pasado es
+$\sum_m P^k(m,j\mid i)=\bar P^k_{ij}$, que solo depende de $i$; luego la zona es una cadena de Markov con matriz
+$\bar P^k$ y todo lo del §2 aplica. $\square$
+
+**Proposición 14.2 (con las mismas $r_{sk}$, la marginal es la del modelo base).** Con el prior de la Prop. 4.1
+hacia la cadena de la liga encogida a la uniforme sobre las $M\cdot n_s$ celdas,
+$\sum_m\frac{C^k_{imj}+\lambda Q_{imj}}{C^k_i+\lambda}=\frac{C^k_{ij}+\lambda Q_{ij}}{C^k_i+\lambda}$, con
+$Q_{ij}=\sum_mQ_{imj}=\frac{C_{ij}+1/n_s}{C_i+1}$: es el paso M del modelo base.
+
+*Demostración.* La suma de numeradores sobre $m$ es $C^k_{ij}+\lambda\sum_mQ_{imj}$, el denominador no depende de
+$m$, y $\sum_m\frac{C_{imj}+1/(Mn_s)}{C_i+1}=\frac{C_{ij}+1/n_s}{C_i+1}$. $\square$
+
+Consecuencias: (1) con **una** cadena la arista predice la siguiente zona exactamente igual que el modelo base
+(ganancia 0 por construcción), así que su ganancia **no** se compara de igual a igual con la de dirección (+0.066) y
+presión (+0.031), que metían información nueva en el origen; (2) todo lo que la arista cambia está en el paso E: las
+marcas de una secuencia mueven su responsabilidad entre familias. La ganancia se mide con filtrado: la siguiente zona
+se predice con $\sum_kw_k(t)\bar P^k$, donde $w_k(t)$ usa solo el pasado (con sus marcas, en la arista). (3) Los
+parámetros libres por fila pasan de $n_s-1=23$ a $Mn_s-1=95$: no son «~20 por familia» sino ~20 efectivos **por fila**
+(las celdas estructuralmente cero no cuentan), así que el riesgo de identificabilidad del §14 sigue ahí.
+*Código:* `arista.py`, `scripts/experimentos/arista.py`, `config/arista.yaml`. *Resultado:* pendiente de la corrida
+sobre los datos reales.
+
 ---
 
 ## 15. Lo que este modelo NO demuestra

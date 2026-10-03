@@ -1,0 +1,7 @@
+# EXPERIMENTO Mejora E (ADR-v2-59): arista marcada pase / conducción. Hereda TODO (vocabulario 5x4, K=3, datos
+# y rutas de la entrega); no escribe en reports/mezcla. Solo agrega los parámetros del experimento.
+hereda: exp_mejoras.yaml
+arista:
+  K: 3
+  semillas: [1, 2, 3]       # reproducibilidad (mismo criterio que ADR-v2-35)
+  folds: 5                  # CV por partido

@@ -589,3 +589,13 @@ y vaciaban la etapa: las filas por tipo de saque de la primera corrida no son v�
 devuelve «no estimable» (μ, τ² = NaN, `estimable: False`) cuando hay menos de dos etapas con varianza positiva, sin
 dividir entre cero. Con dos o más etapas el cálculo no cambia, así que los números de la entrega no se mueven.
 
+## ADR-v2-59 — EXPERIMENTO Mejora E: arista marcada pase / conducción
+Rama `exp/mejoras-6`, `config/arista.yaml` (hereda; no toca default). Marcas: pase, conducción, remate y terminal (las
+dos últimas estructurales, para que toda transición tenga marca). Se implementa como celdas (i, m, j) sobre el EM de
+`mezcla.py` sin modificarlo (`arista.py` reusa `_em`, `_partir`, `prior`, el criterio y la bondad, y solo cambia el
+orden de los tipos y las tarjetas, que se calculan con la marginal): no hace falta tocar `possessions.py` ni
+`markov.py`, porque `action_type` ya está en las transiciones y la Prop. 14.1 garantiza las formas cerradas con la
+marginal. Comparación: CV por partido, escala común, predicción de la siguiente zona con filtrado de la familia
+(Prop. 14.2: con una sola cadena la ganancia es 0 por construcción, y se reporta como control). Aceptación: el
+criterio del vocabulario (04 §4); si falla (a), RECHAZADA.
+
