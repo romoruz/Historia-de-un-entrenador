@@ -381,37 +381,42 @@ Con $R$ réplicas el error relativo de una amplitud es $\approx1/\sqrt{2(R-1)}$ 
 
 ### 7.2 Resultado sobre Almada: qué se cae (ADR-v2-57)
 
-Con 100 réplicas (error relativo ≈ 7 %), la calibración del bootstrap contra el IC publicado es 0.997 (mediana de
-$w_{\text{fijo}}/w_{\text{actual}}$) y la inflación limpia mediana es 1.073: **en la mayoría de las cantidades el
-error de la etapa 1 es despreciable**. No en todas. Para decidir qué afirmación se sostiene, cada IC publicado se
-ensancha a $w=\max(w_{\text{actual}},w_{\text{doble}})$ conservando su forma; nunca se estrecha porque el
-bootstrap haya salido más angosto.
+Con 100 réplicas (error relativo ≈ 7 %) la calibración del bootstrap contra el IC publicado es 0.997 y la
+inflación limpia mediana 1.073: **en la mayoría de las cantidades el error de la etapa 1 es despreciable; en
+Circulación estéril, no** (inflación de 2.7 a 5.3 en uso, P(remate) y xG por secuencia). Cada IC publicado se
+ensancha a $w=\max(w_{\text{actual}},w_{\text{doble}})$ conservando su forma; nunca se estrecha.
 
-**Dejan de excluir el 0** (con la amplitud de la tabla de B; la tabla exacta con lo/hi la da
-`regresor_generado_impacto.py`):
+**Con los IC (41 cantidades), dejan de excluir el 0 exactamente dos:** P(remate) propia en Circulación estéril
+(+0.0032, IC [+0.0006, +0.0057] → [−0.0107, +0.0171]) y P(remate) del rival en Circulación estéril (−0.0055,
+[−0.0076, −0.0033] → [−0.0142, +0.0032]). xG por secuencia del rival en Circulación estéril no cambia: su IC ya
+contenía el 0.
 
-* **P(remate) del rival en Circulación estéril (H8, defensa):** −0.0055, amplitud 0.0043 → 0.0174 (inflación
-  limpia 4.1). Era parte de la frase publicada «sus rivales rematan menos **en las tres** familias (… −0.5 pp en
-  Circulación)». Con el error de la mezcla, esa tercera parte **no se sostiene**: Almada reduce el remate del rival
-  en Directa (−3.1 pp) y en Ataque elaborado (−1.7 pp), que sobreviven, pero no se puede afirmar en Circulación estéril.
-* **P(remate) propio en Circulación estéril (H7, ataque):** +0.0032, amplitud 0.0051 → 0.0278 (inflación limpia 5.3).
-  No se sostiene.
+**En el BH global (730 afirmaciones)** cada p de la fase 2 se recalcula con el error «doble». La primera corrida
+escalaba solo el z que implica el p publicado; con p de bootstrap en el piso (1/2000) eso subestima el z y tumbó dos
+afirmaciones que su IC sostiene (uso de Directa del rival y P(remate) del rival en Directa). Corregido (el z de
+partida es el mayor entre el del p y el del IC), el cálculo con las cifras de la corrida da:
 
-**No cambia, contra lo que se sospechaba:** xG por secuencia del rival en Circulación estéril (H8, −0.0004): ya con
-la amplitud publicada (0.0010) su IC contenía el 0; no estaba afirmado. Quedan **en el filo** (sobreviven por poco
-con la aproximación simétrica, hay que confirmarlos con lo/hi exactos): H1 Δπ en Circulación estéril
-(|e|/semiamplitud 1.10) y P(remate) propio en Directa (1.05).
+| afirmación | p publicado | p con el error «doble» | |
+|---|---|---|---|
+| P(remate) propia, Circulación estéril | 0.018 | 0.65 | **cae** |
+| P(remate) del rival, Circulación estéril | 0.0005 | 0.22 | **cae** |
+| ganando vs empatando: Directa del foco contra la liga | 0.0145 | 0.021 | **cae** (estaba a 0.002 del corte del BH) |
+| H2, identidad defensiva (Wald) | 0.00012 | 0.027 (f máx.) · 0.0067 (f del componente dominante) | **depende de la regla** |
+| uso de Directa del rival | 0.0005 | 0.002 | se sostiene (caía por el método) |
+| P(remate) del rival, Directa | 0.0005 | 0.0005 | se sostiene (caía por el método) |
 
-Todo lo demás de H1–H8 que excluía el 0 lo sigue excluyendo, incluido «juega menos Circulación estéril» (−0.95 pp,
-1.88), la mezcla defensiva en Directa y Ataque elaborado y la reacción al rival (H6).
+Para H2 no hay forma exacta sin la covarianza «doble» de sus tres componentes. Con la regla conservadora cae, y una
+afirmación cuya demostración depende de qué regla se use no se narra.
 
-**Dónde se concentra.** La inflación grande cae en uso, P(remate) y xG por secuencia de **Circulación estéril**
-(2.7 a 5.3). La explicación propuesta es que esa familia es la peor separada por el EM y por eso es la que más paga
-el error de primera etapa; se contrasta con la entropía de las $r_{sk}$ por familia (`regresor_generado_impacto.py`,
-§3). *Pendiente de la corrida sobre los datos reales:* en la liga sintética la peor separada es Ataque elaborado,
-así que la hipótesis no se da por buena hasta verla en Almada. El BH global de la demostración rehecho con estos
-errores también está pendiente: por el BH, las dos caídas pueden arrastrar afirmaciones de otras secciones que
-estaban en el margen.
+**Dónde se concentra.** En la mezcla oficial, Circulación estéril es la familia peor separada: impureza
+$\sum_sr_{sk}(1-r_{sk})/\sum_sr_{sk}=0.481$ (Directa 0.368, Elaborado 0.374), 42.8 % de sus secuencias con
+$r_{\max}<0.6$ (31.2 % y 27.8 %) y la mayor entropía media (0.672). Es también la de mayor inflación (máx. 5.31,
+contra 1.89 y 1.10). Una secuencia dudosa reparte su peso entre familias, y al reajustar la mezcla ese reparto se
+mueve: la familia peor separada es la que más paga el error de primera etapa. Es la misma familia que la Mejora A
+dejó como no concluyente (§15.2).
+
+*Pendiente:* volver a correr `regresor_generado_impacto.py` con el método corregido y con B a 200 réplicas; los
+números de esta tabla se reemplazan con esa corrida.
 
 *Código:* `contexto.py`, `pesos.py`, `hipotesis.py`, `perfil.py`.
 
@@ -676,7 +681,7 @@ información del nivel en el origen.
 **Resultado.** Los dos estados **predicen mejor** la siguiente acción (dirección
 +0.066 nats, presión +0.031), pero **ningún $K\ge3$ es reproducible** con ellos: más
 estados por tipo dejan menos datos por parámetro, y la mezcla pierde identificabilidad.
-El vocabulario oficial se queda en $5\times4$, $K=3$: es el más rico que los datos sostienen.
+El vocabulario oficial se queda en $5\times4$, $K=3$: es el más rico que los datos sostienen. La arista marcada (§14.1) tampoco pasa.
 
 *Código:* `direccion.py`, `voronoi.py`.
 
@@ -709,8 +714,26 @@ marcas de una secuencia mueven su responsabilidad entre familias. La ganancia se
 se predice con $\sum_kw_k(t)\bar P^k$, donde $w_k(t)$ usa solo el pasado (con sus marcas, en la arista). (3) Los
 parámetros libres por fila pasan de $n_s-1=23$ a $Mn_s-1=95$: no son «~20 por familia» sino ~20 efectivos **por fila**
 (las celdas estructuralmente cero no cuentan), así que el riesgo de identificabilidad del §14 sigue ahí.
-*Código:* `arista.py`, `scripts/experimentos/arista.py`, `config/arista.yaml`. *Resultado:* pendiente de la corrida
-sobre los datos reales.
+*Código:* `arista.py`, `scripts/experimentos/arista.py`, `config/arista.yaml`.
+
+**Resultado (datos reales, 467,327 secuencias; ADR-v2-62): RECHAZADA.** Falla la reproducibilidad: acuerdo suave
+mínimo 0.884 (< 0.95) y rango de $J$ entre semillas $5.6\cdot10^{-4}$ por secuencia (> $1.08\cdot10^{-4}$), con
+las semillas 1, 2 y 3. La duración y $E[T]$ sí se ajustan (KS 0.0036 contra 0.0050 de la entrega; $E[T]$ 6.503
+contra 6.509 observado), pero un vocabulario que cambia según la semilla no se puede usar.
+
+**Por qué la ganancia no se compara con la de §14.** En la CV por partido, la arista gana **+0.0014 nats por acción**
+(EE 0.0001) con $K=3$ y **exactamente 0** con $K=1$ (≤ 2e-17 en los cinco pliegues). Es la Prop. 14.2 vista en los
+datos: al marginalizar la marca se recupera $P(j\mid i)$, así que una sola cadena no puede ganar nada por
+construcción, y la única vía de ganancia es que las marcas pasadas ayuden a reconocer la familia de la secuencia.
+Dirección (+0.066) y presión (+0.031) metían información nueva en el **origen** de la transición y ganaban con una
+sola cadena: son otra cantidad. Medido en la misma escala, la arista aporta del orden de 1/50 de lo que aportaba
+dirección y, aun así, cuesta la reproducibilidad.
+
+**La hipótesis previa sobre el reparto era falsa.** Se esperaba Directa con más conducción y Circulación estéril
+con más pase. En la mezcla oficial las tres familias pasan casi lo mismo (pase 51.4 %, 53.0 %, 51.8 %) y la que
+**menos** conduce es Directa (37.1 % contra 41.7 % y 44.2 %): lo que separa a Directa es que remata y pierde antes
+(remate 4.0 %, terminal 7.4 %), no cómo mueve el balón. El tipo de acción casi no distingue a las familias, que es
+la otra cara de por qué la marca apenas ayuda a identificarlas.
 
 ---
 

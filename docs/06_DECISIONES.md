@@ -618,3 +618,23 @@ ruido de Monte Carlo (± ~0.01 en p cerca del corte con 500 réplicas). No se re
 se recomienda volver a correr `dtcoach balon-parado` y `dtcoach demostracion` al integrar, y revisar qué afirmaciones de
 la cadena estaban a menos de ese ruido del corte del BH. Prueba: `test_razon_boot_no_depende_del_orden`.
 
+## ADR-v2-62 — Mejora E (arista marcada) RECHAZADA
+Sobre los datos reales falla (a): acuerdo suave 0.884 y rango de J 5.64e-4 por secuencia (semillas 1-3). (b) y (c)
+pasan (KS 0.0036; E[T] 6.503 vs 6.509). Ganancia en CV por partido +0.0014 nats/acción con K = 3 y 0 por construcción
+con K = 1 (Prop. 14.2): no es comparable con dirección (+0.066) ni presión (+0.031), que ganaban con una sola cadena.
+La hipótesis «Directa conduce más» resultó falsa (Directa es la que menos conduce). No se adopta; queda documentada en
+04 §14.1.
+
+## ADR-v2-63 — Mejora F en tres variantes; el valor del balón parado se mide, no se supone
+La compuerta pasó (21.47 % de la masa de PÉRDIDA), pero el 45 % de las interrupciones a favor son laterales, y un
+lateral en campo propio no vale lo que un tiro libre o un penal. Antes de reajustar nada se reporta la distribución por
+zona de cada tipo de reanudación y su valor: E[xG de la secuencia que arranca con ella | tipo, zona], de TODAS las
+reanudaciones de la liga, encogido hacia la media del tipo con 50 pseudo-reanudaciones (la falta sin balón parado
+inmediato toma el valor del tiro libre de su zona). Variantes, todas preparadas antes de correr ninguna: (i) con
+laterales, c = 0; (ii) con laterales, c = valor; (iii) sin laterales, c = valor. El valor entra a c como un remate (xG
+de la transición que llega a INTERRUPCIÓN_FAVOR). INTERRUPCIÓN_FAVOR se agrega al FINAL de los absorbentes, así que los
+índices de GOL, REMATE, PÉRDIDA y FUERA no cambian. Solo cambia la última transición de la secuencia (la terminal
+artificial o el pase registrado como perdido). PÉRDIDA no se parte. Fase «preparar» sin EM; fase «ajustar» (4 ajustes
+por variante) solo después de B. Criterio del vocabulario de 04 §4; si falla (a), RECHAZADA. Script
+`scripts/experimentos/absorbente5_variantes.py`, módulo `absorbente5.py`, `config/absorbente5.yaml`.
+

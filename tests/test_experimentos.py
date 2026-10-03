@@ -267,3 +267,38 @@ def test_razon_boot_no_depende_del_orden():
     b = razon_boot(d.sample(fraction=1.0, shuffle=True, seed=5), pl.col("x").sum(), pl.col("y").sum(), 300,
                    np.random.default_rng(1))
     assert abs(a["lo"] - b["lo"]) < 1e-12 and abs(a["hi"] - b["hi"]) < 1e-12   # mismo remuestreo (1 ulp: orden de suma)
+
+
+def test_absorbente5_variante_y_valor():
+    """ADR-v2-63: solo la ÚLTIMA transición a PÉRDIDA de una secuencia a favor cambia de destino; (iii) deja los
+    laterales en PÉRDIDA; con valor, esa transición lleva el xG esperado de la reanudación (encogido al del tipo)."""
+    import polars as pl
+
+    from dtcoach import absorbente5 as ab
+    from dtcoach.grid import StateSpace
+    sp = StateSpace(nx=2, ny=2, phases=("all",))
+    s5 = ab.espacio5(sp)
+    LOSS, INT = sp.absorbing_index("LOSS"), s5.absorbing_index(ab.INTERRUPCION)
+    assert LOSS == s5.absorbing_index("LOSS") and INT == sp.n_states
+    tr = pl.DataFrame({"seq_uid": ["a", "a", "b", "b", "c"], "match_id": 1, "team": "X",
+                       "event_index": [1, 2, 5, 6, 9], "from_state": [0, 1, 2, 3, 0],
+                       "to_state": [1, LOSS, 3, LOSS, LOSS], "xg": [None, None, None, None, None],
+                       "action_type": ["Pass", "TERMINAL", "Pass", "Pass", "Pass"]},
+                      schema_overrides={"xg": pl.Float64})
+    clas = pl.DataFrame({"uid": ["a", "b", "c"], "a_favor": [True, True, False], "tipo": ["corner", "lateral", None],
+                         "zona": [3, 0, -1]})
+    val = pl.DataFrame({"tipo": ["corner", "lateral"], "zona": [3, 0], "n": [10, 10], "valor": [0.09, 0.004],
+                        "m_tipo": [0.08, 0.01]})
+    v_ii = ab.variante(tr, clas, val, True, s5).sort("seq_uid", "event_index")
+    assert v_ii["to_state"].to_list() == [1, INT, 3, INT, LOSS]
+    assert v_ii["xg"].to_list()[1] == 0.09 and v_ii["xg"].to_list()[3] == 0.004 and v_ii["xg"].to_list()[0] is None
+    v_iii = ab.variante(tr, clas, val, False, s5).sort("seq_uid", "event_index")
+    assert v_iii["to_state"].to_list() == [1, INT, 3, LOSS, LOSS]
+    v_i = ab.variante(tr, clas, None, True, s5).sort("seq_uid", "event_index")
+    assert v_i["to_state"].to_list() == [1, INT, 3, INT, LOSS] and v_i["xg"].null_count() == 5
+    # valor: (Σ + a·media del tipo) / (n + a)
+    rean = pl.DataFrame({"match_id": [1, 1], "index": [5, 9], "team": "X", "tipo": ["corner", "corner"], "zona": [3, 3]})
+    tr2 = tr.with_columns(pl.when(pl.col("seq_uid") == "b").then(0.3).otherwise(0.1).alias("xg"))
+    v = ab.valor(tr2, rean, a=2.0).filter(pl.col("tipo") == "corner")
+    # dos reanudaciones de 0.6 y 0.1 (xG de sus secuencias): media 0.35 → (0.7 + 2·0.35)/(2 + 2) = 0.35
+    assert abs(v["valor"][0] - 0.35) < 1e-12 and v["n"][0] == 2

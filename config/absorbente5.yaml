@@ -1,0 +1,3 @@
+# EXPERIMENTO Mejora F (ADR-v2-60, 63): quinto absorbente INTERRUPCIÓN_FAVOR. Hereda TODO; las transiciones de las
+# variantes se escriben en data/processed/experimentos/absorbente5/ y los reportes en reports/experimentos/absorbente5/.
+hereda: exp_mejoras.yaml
