@@ -909,6 +909,23 @@ que entra en $F$). Un remate a puerta sin $z$ entra con su propio xG (neutro par
 remates a puerta no traen $z$, el experimento se detiene: no se imputa nada con la $(x,y)$ en la cancha.
 *Código:* `xgot.py`, `scripts/experimentos/xgot.py`.
 
+**Resultado sobre Almada (corrida del 2026-10-02; ADR-v2-58).** La ubicación en el marco viene en el 100 % de los
+15,138 remates a puerta (92.8 % dentro del marco), así que la partición se pudo hacer. Es **exacta** (error máximo
+1.9e-16 sobre 55,001 saques) y **segura**: H24–H26 salen idénticas y, en el BH global, reemplazar las 18 pruebas de
+«portero y definición» por 36 no cambia el veredicto de ninguna de las 730 afirmaciones (246 → 247 demostradas: la
+nueva sería «xD portero en tiros libres que no van al área», q = 0.013). El AUC de xGOT (0.831 contra 0.735 del xG
+previo) **no es una mejora de modelo**: xGOT usa dónde terminó el balón, información posterior al remate; no compiten.
+
+Lo que no hay es **señal de equipo**: en todo el balón parado, τ² = 0 para definición y para portero en contra
+(p de Cochran 0.57 y 0.48) y para portero a favor (0.92), y τ² ≈ 0.006 (p = 0.30) para la definición a favor: la
+diferencia entre técnicos-club en esos términos es la del azar. Por tipo de saque, la primera corrida no sirve (un error
+del experimento dejaba nulos los equipo-partidos sin saques de ese tipo y vaciaba la etapa: «no estimable»); está
+corregido y pendiente de volver a correr.
+
+**Decisión.** Se documenta y **no se adopta como métrica narrativa**: partir el término no cambia nada de lo publicado
+y no revela variación entre equipos. Si la corrida corregida por tipo de saque encontrara τ² > 0 con p de Cochran < 0.05
+en algún tipo, se reabre solo para ese tipo.
+
 **Barrera.** En el tiro libre directo, la regla 13 obliga a la barrera a 9.15 m. Se cuentan los
 defensores de campo a ≤ 12 m del balón cuya sombra (el disco de la Proposición 16.3) toca el ángulo
 del arco; la fracción de arco libre es el `goal_open` de ese remate.

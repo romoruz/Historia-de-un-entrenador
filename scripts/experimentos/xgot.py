@@ -112,11 +112,33 @@ def main():
     err = xg.error_exactitud(D5)
     err4 = float((D5["port"] - D5["def"] - D5["portero"]).abs().max())
 
+    # ---------------------------------------------------------------- 2b. cuánto dato hay por tipo de saque
+    ap_ = (j.select("id_saque", "ids_remate").explode("ids_remate", empty_as_null=True).rename({"ids_remate": "id"})
+           .filter(pl.col("id").is_not_null()).join(rx.select("id", "a_puerta", "gol"), on="id", how="left")
+           .group_by("id_saque").agg(pl.col("a_puerta").fill_null(False).sum().alias("_ap")))
+    Dn = D5.join(ap_, on="id_saque", how="left").with_columns(pl.col("_ap").fill_null(0))
+    n_tipo = []
+    for fam_, ts in {**xd.FAMILIAS, "todas": None}.items():
+        x = Dn if ts is None else Dn.filter(pl.col("tipo").is_in(list(ts)))
+        por = x.group_by("match_id", "team").agg(pl.len().alias("saques"), pl.col("_ap").sum().alias("ap"),
+                                                 pl.col("g").sum().alias("goles"))
+        n_tipo.append({"familia": fam_, "saques": x.height, "con_remate": int(x["s"].sum()),
+                       "remates_a_puerta": int(x["_ap"].sum()), "goles": float(x["g"].sum()),
+                       "equipo_partidos": por.height,
+                       "a_puerta_por_equipo_partido": float(por["ap"].mean()) if por.height else 0.0,
+                       "frac_equipo_partido_sin_a_puerta": float((por["ap"] == 0).mean()) if por.height else 1.0,
+                       "goles_por_equipo_partido": float(por["goles"].mean()) if por.height else 0.0})
+
     # ---------------------------------------------------------------- 3. τ² por etapa (Prop. 16.4, varianza común)
     llaves = [c for c in ("match_id", "team", "coach", "rival", "coach_rival") if c in M.columns]
     M2 = M.select(llaves)
     for t in xg.metricas(D5, tp, xd.FAMILIAS):
         M2 = M2.join(t, on=["match_id", "team"], how="left")
+    # un equipo-partido sin saques de esa familia no es un dato faltante: es 0 de 0. Con nulos, la razón de la
+    # etapa entera salía NaN y la contracción «sin varianza» (corrida del 2026-10-02).
+    nd = [c for c in M2.columns if c.endswith(("__n", "__d"))]
+    nulos = {c: int(M2[c].null_count()) for c in nd if c.endswith("__n") and M2[c].null_count()}
+    M2 = M2.with_columns(pl.col(nd).fill_null(0.0))
     mp = fc["min_partidos_era"]
     etapas, filas_csv = [], []
     for lado in ("xd", "xo"):
@@ -184,7 +206,7 @@ def main():
 
     res = {"foco": foco, "muestra": a.muestra or None, "disponibilidad": disp, "modelo": diag,
            "error_exactitud_5": err, "error_port_igual_def_mas_portero": err4, "saques": D5.height,
-           "etapas": etapas, "cadena": cad, "H24_H26": hip, "H24_H26_entrega": hip_ent, "bh": bh}
+           "etapas": etapas, "n_por_tipo": n_tipo, "nulos_rellenados": nulos, "cadena": cad, "H24_H26": hip, "H24_H26_entrega": hip_ent, "bh": bh}
     (out / "xgot.json").write_text(json.dumps(res, indent=1, ensure_ascii=False, default=float))
 
     md = [f"# xGOT — portero y definición ({foco}) · ADR-v2-56", "",
@@ -195,18 +217,30 @@ def main():
            f"({100 * diag['tasa_gol']:.1f} %)",
            f"- AUC fuera de muestra: **xGOT {diag['auc_xgot']:.3f}** contra xG previo {diag['auc_xg_previo']:.3f} "
            f"(en los mismos remates a puerta) · calibración media {diag['calibracion']:.3f}",
+           "- **Esto NO es una mejora de modelo.** xGOT usa dónde terminó el balón (y, z en el marco), información "
+           "POSTERIOR al remate; el xG previo solo la anterior. No son modelos competidores: el AUC más alto es lo esperable "
+           "y lo único que dice es que la ubicación en el marco separa bien atajada de gol, que es lo que se necesita "
+           "para partir portero de definición.",
            "- coeficientes (en desviaciones estándar): " + ", ".join(f"{c['rasgo']} {c['coef_de']:+.2f}"
                                                                     for c in diag["coeficientes"][:8]), "",
            "## 2. Cinco términos, exactos", "",
            f"Saques: {D5.height:,}. máx |prevención + alejamiento + supresión + definición + portero − (p κ − g)| = "
            f"**{err:.2e}**; máx |portero y definición − (definición + portero)| = {err4:.2e}.", "",
+           "### Cuánto dato hay por tipo de saque", "",
+           "| familia | saques | con remate | remates a puerta | goles | equipo-partidos | a puerta por equipo-partido | % equipo-partidos sin remate a puerta |",
+           "|---|---|---|---|---|---|---|---|"] + [
+           f"| {FAM_NOM[x['familia']]} | {x['saques']:,} | {x['con_remate']:,} | {x['remates_a_puerta']:,} | {x['goles']:.0f} | "
+           f"{x['equipo_partidos']:,} | {x['a_puerta_por_equipo_partido']:.2f} | {100 * x['frac_equipo_partido_sin_a_puerta']:.0f} |"
+           for x in n_tipo] + ["",
+           (f"*Equipo-partidos sin saques de una familia ({sum(nulos.values()):,} celdas nulas) se cuentan como 0 de 0. "
+            "En la primera corrida quedaban nulos y vaciaban la etapa entera: de ahí el «sin varianza».*" if nulos else ""), "",
            "## 3. ¿Hay variación real entre técnicos-club? (τ², Prop. 16.4, varianza común)", "",
            "| métrica | etapas | μ | τ² | p (Q de Cochran) | foco: θ → contraído (puesto) |", "|---|---|---|---|---|---|"]
     for e in etapas:
         nom = f"{'xD' if e['lado'] == 'xd' else 'xO'} · {xg.COMP5_NOMBRE.get(e['termino'], 'portero y definición (el de 4 términos)')} · {FAM_NOM[e['familia']]}"
         fo = "; ".join(f"{x['team']}: {x['theta']:+.2f} → {x['contraido']:+.2f} ({x['puesto']}/{e['etapas']})" for x in e["foco"]) or "—"
         if not np.isfinite(e["mu"]):
-            md.append(f"| {nom} | {e['etapas']} | — | **no estimable** (sin varianza entre partidos) | — | — |")
+            md.append(f"| {nom} | {e['etapas']} | — | **no estimable** (menos de 2 etapas con varianza) | — | — |")
             continue
         md.append(f"| {nom} | {e['etapas']} | {e['mu']:+.3f} | {e['tau2']:.4f}{' **(= 0)**' if e['tau2'] == 0 else ''} | "
                   f"{e['p_Q']:.3g} | {fo} |")

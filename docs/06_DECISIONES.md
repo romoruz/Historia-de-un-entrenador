@@ -581,3 +581,11 @@ grande de sus componentes (W' = W/f², conservador). Sensibilidad: f = máx(1, i
 familias se mide con la entropía de las r_sk. Script `scripts/experimentos/regresor_generado_impacto.py` (solo lee).
 Resultado en 04 §7.2.
 
+## ADR-v2-58 — xGOT (Mejora D): exacta y segura, pero sin señal de equipo; se documenta y no se narra
+Rama `exp/mejoras-6`. Resultado sobre Almada en 04 §16.7: partición exacta, 0 veredictos cambian, τ² = 0 (o ≈ 0, p > 0.3)
+en «todo el balón parado» para definición y portero. Se documenta y no se adopta como métrica narrativa. Dos
+correcciones del experimento: (1) los equipo-partidos sin saques de un tipo se cuentan como 0 de 0 (antes quedaban nulos
+y vaciaban la etapa: las filas por tipo de saque de la primera corrida no son válidas); (2) `xdefensa.contraccion`
+devuelve «no estimable» (μ, τ² = NaN, `estimable: False`) cuando hay menos de dos etapas con varianza positiva, sin
+dividir entre cero. Con dos o más etapas el cálculo no cambia, así que los números de la entrega no se mueven.
+

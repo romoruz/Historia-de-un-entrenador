@@ -532,6 +532,12 @@ def contraccion(theta: np.ndarray, var: np.ndarray) -> dict:
     x, v = np.asarray(theta, float), np.asarray(var, float)
     ok = np.isfinite(x) & np.isfinite(v) & (v > 0)
     x, v = x[ok], v[ok]
+    if len(x) < 2:
+        # no estimable: menos de dos etapas con varianza positiva (p. ej., sin saques de ese tipo). Se devuelve
+        # explícito, sin dividir entre cero.
+        nan = np.full(len(theta), np.nan)
+        return {"mu": float("nan"), "tau2": float("nan"), "contraido": nan, "confiabilidad": nan.copy(),
+                "etapas": int(ok.sum()), "Q": float("nan"), "p_Q": float("nan"), "estimable": False}
     w = 1 / v
     mu_w = (w * x).sum() / w.sum()
     Qs = (w * (x - mu_w) ** 2).sum()
@@ -547,7 +553,7 @@ def contraccion(theta: np.ndarray, var: np.ndarray) -> dict:
     confi = np.full(len(theta), np.nan)
     confi[ok] = rel
     return {"mu": float(mu), "tau2": float(tau2), "contraido": out, "confiabilidad": confi, "etapas": int(ok.sum()),
-            "Q": float(Qs), "p_Q": p_q}
+            "Q": float(Qs), "p_Q": p_q, "estimable": True}
 
 
 def por_etapa(M: pl.DataFrame, m: str, lado: str = "propio", min_partidos: int = 30,
