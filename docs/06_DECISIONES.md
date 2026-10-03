@@ -572,3 +572,12 @@ global de la demostración se recalcula con las pruebas de la cadena «portero y
 nuevas, para ver si alguna etiqueta cambiaría. Solo lee la tabla de la liga y la cadena del xDefense; no toca
 reports/historia ni la mezcla. Salidas en `reports/experimentos/xgot/`.
 
+## ADR-v2-57 — Consecuencias de la Mejora B: los IC de la fase 2 con la amplitud «doble»
+Rama `exp/mejoras-6`. Con las 100 réplicas de B, cada IC publicado de H1–H8 se ensancha a w = máx(w_actual, w_doble)
+conservando su forma: un IC publicado nunca se estrecha porque el bootstrap salga más angosto (dos cantidades
+«ganarían» significancia si se permitiera; no se cuentan). El BH global de la demostración se rehace escalando el z de
+cada p de la fase 2 por f = w / w_actual (p' = 2Φ(−z/f); con f = 1 la p no cambia); las Wald H1–H6 con el f más
+grande de sus componentes (W' = W/f², conservador). Sensibilidad: f = máx(1, inflación limpia). La separación de las
+familias se mide con la entropía de las r_sk. Script `scripts/experimentos/regresor_generado_impacto.py` (solo lee).
+Resultado en 04 §7.2.
+

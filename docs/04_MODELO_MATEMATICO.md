@@ -379,6 +379,40 @@ medir. Se cuantifica con un bootstrap por partido que reajusta la mezcla en cada
 amplitudes de percentiles 2.5–97.5 con y sin reajustar la etapa 1 sobre la misma remuestra.
 Con $R$ réplicas el error relativo de una amplitud es $\approx1/\sqrt{2(R-1)}$ (5 % con 200).
 
+### 7.2 Resultado sobre Almada: qué se cae (ADR-v2-57)
+
+Con 100 réplicas (error relativo ≈ 7 %), la calibración del bootstrap contra el IC publicado es 0.997 (mediana de
+$w_{\text{fijo}}/w_{\text{actual}}$) y la inflación limpia mediana es 1.073: **en la mayoría de las cantidades el
+error de la etapa 1 es despreciable**. No en todas. Para decidir qué afirmación se sostiene, cada IC publicado se
+ensancha a $w=\max(w_{\text{actual}},w_{\text{doble}})$ conservando su forma; nunca se estrecha porque el
+bootstrap haya salido más angosto.
+
+**Dejan de excluir el 0** (con la amplitud de la tabla de B; la tabla exacta con lo/hi la da
+`regresor_generado_impacto.py`):
+
+* **P(remate) del rival en Circulación estéril (H8, defensa):** −0.0055, amplitud 0.0043 → 0.0174 (inflación
+  limpia 4.1). Era parte de la frase publicada «sus rivales rematan menos **en las tres** familias (… −0.5 pp en
+  Circulación)». Con el error de la mezcla, esa tercera parte **no se sostiene**: Almada reduce el remate del rival
+  en Directa (−3.1 pp) y en Ataque elaborado (−1.7 pp), que sobreviven, pero no se puede afirmar en Circulación estéril.
+* **P(remate) propio en Circulación estéril (H7, ataque):** +0.0032, amplitud 0.0051 → 0.0278 (inflación limpia 5.3).
+  No se sostiene.
+
+**No cambia, contra lo que se sospechaba:** xG por secuencia del rival en Circulación estéril (H8, −0.0004): ya con
+la amplitud publicada (0.0010) su IC contenía el 0; no estaba afirmado. Quedan **en el filo** (sobreviven por poco
+con la aproximación simétrica, hay que confirmarlos con lo/hi exactos): H1 Δπ en Circulación estéril
+(|e|/semiamplitud 1.10) y P(remate) propio en Directa (1.05).
+
+Todo lo demás de H1–H8 que excluía el 0 lo sigue excluyendo, incluido «juega menos Circulación estéril» (−0.95 pp,
+1.88), la mezcla defensiva en Directa y Ataque elaborado y la reacción al rival (H6).
+
+**Dónde se concentra.** La inflación grande cae en uso, P(remate) y xG por secuencia de **Circulación estéril**
+(2.7 a 5.3). La explicación propuesta es que esa familia es la peor separada por el EM y por eso es la que más paga
+el error de primera etapa; se contrasta con la entropía de las $r_{sk}$ por familia (`regresor_generado_impacto.py`,
+§3). *Pendiente de la corrida sobre los datos reales:* en la liga sintética la peor separada es Ataque elaborado,
+así que la hipótesis no se da por buena hasta verla en Almada. El BH global de la demostración rehecho con estos
+errores también está pendiente: por el BH, las dos caídas pueden arrastrar afirmaciones de otras secciones que
+estaban en el margen.
+
 *Código:* `contexto.py`, `pesos.py`, `hipotesis.py`, `perfil.py`.
 
 ---
