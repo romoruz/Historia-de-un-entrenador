@@ -319,6 +319,35 @@ nuevos (`scripts/experimentos/verificar_absorbente5.py`).
 - **Qué cambia:** la PÉRDIDA de cada familia baja entre 0.17 y 0.20, y esa masa pasa a INTERRUPCIÓN. PÉRDIDA más
   INTERRUPCIÓN reproduce la PÉRDIDA de antes a la tercera cifra.
 
+**Nota: K = 3 es propiedad de esta representación, no del juego (ADR-v2-74, diagnóstico).** Se repitió el criterio
+de arriba con cuatro mallas: K = 2 a 5, semillas 1, 2 y 3, cinco absorbentes y las 467,327 secuencias.
+
+| malla (zonas) | K reproducibles | K = 3: acuerdo suave | K = 3: rango de $J$ por secuencia |
+|---|---|---|---|
+| 4×3 (12) | ninguno | 0.727 | $1.8\cdot10^{-3}$ |
+| **5×4 (20)** | **2 y 3** | **0.998** | $5.1\cdot10^{-6}$ |
+| 6×5 (30) | solo 2 | 0.848 | $1.0\cdot10^{-3}$ |
+| 8×6 (48) | ninguno | 0.932 | $2.0\cdot10^{-4}$ |
+
+1. **K = 3 solo es reproducible con 5×4.** Con 4×3 y 8×6 no lo es ningún K, y con 6×5 solo K = 2. El acuerdo de
+   K = 3 tiene un máximo pronunciado en 5×4 (0.727 / 0.998 / 0.848 / 0.932). Es el mismo patrón que en la entrega
+   (cuatro absorbentes, 461 mil secuencias: 8×5 ninguno, 6×4 K = 2, 5×4 K = 3).
+2. **Advertencia: la comparación entre mallas es indicativa, no una prueba de optimalidad.** El umbral de rango de
+   $J$ ($50/461{,}454\approx1.08\cdot10^{-4}$ nats por secuencia) se fijó trabajando con la malla 5×4. Pero $J$ por
+   secuencia crece con el número de estados (cada destino se reparte entre más celdas), y con él las diferencias
+   entre óptimos locales. Así que la misma tolerancia es relativamente más exigente en una malla fina y más laxa en
+   una gruesa, y el criterio favorece estructuralmente a 5×4. Se ve en 8×6: K = 2 tiene acuerdo 0.980, que pasa, pero
+   cae por el rango de $J$ ($2.0\cdot10^{-4}$). El acuerdo suave sí es adimensional, y con él solo la conclusión
+   sobre K = 3 no cambia: ninguna otra malla llega a 0.95 con K = 3.
+3. **Conclusión: K = 3 es propiedad de esta representación (5×4) y de este tamaño de muestra, no del juego.** Con
+   12 zonas no hay estructura espacial suficiente para separar familias estables. Con 48, las 467 mil secuencias no
+   alcanzan para identificar tantos parámetros por familia, en línea con lo que ya se vio en la entrega: con 160 mil
+   secuencias, ni 5×4 sostenía K = 3 (10_RESULTADOS §18). El vocabulario oficial no cambia. Lo que cambia es cómo se
+   lee: «tres familias» describe lo que **estos datos, a esta resolución**, sostienen de forma estable; no afirma que
+   la Liga MX se juegue de tres maneras.
+
+*Código:* `scripts/experimentos/malla_k.py`; reporte en `reports/experimentos/malla_k/MALLA_K_completa.md`.
+
 *Código:* `mezcla.py` (`ajustar`, `_m_step`, `reproducibilidad`, `bondad_largo`).
 
 ---

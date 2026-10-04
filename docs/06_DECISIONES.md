@@ -144,7 +144,10 @@ el K más chico que pase la prueba. Se evalúan K = 2 y K = 3 (K = 3 ya captura 
 73 % de la ganancia de verosimilitud fuera de muestra). La estructura fina de
 K = 5 queda como descripción ⚪, nunca como base de inferencia.
 
-## ADR-v2-19 — K = 3: el vocabulario de la Liga MX tiene tres familias
+## ADR-v2-19 — K = 3: el vocabulario de la Liga MX tiene tres familias (en la malla 5×4; ver ADR-v2-74)
+*Nota posterior (ADR-v2-74):* el título se lee «a esta resolución y con esta muestra». Con 4×3 y 8×6 no es
+reproducible ningún K, y con 6×5 solo K = 2. Las tres familias son una propiedad de la representación, no del juego.
+
 `dtcoach reproducibilidad`: K = 2 (rango de J 0.1, acuerdo 1.000) y **K = 3
 (rango 7.8, acuerdo 0.993)** pasan; K = 4, 5 y 6 no (ADR-v2-18). K = 3 ajusta
 casi igual que K = 5 (KS 0.038 contra 0.035; E[T] 6.504 contra 6.509
@@ -888,4 +891,26 @@ sostienen tres a esta resolución**.
 (verificado en la liga sintética). `valor_reanudacion` difiere en ≤ 3e-17 entre dos construcciones, por el orden de
 suma de polars. No afecta a la mezcla (el EM no usa c) y queda como observación.
 
-**Resultado:** se completa con la corrida en los datos reales.
+**Resultado (datos reales, 467,327 secuencias):**
+
+| malla | K = 2 | K = 3 | K = 4 | K = 5 | K reproducibles |
+|---|---|---|---|---|---|
+| 4×3 | 0.791 / 1.7e-2 | 0.727 / 1.8e-3 | 0.880 / 1.2e-3 | 0.801 / 1.9e-3 | ninguno |
+| 5×4 | **1.000 / 1.9e-7** | **0.998 / 5.1e-6** | 0.806 / 2.3e-3 | 0.704 / 1.6e-3 | 2 y 3 |
+| 6×5 | **0.993 / 9.4e-6** | 0.848 / 1.0e-3 | 0.828 / 9.4e-4 | 0.667 / 7.3e-4 | solo 2 |
+| 8×6 | 0.980 / 2.0e-4 | 0.932 / 2.0e-4 | 0.708 / 5.5e-4 | 0.649 / 8.2e-4 | ninguno |
+
+*Cada celda: acuerdo suave mínimo / rango de J por secuencia.* El π mínimo nunca fue el límite: en todas las celdas
+es ≥ 0.15. KS y E[T] ajustan en todas las mallas (KS 0.0019–0.0097; E[T] 6.494–6.504 contra 6.509): la duración no
+discrimina entre mallas.
+
+**Lectura** (04 §4, nota):
+1. K = 3 solo es reproducible con 5×4, y su acuerdo tiene un máximo pronunciado ahí.
+2. El umbral de rango de J se fijó con 5×4 y la escala de J por secuencia crece con el número de estados, así que el
+   criterio favorece estructuralmente a 5×4. La comparación entre mallas es indicativa, no una prueba de optimalidad.
+   Con el acuerdo suave solo, que es adimensional, la conclusión sobre K = 3 no cambia. Con 8×6, K = 2 pasaría por
+   acuerdo (0.980) y cae por J.
+3. K = 3 es propiedad de esta representación y de este tamaño de muestra, no del juego.
+
+El vocabulario oficial no cambia. Se corrigieron las frases que lo presentaban como un hecho del juego: README,
+12_NARRATIVA §1, el título de ADR-v2-19 y el comentario de `TOL_J_POR_SECUENCIA` en `mezcla.py`.

@@ -53,7 +53,8 @@ from .grid import StateSpace
 
 _EPS = 1e-300
 # ADR-v2-35: el umbral de rango de J (50) escalado al tamaño de muestra en que se fijó
-# (461,454 secuencias). Así el criterio no depende de la escala de J, que crece con la malla.
+# (461,454 secuencias). Así no depende del número de secuencias, pero SÍ de la malla: J por secuencia crece con
+# el número de estados, y el 50 se fijó con 5×4. Entre mallas el criterio es indicativo, no neutral (ADR-v2-74).
 TOL_J_POR_SECUENCIA = 50.0 / 461_454
 # Un tipo con menos del 1 % de las secuencias no es una familia: sin este mínimo, un
 # componente VACÍO hace "reproducible" a K+1 de forma trivial (visto en datos sintéticos).

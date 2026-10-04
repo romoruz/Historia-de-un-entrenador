@@ -33,7 +33,8 @@ Para eso el proyecto tiene tres capas, cada una construida sobre la anterior.
 como un recorrido del balón por una malla de 5×4 zonas de la cancha que termina en remate,
 pérdida o salida del balón (una *cadena de Markov absorbente*). Sobre las 461,454 jugadas de
 la liga se ajusta una **mezcla de cadenas**, y el algoritmo encuentra que las jugadas se
-agrupan en tres familias reproducibles:
+agrupan en tres familias reproducibles. Son tres a esta resolución (5×4) y con este tamaño de muestra; con otras
+mallas no salen tres familias estables (04 §4, ADR-v2-74):
 
 | familia | qué es | duración media | termina en remate |
 |---|---|---|---|

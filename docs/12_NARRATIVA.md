@@ -36,7 +36,10 @@ casi todas se parecen a una de tres maneras de atacar [§16]:
 | **Ataque elaborado** | Construir y llegar por las bandas | unas 9 acciones | 8 de cada 10 llegan al último tercio |
 
 Estas tres maneras salieron igual al repetir el cálculo desde puntos de
-partida distintos. No las inventamos: son las que aparecen en los datos.
+partida distintos. No las inventamos, pero tampoco son una ley del fútbol: son
+las que estos datos sostienen de forma estable con la cancha dividida en 5×4
+zonas. Con una cuadrícula más gruesa o más fina, el cálculo no da tres maneras
+estables (04 §4, ADR-v2-74).
 
 **Idea para el jurado:** cada equipo, y cada entrenador, es una *receta*
 distinta con estos tres ingredientes.
