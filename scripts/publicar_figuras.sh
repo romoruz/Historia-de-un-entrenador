@@ -5,7 +5,8 @@
 # Uso (raíz del repo, después de correr todo para el foco):
 #   bash scripts/publicar_figuras.sh                       # foco del config
 #   bash scripts/publicar_figuras.sh "Guillermo Almada"
-#   git add docs/figuras && git commit -m "Figuras de resultados" && git push
+#   make figuras                                         # lo mismo, desde el Makefile
+#   git add docs/figuras && git commit -m "Figuras de resultados"
 set -euo pipefail
 cd "$(dirname "$0")/.."
 # el entorno virtual: se activa solo si no lo está
@@ -58,3 +59,5 @@ copiar reports/fase3/xpts_$S.png                    simulacion/xpts.png
 copiar $H/simulacion/proyeccion.png                 simulacion/proyeccion.png
 for f in $H/simulacion/partido_tipo_*.png; do [ -f "$f" ] && copiar "$f" "simulacion/$(basename "$f")"; done
 echo "listo: $(find "$D" -name '*.png' | wc -l) figuras en $D"
+# ¿cada figura que enlazan README.md y docs/ quedó copiada? ¿cuánto pesa? (falla si falta alguna o pasa de 20 MB)
+python scripts/verificar_figuras.py --max-mb 20

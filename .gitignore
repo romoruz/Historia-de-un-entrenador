@@ -18,6 +18,9 @@ __pycache__/
 _cuarentena/
 reports/*
 !reports/.gitkeep
+# las figuras que enlazan los documentos SÍ se versionan (copia de reports/ con scripts/publicar_figuras.sh)
+!docs/figuras/
+!docs/figuras/**
 .venv/
 .venv-sb/
 data/interim/
