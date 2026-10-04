@@ -3,8 +3,17 @@
 > **Regla de este documento.** Solo se narra lo que sobrevive a **un único control de falsos positivos**
 > (Benjamini-Hochberg, α = 0.05) aplicado a **730 afirmaciones**: hipótesis, cada métrica contra la liga, cada
 > efecto con su intervalo y las pruebas de cada sección (`reports/historia/guillermo_almada/demostracion/`).
-> Sobrevivieron **246**; al propagar el error de estimar las familias (`04_MODELO_MATEMATICO.md` §7.2) se retiran 3,
-> así que se narran **243**. Lo que no sobrevivió se dice como "no demostrado" y no se interpreta.
+> Quedan **243 demostradas**. Así se llega a ese número, sin contar nada dos veces:
+> - **246:** la demostración de la entrega.
+> - **248:** al volver a correr el balón parado con el orden fijo (ADR-v2-70), entran dos.
+> - **245:** con el quinto desenlace, la interrupción a favor (ADR-v2-72), salen tres.
+> - **243:** salen las dos que el error de estimar las familias retira (`04_MODELO_MATEMATICO.md` §7.2) y que la
+>   demostración nueva todavía marcaba. La tercera retirada por ese motivo ya había salido en el paso anterior: no se
+>   resta dos veces.
+>
+> Lo que no sobrevivió se dice como "no demostrado" y no se interpreta.
+> Vocabulario: tres familias con cinco desenlaces: gol, remate, pérdida, fuera e **interrupción a favor**. Una
+> secuencia que termina con una falta recibida o un balón parado propio ya no cuenta como pérdida (04 §1).
 > Datos: Liga MX 2021/22 a 2026/27 (1,789 partidos hasta el 2026-11-23). Almada: 168 partidos
 > (Pachuca 139, Santos Laguna 20, América 9). Con América (9 partidos) nada es demostrable por sí solo.
 > Nada de esto es causa y efecto: describe lo que hizo su equipo, no separa al técnico de sus jugadores.
@@ -19,19 +28,19 @@
 ## 1. Identidad
 
 * **Se le reconoce.** Un clasificador separa sus partidos de los del resto de la liga con AUC **0.882** y de los de
-  Pachuca con otros técnicos con **0.847** (prueba de permutación, p = 0.005, el mínimo posible con 200
-  permutaciones). Entre 45 técnicos-club queda **4.º** (AUC 0.893). Lo que más lo distingue: presión encima del
+  Pachuca con otros técnicos con **0.848** (prueba de permutación, p = 0.005, el mínimo posible con 200
+  permutaciones). Entre 45 técnicos-club queda **4.º** (AUC 0.894). Lo que más lo distingue: presión encima del
   rival, conducciones progresivas, saques de meta en corto (menos), entradas al último tercio.
 * **Su mezcla de familias es distinta (H1 y H2 🟢).** El ataque y la defensa se reparten entre tres maneras de jugar
   (Directa, Circulación estéril, Ataque elaborado). Lo demostrado individualmente:
-  * juega **menos Circulación estéril** (−0.95 pp);
-  * a sus rivales les sale **más Directa** (+1.8 pp) y **menos Ataque elaborado** (−2.0 pp), y sus rivales rematan
+  * juega **menos Circulación estéril** (−0.92 pp; con la advertencia de «Límites» sobre esa familia);
+  * a sus rivales les sale **más Directa** (+1.7 pp) y **menos Ataque elaborado** (−1.9 pp), y sus rivales rematan
     menos en Directa (−3.1 pp) y en Ataque elaborado (−1.7 pp);
-  * xG por secuencia del rival: **−0.0029 en Directa** y **−0.0014 en Ataque elaborado** (H8.1 y H8.3 🟢);
+  * xG por secuencia del rival: **−0.0029 en Directa** y **−0.0015 en Ataque elaborado** (H8.1 y H8.3 🟢);
     en total −0.0017 por secuencia.
 * **Reacciona menos que la liga (H3 y H6 🟢).** Cuando va ganando, baja menos su Ataque elaborado que la liga
-  (+2.2 pp); contra un rival 100 Elo más fuerte, lo mismo (Directa −1.2 pp,
-  Elaborado +2.1 pp, Circulación −0.9 pp). Su receta cambia menos que la de la liga con el marcador y con el rival.
+  (+2.2 pp); contra un rival 100 Elo más fuerte, lo mismo (Directa −1.1 pp,
+  Elaborado +2.0 pp, Circulación −0.9 pp). Su receta cambia menos que la de la liga con el marcador y con el rival.
 * **Viaja.** H1 y H3 se sostienen tanto en Pachuca como en Santos Laguna; H6 en Pachuca y H2 en Santos Laguna. En
   América (9 partidos) no hay nada demostrable.
 
@@ -146,8 +155,9 @@ posición de la defensa sí informa.
 * **Quién puede compararse.** Entre técnicos-club la prevención sí varía de verdad (Q de Cochran: corners p = 7·10⁻⁵,
   τ² = 0.067; centros al área p = 0.009, τ² = 2.9·10⁻⁴). La **supresión no**: sus técnicos no se distinguen (τ² ≈ 2.4·10⁻⁶),
   así que **no se da un puesto en supresión** (lo que decide un corner en contra es si te rematan).
-* **No demostrado:** prevención de Almada (H24: +0.016 [−0.010, +0.043]), xD/xO totales por familia, el término
-  del portero y del alejamiento, y cualquier xD de tiros libres y laterales.
+* **No demostrado:** prevención de Almada (H24: +0.016 [−0.010, +0.043]), xD/xO totales por familia, el
+  alejamiento, el término «portero y definición» (salvo en los tiros libres directos en contra; ver 5.3), y cualquier
+  otro xD de tiros libres y laterales.
 
 ![De dónde salen los goles que Almada evita y genera a balón parado](figuras/balon_parado/descomposicion.png)
 ![Las dos capas del xDefense en todos los técnicos](figuras/balon_parado/mapa_xdefensa.png)
@@ -191,8 +201,15 @@ Reglas que importan: la barrera a 9.15 m (regla 13) y la línea del fuera de lug
 * **En contra:** le sacan más tiros libres al área (2.11 contra 1.82 por partido).
 * **Defiende con menos gente en la línea (4.71 contra 5.28)** y pone una barrera más grande en los directos (3.24
   contra 2.71 jugadores).
+* **Los directos en contra le entran menos de lo esperado** (demostrado, pero frágil). De cada 100 tiros libres
+  directos en contra le hacen 3.45 goles, contra 5.44 esperados. El término «portero y definición» vale +3.80 goles
+  evitados por 100 [+0.46, +6.46] (p = 0.012).
+  - **Por qué es frágil:** son 87 directos; el p sale de un bootstrap de 500 réplicas, con un error de Monte Carlo de
+    ±0.009 cerca de 0.01; y antes de fijar el orden de los partidos daba p = 0.048 (no demostrado; ADR-v2-61, 70).
+  - **Qué no dice:** ese término junta el mérito de su portero con los remates que el rival manda fuera, y no se puede
+    saber cuál de los dos pesa más (04 §16.7).
 * **No demostrado:** altura de la línea (14.8 m contra 14.2), fuera de lugar provocado, arco libre que deja la barrera,
-  goles y xG de tiros libres, y todo xD/xO de tiros libres (incluido el directo).
+  goles y xG de tiros libres, y el resto del xD/xO de tiros libres.
 
 ![Tiros libres a favor, en contra y la liga](figuras/balon_parado/tiros_libres.png)
 ![Qué tan adelantada pone la línea](figuras/balon_parado/linea_tiros_libres.png)
@@ -219,19 +236,19 @@ Reglas que importan: la barrera a 9.15 m (regla 13) y la línea del fuera de lug
 
 ## 6. Simulación y América
 
-* **Puntos.** 280 puntos en 168 partidos contra 266.0 esperados por sus ocasiones (+14.0, p = 0.33) y 260.0 por su
-  estilo: **no se demostró** que haya rendido más de lo que merecía. El modelo de partido sí predice (Brier 0.627
+* **Puntos.** 280 puntos en 168 partidos contra 266.0 esperados por sus ocasiones (+14.0, p = 0.33) y 260.1 por su
+  estilo: **no se demostró** que haya rendido más de lo que merecía. El modelo de partido sí predice (Brier 0.628
   contra 0.660 de las frecuencias).
 * **Proyección en el América** (llegó el 2026-07-19). Plantel que encontró: ataque 1.11 y defensa 0.78 (1 =
-  promedio). Su efecto de llegada (1 llegada previa, contraída hacia 70 de la liga): ataque +1 %, defensa −10 % de xG
-  concedido. Con él: 1.48–0.97 xG por partido, **29.6 puntos en 17 partidos (intervalo conforme del 80 %: 21–38)**,
-  posición media 5.0, liguilla directa 73 %; solo el plantel: 29.1 (21–37), 70 %. En sus 9 partidos reales: proyectado
-  15.7 (conforme 11–20), real **20 puntos**.
+  promedio). Su efecto de llegada (1 llegada previa, contraída hacia 70 de la liga): ataque +1 %, defensa −8 % de xG
+  concedido. Con él: 1.47–0.98 xG por partido, **29.5 puntos en 17 partidos (intervalo conforme del 80 %: 21–38)**,
+  posición media 5.1, liguilla directa 72 %; solo el plantel: 29.2 (21–37), 70 %. En sus 9 partidos reales: proyectado
+  15.6 (conforme 11–20), real **20 puntos**.
 * **¿Qué tanto creerle?** Sobre las 70 llegadas de la liga la proyección **se asocia con lo real** (correlación 0.62,
-  p = 1.4·10⁻⁸, demostrado) pero **no se demostró que le gane a la inercia**: error 0.30 contra 0.31 puntos por partido
-  (Diebold-Mariano p = 0.32). El intervalo del simulador cubría 67 % (no 80 %); por eso se usa el conforme, que cubre
+  p = 1·10⁻⁸, demostrado) pero **no se demostró que le gane a la inercia**: error 0.30 contra 0.31 puntos por partido
+  (Diebold-Mariano p = 0.27). El intervalo del simulador cubría 66 % (no 80 %); por eso se usa el conforme, que cubre
   80 % por construcción. Se reporta como escenario, no como resultado: la diferencia entre "con Almada" y "solo el
-  plantel" (0.5 puntos) está dentro de cualquier intervalo.
+  plantel" (0.3 puntos) está dentro de cualquier intervalo.
 
 ![Proyección de Almada en el América](figuras/simulacion/proyeccion.png)
 
@@ -246,13 +263,18 @@ Nada de esto se interpreta: sin evidencia suficiente, no se afirma ni que exista
 * Que sus cambios muevan el xG o el estilo (H23), el momento de sus cambios (H13) y su reacción al marcador desde la
   banca (H14).
 * Prevención de corners de Almada (H24) y cualquier ventaja de la receta Arsenal; altura de la línea de fuera de
-  lugar; xD/xO de tiros libres y laterales (salvo la supresión).
+  lugar; xD/xO de tiros libres y laterales (salvo la supresión y el directo en contra).
 * Que la proyección mejore la inercia; si rindió más de lo que merecía.
 * **No demostrables por diseño:** rotación del once (H17) y estabilidad del once (calendario incompleto).
-* **Retiradas al propagar el error de estimar las familias** (demostradas en la versión anterior; ver
-  `04_MODELO_MATEMATICO.md` §7.2): que cuando va ganando suba menos su Directa que la liga; que remate más por
-  secuencia de Circulación estéril; que sus rivales rematen menos por secuencia de Circulación estéril. Las dos
-  últimas son de la familia peor separada por el modelo.
+* **Retiradas al propagar el error de estimar las familias** (`04_MODELO_MATEMATICO.md` §7.2):
+  - que cuando va ganando suba menos su Directa que la liga;
+  - que remate más por secuencia de Circulación estéril (también cae por sí sola con el quinto desenlace);
+  - que sus rivales rematen menos por secuencia de Circulación estéril.
+
+  Las dos últimas son de la familia peor separada por el modelo.
+* **Dejaron de estar demostradas con el quinto desenlace** (ADR-v2-72): además de la anterior, dos efectos de la
+  comparación por club (fase 3): el cambio de su Circulación estéril cuando va ganando y el de su Directa cuando va
+  perdiendo.
 
 ## Límites
 

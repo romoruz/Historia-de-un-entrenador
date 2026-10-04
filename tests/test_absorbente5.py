@@ -77,3 +77,14 @@ def test_xg_por_secuencia_identico_antes_y_despues():
     t = resumen_tipos(m, d5, responsabilidades(m, d5))[0]
     assert abs(t["xG_por_posesion_empirico"] - xg5.mean()) < 1e-12
     assert t["valor_por_posesion_modelo"] > t["xG_por_posesion_modelo"] and "P_interrupcion_favor" in t
+
+
+def test_sin_puesto_cuando_tau2_es_cero():
+    """Con τ² = 0 todos los contraídos empatan y el puesto es arbitrario: se imprime un guion, no un número."""
+    from dtcoach.cli_historia import _md_etapa
+    E = pl.DataFrame({"coach": ["A", "B", "C"], "team": ["x", "y", "z"], "theta": [0.1, 0.2, 0.3], "var": [1.0] * 3,
+                      "contraido": [0.2] * 3, "confiabilidad": [0.0] * 3, "mu": [0.2] * 3, "tau2": [0.0] * 3})
+    txt = "\n".join(_md_etapa(E, "B", "t", "u"))
+    assert "puesto: —" in txt and "de 3" not in txt
+    txt = "\n".join(_md_etapa(E.with_columns(pl.lit(0.5).alias("tau2")), "B", "t", "u"))
+    assert "puesto 2 de 3" in txt

@@ -553,7 +553,8 @@ def xdefensa_etapas(E, foco: str, path: Path, titulo: str, etiqueta: str) -> Pat
     ax.set_ylim(-0.8, n - 0.2)
     ax.set_xlabel(etiqueta)
     puestos = [k + 1 for k in range(n) if es[k]]
-    que = f"{foco}: puesto {', '.join(map(str, puestos))} de {n} (1 = el mejor)" if puestos else ""
+    que = (f"{foco}: puesto {', '.join(map(str, puestos))} de {n} (1 = el mejor)" if puestos and tau2 > 0
+           else f"{foco}: sin puesto (τ² = 0)" if puestos else "")
     ruido = ("τ² ≈ 0: no hay diferencias reales entre equipos; todos se contraen a la media (línea)."
              if tau2 < 1e-5 else f"Variación real entre equipos τ² = {tau2:.1e}.")
     _titulo(ax, f"{titulo} · {que}",

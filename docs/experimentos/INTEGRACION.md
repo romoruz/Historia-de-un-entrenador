@@ -1,6 +1,6 @@
 # Plan de integración de lo que se adopta de `exp/mejoras-6`
 
-**Estado (ADR-v2-69 a 72):** el código y los documentos de los pasos 1 a 4 están integrados en `exp/mejoras-6`. Lo que falta es correr con los datos reales (`scripts/integrar.sh`) y reescribir los resultados con esa salida. Cada paso dice qué cambia, con qué comandos y qué hay que
+**Estado (ADR-v2-69 a 73): INTEGRADO Y CORRIDO.** Los pasos 1 a 4 se corrieron con los datos reales el 2026-10-03 y pasaron todas las compuertas: xG idéntico, criterio del §4, y acuerdo con cuatro absorbentes 0.9815, al filo del 0.98. `RESULTADOS_ALMADA.md` está reescrito: **243 demostradas** (el conteo, en ADR-v2-73). Cada paso dice qué cambia, con qué comandos y qué hay que
 volver a correr. Los pasos van del menos invasivo al más invasivo: si un paso falla su verificación, los siguientes
 esperan. Todos los comandos son desde la raíz del repo, con el venv activo.
 

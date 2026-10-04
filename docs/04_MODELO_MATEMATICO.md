@@ -308,7 +308,16 @@ mismo criterio. El experimento F con esos datos, variante (ii), dio: acuerdo sua
 integración es la de la variante (ii) del experimento. La corrida de integración debe repetir esos números
 (`dtcoach reproducibilidad`, `dtcoach bondad`). Además, se compara **contra un ajuste de cuatro absorbentes sobre los
 mismos datos de hoy**, nunca contra el archivo publicado: así la diferencia es del absorbente y no de los 22 partidos
-nuevos (`scripts/experimentos/verificar_absorbente5.py`). Los números de esa corrida se registran en ADR-v2-72.
+nuevos (`scripts/experimentos/verificar_absorbente5.py`).
+
+**Resultado con los datos reales (ADR-v2-72).**
+- **Criterio del §4:** acuerdo suave 0.9979, rango de $J$ $5.14\cdot10^{-6}$ por secuencia, $\pi$ mín 0.291, KS 0.0049 y
+  $E[T]$ 6.502 contra 6.509. **Cumple**, con los mismos valores que el experimento.
+- **Contra cuatro absorbentes sobre los mismos datos:** acuerdo suave 0.981. Las familias son las mismas:
+  $\pi$ 0.354 / 0.263 / 0.383 contra 0.357 / 0.262 / 0.381, y $E[T]$ y $P(\text{remate})$ iguales a la segunda
+  cifra.
+- **Qué cambia:** la PÉRDIDA de cada familia baja entre 0.17 y 0.20, y esa masa pasa a INTERRUPCIÓN. PÉRDIDA más
+  INTERRUPCIÓN reproduce la PÉRDIDA de antes a la tercera cifra.
 
 *Código:* `mezcla.py` (`ajustar`, `_m_step`, `reproducibilidad`, `bondad_largo`).
 
@@ -475,9 +484,9 @@ se repite** con cinco absorbentes (serían unas 8 h). Las tres afirmaciones reti
 demostración regenerada las vuelva a marcar (ADR-v2-69). No repetirlo es razonable por tres razones:
 1. **Las responsabilidades apenas se mueven.** El quinto absorbente solo cambia el destino de la última transición de
    una parte de las secuencias que terminaban en PÉRDIDA. Las familias se reconocen igual: lo mide el acuerdo suave
-   contra cuatro absorbentes sobre los mismos datos (`verificar_absorbente5.py`; en la liga sintética, 0.9965; en el
-   experimento, 0.981–0.983 contra el archivo publicado, que además mezcla los datos nuevos). El 0.998 es otra cosa: el
-   acuerdo **entre semillas** del vocabulario nuevo, su reproducibilidad.
+   contra cuatro absorbentes sobre los mismos datos: con los datos reales, **0.981481** (duro 0.9831;
+   `verificar_absorbente5.py`). El 0.998 es otra cosa: el acuerdo **entre semillas** del vocabulario nuevo, es decir,
+   su reproducibilidad.
 2. **El mecanismo de la inflación no depende del absorbente.** La inflación de B viene de que la Circulación estéril
    está mal separada (impureza 0.48 contra 0.37: secuencias que reparten su peso entre familias). Esa ambigüedad está
    en los transitorios, en *cómo* circula el balón, que la Def. 1.5 no toca. Sí puede cambiar un poco el destino final
@@ -485,9 +494,31 @@ demostración regenerada las vuelva a marcar (ADR-v2-69). No repetirlo es razona
 3. **Lo que sí podría cambiar va en la dirección que no importa aquí.** B ensancha IC; nunca agrega afirmaciones.
    Repetirlo podría retirar alguna más o devolver alguna de las tres, pero no cambia la regla.
 
-**Es un supuesto declarado, no implícito.** Si al regenerar, el acuerdo con cuatro absorbentes sale < 0.98 o la
-impureza de la Circulación estéril cambia más de 0.02, el argumento 1 o el 2 no se sostiene y B se repite antes de
-narrar.
+**Es un supuesto declarado, no implícito.** La regla, fijada antes de correr, era repetir B antes de narrar si el
+acuerdo con cuatro absorbentes salía < 0.98 o la impureza de alguna familia cambiaba más de 0.02.
+
+**Resultado con los datos reales: pasó, pero al filo.** El acuerdo fue 0.981481: **0.0015 por encima del umbral**,
+no un margen cómodo. La impureza sí quedó muy estable: 0.370 / 0.481 / 0.375 contra 0.368 / 0.480 / 0.374 (máx.
+diferencia 0.0027). Las responsabilidades se mueven poco y la ambigüedad de las familias es la misma. Pero un umbral
+superado por 0.0015 es una decisión al límite: si se quiere cerrar del todo, B se repite con el vocabulario de cinco
+absorbentes.
+
+**Una afirmación retirada por dos vías independientes.** «Almada remata más por secuencia de Circulación estéril»
+(+0.32 pp) cae por dos caminos que no comparten nada:
+- **Por el error de la etapa 1** (B, con cuatro absorbentes): su p pasa de 0.0175 a 0.625.
+- **Por el quinto absorbente**, sin B: su p pasa de 0.0175 a 0.0185 y su q, de 0.048 a 0.050.
+
+Uno ensancha el intervalo y el otro mueve apenas el reparto de las secuencias entre familias, y los dos bastan para
+tumbarla. Es la señal más clara de que era frágil. Es de la familia peor separada.
+
+**Lo que B no cubrió.** B solo recalculó los IC de la fase 2 (H1–H8, toda la muestra del foco). Las versiones por club
+(fase 3) de dos de las afirmaciones retiradas siguen marcadas en la demostración: la P(remate) del rival en
+Circulación estéril, y el cambio de su Directa ganando contra empatando. Arrastran el mismo error de la etapa 1, pero
+no se midió. Se dejan fuera del texto y se cuentan como demostradas solo porque la regla de §7.2 no las alcanza.
+
+**Al revés: la P(remate) propia en Directa** (+1.04 pp) pasó a demostrada en la corrida del paso 2. Su p no cambió
+(0.0185); su q cruzó de 0.0500 a 0.0498 porque el BH es global y el balón parado cambió otros p. Es la frágil que se
+señala arriba: su IC «doble» toca el 0. Sigue sin narrarse.
 
 *Código:* `contexto.py`, `pesos.py`, `hipotesis.py`, `perfil.py`.
 
@@ -813,7 +844,9 @@ reanudación.
 
 Ningún percentil de uso de las familias del foco se movió más de 5 puntos.
 
-**Efecto sobre Almada (experimento; se confirma al regenerar).**
+**Efecto sobre Almada.** Estos números son del experimento. La integración usa la misma regla de clasificación y la
+misma mezcla (el EM no usa $c$), así que no cambian; la historia regenerada no los recalcula. Son descriptivos, sin
+prueba formal, y por eso no están en `RESULTADOS_ALMADA.md`.
 - El percentil de PÉRDIDA (la fracción de técnicos-club que pierde lo mismo o menos que él) baja de 30 a 14: una vez
   separadas las interrupciones a favor, pierde el balón menos que antes respecto de los demás.
 - Con Pachuca, el 18.6 % de sus secuencias termina en INTERRUPCIÓN, percentil 77 entre técnicos-club.

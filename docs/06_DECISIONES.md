@@ -771,6 +771,16 @@ Monte Carlo y se reescribe en `RESULTADOS_ALMADA.md` §5 según el veredicto nue
 de balón parado, el arreglo tocó más de lo previsto: se PARA y se revisa. La reescritura de §5 se hace con la salida
 real, no antes.
 
+**Resultado (datos reales, 2026-10-03).** Se movieron 122 p, todos de balón parado (máx. |Δp| 0.2). Ningún p de otra
+sección cambió. Demostradas: 246 → 248. Cambian de veredicto dos:
+- `xD portero y definición en tl_directo (en contra)`: p 0.048 → 0.012. Cambió por el arreglo. Se reescribe en §5
+  como demostrado pero frágil (87 saques, bootstrap de 500, error de Monte Carlo ±0.009).
+- `ataque · P(remate) · Directa` (fase 2): **el p es idéntico** (0.01849975 en las dos corridas). Solo cambió su q,
+  de 0.050018 a 0.049833. No viola la regla de «solo se mueve balón parado»: es el acoplamiento del BH global. q
+  depende del rango del p entre los 730, y al bajar p de balón parado por debajo de él, su rango cambia. La regla se
+  precisa así: **solo pueden cambiar los p de balón parado**; un q de otra sección puede cruzar el umbral sin que su p
+  cambie, y eso no es un error.
+
 ## ADR-v2-71 — Integración, paso 3: A como limitación declarada, D documentada sin narrar, E rechazada
 Solo documentos. No cambia ningún número publicado.
 - **A** (ADR-v2-52 y 55): el supuesto «el técnico solo mueve π_k» pasa de supuesto implícito a **limitación declarada**,
@@ -820,4 +830,37 @@ transiciones, la mezcla y los reportes de cuatro absorbentes en `data/processed/
 porque la mezcla no depende de cuántos haya. Se agregan `test_quinto_absorbente_al_final`,
 `test_integrar_solo_cambia_el_destino_final` y `test_xg_por_secuencia_identico_antes_y_despues`. `pytest -q`: 174.
 
-**Datos reales (se completa al correr).** Acuerdo con cuatro absorbentes: —. Criterio del §4: —. KS: —.
+**Datos reales (2026-10-03, `bash scripts/integrar.sh paso4`).**
+- **Fase 0.** 83,495 de 388,974 secuencias que terminaban en PÉRDIDA pasan a INTERRUPCIÓN (21.5 %): laterales 37,873,
+  tiros libres 33,361, córners 11,290, penales 574 y faltas 397. Valor medio de la reanudación: 0.0142.
+- **xG por secuencia idéntico bit a bit.** 467,327 secuencias y 3,041,691 transiciones emparejadas; diferencia máxima
+  0.0. Los 83,495 destinos cambiados son todos PÉRDIDA → INTERRUPCIÓN y todos en la última transición.
+- **Criterio del §4 con 467,327 secuencias.** Acuerdo suave 0.9979, rango de J 5.14e-6 por secuencia, π mín 0.291,
+  KS 0.0049 y E[T] 6.502 contra 6.509. **Cumple.**
+- **Mezcla nueva.** π 0.354 / 0.263 / 0.383; E[T] 3.47 / 6.70 / 9.17; P(remate) 0.140 / 0.026 / 0.122. Uso de
+  Almada: 35.6 / 25.4 / 38.9 (antes, 35.7 / 26.1 / 39.3).
+- **Cinco contra cuatro absorbentes, mismos datos.** Acuerdo suave **0.981481** (duro 0.9831); impureza máx.
+  diferencia 0.0027. Pasa la condición para no repetir B (≥ 0.98), **pero al filo: por 0.0015**. Se declara así en 04
+  §7.2.
+- **Demostración: 248 → 245.** Caen tres, las tres de demostrado a no demostrado: `ataque · P(remate) · Circulación
+  estéril` (fase 2) y, en fase 3, `ganando vs empatando · Circulación estéril` y `perdiendo vs empatando · Directa`.
+  No cambia de veredicto ninguna afirmación de identidad, ofensiva, defensa, jugadores, balón parado ni simulación.
+
+## ADR-v2-73 — Cierre de la integración: el conteo de lo demostrado, y sin puesto cuando τ² = 0
+**El conteo, reconstruible paso a paso.** `RESULTADOS_ALMADA.md` dice **243**:
+1. **246:** la demostración de la entrega.
+2. **248:** el paso 2 (ADR-v2-70) agrega dos: el directo en contra, por el arreglo, y la P(remate) propia en Directa,
+   por el acoplamiento del BH.
+3. **245:** el paso 4 (ADR-v2-72) quita tres.
+4. **243:** la regla de §7.2 (ADR-v2-69) retira dos afirmaciones que la demostración nueva todavía marca: «ganando vs
+   empatando · Directa» y «defensa · P(remate) · Circulación estéril». La tercera que retira, «ataque · P(remate) ·
+   Circulación estéril», ya no está entre las 245: no se resta dos veces.
+
+Las versiones por club de dos de las retiradas siguen contadas, porque B no se corrió por club. Se dejan fuera del
+texto (04 §7.2).
+
+**Sin puesto cuando τ² = 0.** Con τ² = 0, todos los técnicos se contraen a la misma media y el orden entre ellos es
+arbitrario. En dos corridas del paso 2, «corners a favor · goles de más» salió 41/45 y 16/45, y «tiros libres en contra
+· goles evitados», 4/45 y 34/45. El reporte ya advertía que ese puesto no significa nada, pero imprimir el número
+invita a citarlo. Ahora `_md_etapa` imprime «puesto: —» y la figura dice «sin puesto (τ² = 0)». Prueba:
+`test_sin_puesto_cuando_tau2_es_cero`. Es un cambio de presentación: no mueve ningún p ni ningún veredicto.

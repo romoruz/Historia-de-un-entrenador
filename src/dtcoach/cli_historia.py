@@ -765,8 +765,11 @@ def _md_etapa(E, foco: str, tit: str, n_etq: str) -> list[str]:
          f"τ² = {tau2:.2e}; τ² ≈ 0 = no se detecta variación real entre equipos):", ""]
     if tau2 <= 0:
         L += ["*τ² = 0: todos se contraen a la media y el puesto no significa nada.*", ""]
+    # con τ² = 0 todos los contraídos empatan y el orden entre ellos es arbitrario (cambiaba de una corrida a otra):
+    # no se imprime un número que invita a citarlo
     L += [f"- {f['team']}: crudo {f['theta']:+.4f} ± {1.96 * np.sqrt(f['var']):.4f}, contraído {f['contraido']:+.4f} "
-          f"{n_etq} (confiabilidad {f['confiabilidad']:.2f}; puesto {f['puesto']} de {E.height}, 1 = el mejor)"
+          f"{n_etq} (confiabilidad {f['confiabilidad']:.2f}; "
+          + (f"puesto {f['puesto']} de {E.height}, 1 = el mejor)" if tau2 > 0 else "puesto: — , sin variación real)")
           for f in fila]
     return L + [""]
 

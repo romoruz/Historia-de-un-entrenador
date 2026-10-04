@@ -2,8 +2,8 @@
 
 > **Estado (ADR-v2-69 a 72):** B (corrección del texto) y F (variante (ii)) quedaron **integradas** al modelo. A y D
 > quedaron como documentación, E se rechazó y C sigue como exploratoria. Lo que sigue es el registro de los
-> experimentos tal como se corrieron. Falta correr con los datos reales: `scripts/integrar.sh` y
-> `docs/experimentos/INTEGRACION.md`.
+> experimentos tal como se corrieron. La integración se corrió con los datos reales el 2026-10-03
+> (`docs/experimentos/INTEGRACION.md`, ADR-v2-72 y 73).
 
 Nada de esto cambia la entrega: el vocabulario oficial (5×4, K = 3), `config/default.yaml` y
 `reports/{mezcla,fase1,fase2,fase3,historia}` siguen siendo la línea base. Todos los números son de las corridas
