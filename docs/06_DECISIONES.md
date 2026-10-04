@@ -864,3 +864,28 @@ arbitrario. En dos corridas del paso 2, «corners a favor · goles de más» sal
 · goles evitados», 4/45 y 34/45. El reporte ya advertía que ese puesto no significa nada, pero imprimir el número
 invita a citarlo. Ahora `_md_etapa` imprime «puesto: —» y la figura dice «sin puesto (τ² = 0)». Prueba:
 `test_sin_puesto_cuando_tau2_es_cero`. Es un cambio de presentación: no mueve ningún p ni ningún veredicto.
+
+## ADR-v2-74 — EXPERIMENTO (diagnóstico, no se integra): ¿la reproducibilidad de K = 3 es de la malla 5×4 o del juego?
+**Pregunta.** K = 3 se eligió por ser el mayor K reproducible con la malla 5×4 (ADR-v2-19 y 35). Si con mallas más
+finas fuera reproducible otro K, la estabilidad de K = 3 sería una propiedad de la malla y no del juego.
+
+**Diseño.** `scripts/experimentos/malla_k.py`.
+- **Mallas:** 4×3, 5×4 (la oficial), 6×5 y 8×6. Cada una con el pipeline oficial: `build_transitions` más el quinto
+  absorbente, con `config/default.yaml`.
+- **K:** 2, 3, 4 y 5, cada uno desde las semillas 1, 2 y 3.
+- **Criterio:** el del §4, sin cambios (acuerdo suave ≥ 0.95, rango de J ≤ 1.08e-4 por secuencia, π mín ≥ 1 %), más KS
+  y E[T] del mejor ajuste.
+- **Ejecución:** 48 ajustes en 3 procesos, con una pasada de humo con `--muestra` antes de la completa.
+- **Salidas:** las transiciones van a `data/processed/experimentos/malla_k/` y los reportes a
+  `reports/experimentos/malla_k/`. El vocabulario oficial no se toca, salga lo que salga.
+
+**Antecedente.** En la entrega (cuatro absorbentes, 461,454 secuencias), 8×5 no tuvo K reproducible, 6×4 tuvo K = 2 y
+5×4, K = 3. Si se repite, la lectura honesta es: K = 3 es el mayor K reproducible a la resolución 5×4, y las mallas
+más finas sostienen menos familias. Eso no prueba que el juego tenga tres familias, sino que **los datos solo
+sostienen tres a esta resolución**.
+
+**Comprobación.** Las transiciones 5×4 del experimento son las oficiales: mismas filas, mismo origen y mismo destino
+(verificado en la liga sintética). `valor_reanudacion` difiere en ≤ 3e-17 entre dos construcciones, por el orden de
+suma de polars. No afecta a la mezcla (el EM no usa c) y queda como observación.
+
+**Resultado:** se completa con la corrida en los datos reales.
