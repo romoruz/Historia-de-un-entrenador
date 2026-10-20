@@ -301,7 +301,7 @@ cifras no son citables.
 
 **¿Cómo le iría al América con otro técnico?** Una app que simula el torneo del América con el estilo de cada técnico real (o de uno inventado) y lo compara con el América de hoy. Se construyó con las definiciones de este estudio (el vocabulario de jugadas, PPDA, la recuperación en 10 s y los cuadros 360).
 
-- 🎮 **La app:** TU-LINK
+- 🎮 **La app:** https://TU-LINK-REAL.streamlit.app
 - 📦 **El código y las pruebas:** https://github.com/romoruz/historia-de-un-entrenador-simulador (rama `sim/v2` = lo que corre la app)
 - 🔍 **¿Le podemos creer?** Ocho pruebas en la pestaña de validación de la app; el detalle técnico está en [`VALIDACION.md`](https://github.com/romoruz/historia-de-un-entrenador-simulador/blob/sim/v2/simulador/reportes/validacion/VALIDACION.md).
 
