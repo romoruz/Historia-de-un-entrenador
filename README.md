@@ -15,6 +15,7 @@ se hace **contra la liga completa** y contra los otros 44 técnicos, no contra u
 | La matemática del modelo, con proposiciones y demostraciones | [`docs/04_MODELO_MATEMATICO.md`](docs/04_MODELO_MATEMATICO.md) |
 | Qué hace cada archivo y cómo fluyen los datos | [`docs/01_ARQUITECTURA.md`](docs/01_ARQUITECTURA.md) |
 | Las hipótesis, escritas **antes** de ver los resultados | [`docs/11_HIPOTESIS.md`](docs/11_HIPOTESIS.md) |
+| Un simulador para probar técnicos (la app y sus pruebas) | [Sección 9. Simulador](#9-simulador) |
 
 ---
 
@@ -295,3 +296,17 @@ cifras no son citables.
   - eficiencia medida con xG, OBV y tasa de remate;
   - bootstrap de score donde hay pocos partidos;
   - control de falsos positivos sobre las 52 hipótesis juntas (ninguna etiqueta cambia).
+
+## 9. Simulador
+
+**¿Cómo le iría al América con otro técnico?** Una app que simula el torneo del América con el estilo de cada técnico real (o de uno inventado) y lo compara con el América de hoy. Se construyó con las definiciones de este estudio (el vocabulario de jugadas, PPDA, la recuperación en 10 s y los cuadros 360).
+
+- 🎮 **La app:** TU-LINK
+- 📦 **El código y las pruebas:** https://github.com/romoruz/historia-de-un-entrenador-simulador (rama `sim/v2` = lo que corre la app)
+- 🔍 **¿Le podemos creer?** Ocho pruebas en la pestaña de validación de la app; el detalle técnico está en [`VALIDACION.md`](https://github.com/romoruz/historia-de-un-entrenador-simulador/blob/sim/v2/simulador/reportes/validacion/VALIDACION.md).
+
+Tres hallazgos, en lenguaje simple:
+
+1. **Técnico, jugadores o suerte.** En un torneo de 17 jornadas, lo típico que varían los puntos de un equipo es de unos **5.3** por pura suerte de los partidos, de unos **5.8** (rango probable 4.5 a 6.3) por la fuerza de sus jugadores (medida directo de las tablas reales) y de unos **0.6** por el técnico (lo que se separan, entre 37 técnicos reales, del estilo neutro con el mismo plantel). Casi 46 % de lo que varían los puntos reales es suerte. El simulador acorta las diferencias entre equipos (los puntos reales se separan 1.52 veces más que los del simulador, rango probable 1.23 a 1.70); está anotado como pendiente de recalibrar.
+2. **Almada, a nivel liga.** A nivel liga (37 técnicos con al menos 30 partidos): presión (PPDA: pases del rival por acción defensiva; menos es más presión): 2.51 en promedio (lo típico que varía entre técnicos: 0.29); Almada 2.17, por encima del 93 % de los técnicos en esa dirección; recuperación del balón en 10 s: 0.219 en promedio (lo típico que varía entre técnicos: 0.017); Almada 0.230, por encima del 72 % de los técnicos en esa dirección; remates de pelota parada a favor por partido: 4.26 en promedio (lo típico que varía entre técnicos: 0.48); Almada 4.94, por encima del 88 % de los técnicos en esa dirección; remates de pelota parada en contra por partido: 4.26 en promedio (lo típico que varía entre técnicos: 0.65); Almada 3.73, por encima del 80 % de los técnicos en esa dirección. Lo que el simulador llama «presión» frente al PPDA medido en los partidos (correlación de Spearman entre técnicos): int_co[Directa]: ρ = -0.28, rango probable -0.59 a +0.08 (37 técnicos); u_co[Directa]: ρ = +0.60, rango probable +0.34 a +0.77 (37 técnicos). Decisión: la perilla se llama «¿Qué tanto presiona?» (relación clara).
+3. **Describe estilos, no predice.** En las pruebas con cambios de técnico reales, el simulador no acierta mejor que suponer que todo sigue igual; sirve para explorar qué jugadas haría el equipo y cuántos puntos suelen dar, no para pronosticar. No ve lesiones, fichajes ni vestidor.
